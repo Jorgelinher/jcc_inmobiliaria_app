@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15 # Puedes elegir una versión específica de PostgreSQL, ej: postgres:13
+    container_name: jcc_postgres_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/ # Persiste los datos de la BD
+    environment:
+      - POSTGRES_USER=jorge
+      - POSTGRES_PASSWORD=jorge123
+      - POSTGRES_DB=jccinmobiliaria_db
+    ports:
+      - "5432:5432" # Mapea el puerto de la BD del contenedor al puerto de tu máquina local
+    restart: unless-stopped
+
+volumes:
+  postgres_data: # Define el volumen para persistencia

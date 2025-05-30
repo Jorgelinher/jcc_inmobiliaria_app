@@ -1,0 +1,188 @@
+/* src/components/ui/LoteSelector.module.css */
+
+/* .modalOverlay se toma de FormStyles.module.css */
+
+.loteSelectorModalContent {
+    background-color: var(--color-fondo-contenedor, #FFFFFF);
+    padding: var(--spacing-lg, 24px);
+    border-radius: var(--border-radius-lg, 8px);
+    box-shadow: var(--sombra-modal);
+    width: 90%;
+    max-width: 850px; /* Ancho aumentado para tabla y filtros */
+    max-height: 90vh;
+    overflow: hidden; 
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--color-borde-general, #E9ECEF);
+  }
+  
+  .loteSelectorModalContent h2 {
+    font-family: var(--fuente-encabezados, 'Montserrat', sans-serif);
+    font-size: var(--font-size-h2, 28px);
+    color: var(--color-primario, #2A4A6B);
+    text-align: center;
+    margin-top: 0;
+    margin-bottom: var(--spacing-md, 16px);
+    padding-bottom: var(--spacing-md, 16px);
+    border-bottom: 1px solid var(--color-borde-general, #E9ECEF);
+    font-weight: 700;
+  }
+  
+  .filterControls {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md, 16px);
+    margin-bottom: var(--spacing-md, 16px);
+    padding: var(--spacing-md, 16px);
+    background-color: var(--color-fondo-app, #F8F9FA); 
+    border: 1px solid var(--color-borde-general, #E9ECEF);
+    border-radius: var(--border-radius-md, 6px);
+  }
+  
+  .filterRow {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--spacing-sm, 10px); /* Reducido para más inputs en una fila */
+  }
+  
+  /* Estilos para inputs y selects dentro de .filterControls */
+  /* Se aplicarán desde FormStyles.module.css si las clases coinciden */
+  .filterControls input[type="text"],
+  .filterControls input[type="number"],
+  .filterControls select {
+    font-family: var(--fuente-principal, 'Inter', sans-serif);
+    font-size: var(--font-size-sm, 14px);
+    height: 38px;
+    padding: 8px 10px;
+    background-color: var(--color-fondo-input, #FFFFFF);
+    border: 1px solid var(--color-borde-input, #CED4DA);
+    border-radius: var(--border-radius-sm, 4px); /* Más sutil */
+    color: var(--color-texto-principal, #343A40);
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .filterControls input::placeholder {
+    color: var(--color-texto-placeholders, #6C757D);
+  }
+  .filterControls select { /* Para la flecha del select */
+    padding-right: 30px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23343A40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 12px;
+    appearance: none; -webkit-appearance: none; -moz-appearance: none;
+  }
+  .filterControls select option {
+      background-color: var(--color-fondo-contenedor);
+      color: var(--color-texto-principal);
+  }
+  
+  
+  .filterActions {
+    display: flex;
+    gap: var(--spacing-sm, 10px);
+    margin-top: var(--spacing-sm, 8px);
+  }
+  
+  /* Estilos de botones de filtro y acciones se tomarán de FormStyles.module.css */
+  /* Ej. .formStyles.button .formStyles.buttonPrimary y .formStyles.buttonSecondary */
+  
+  .resultsContainer {
+    flex-grow: 1;
+    overflow-y: auto;
+    border: 1px solid var(--color-borde-general, #E9ECEF);
+    border-radius: var(--border-radius-md, 6px);
+    margin-top: var(--spacing-sm, 8px);
+    background-color: var(--color-fondo-contenedor, #FFFFFF);
+  }
+  
+  .lotesTable {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  
+  .lotesTable th,
+  .lotesTable td {
+    padding: var(--spacing-sm, 10px) var(--spacing-md, 12px);
+    text-align: left;
+    border-bottom: 1px solid var(--color-borde-general, #E9ECEF);
+    font-family: var(--fuente-principal, 'Inter', sans-serif);
+    font-size: var(--font-size-sm, 14px);
+  }
+  
+  .lotesTable th {
+    background-color: var(--color-primario, #2A4A6B);
+    color: var(--color-primario-texto, #FFFFFF);
+    font-weight: 600; /* Inter SemiBold o Montserrat Medium */
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    white-space: nowrap;
+  }
+  
+  .lotesTable td {
+    color: var(--color-texto-principal, #343A40); /* Texto principal para datos */
+  }
+  
+  .lotesTable tbody tr {
+    cursor: pointer;
+    transition: background-color 0.15s ease-in-out;
+  }
+  
+  .lotesTable tbody tr:nth-child(odd) {
+    background-color: var(--color-fondo-contenedor, #FFFFFF);
+  }
+  .lotesTable tbody tr:nth-child(even) {
+    background-color: var(--color-fondo-alternating-row, #F1F3F5);
+  }
+  
+  /* Hover en Fila de Lote */
+  .lotesTable tbody tr:hover {
+    background-color: #ddebf7; /* Azul muy pálido, o usa una variable como --color-hover-fila */
+  }
+  
+  /* Lote Seleccionado EN ESTE MODAL (antes de confirmar) */
+  .lotesTable tbody tr.selectedRow {
+    background-color: var(--color-secundario, #4DB0B5) !important; /* Turquesa suave */
+    color: var(--color-secundario-texto, #FFFFFF) !important;
+  }
+  .lotesTable tbody tr.selectedRow td,
+  .lotesTable tbody tr.selectedRow td span {
+    color: var(--color-secundario-texto, #FFFFFF) !important;
+  }
+  
+  /* Lote que YA ESTÁ seleccionado en el formulario padre */
+  .lotesTable tbody tr.alreadySelectedRow {
+    background-color: #E3F2FD !important; /* Un azul muy muy pálido */
+    color: var(--color-primario) !important; 
+    /* font-style: italic; Opcional */
+  }
+  .lotesTable tbody tr.alreadySelectedRow:hover {
+      background-color: #BBDEFB !important; /* Un poco más oscuro en hover */
+  }
+  
+  
+  .textWrap {
+    white-space: normal;
+    word-break: break-word;
+  }
+  
+  .statusBadge { /* Reutilizar estilos de badges globales si es posible */
+      padding: 4px 8px;
+      border-radius: var(--border-radius-md, 6px);
+      font-size: 11px;
+      font-weight: 500;
+      display: inline-block;
+      text-transform: capitalize;
+      text-align: center;
+      min-width: 80px;
+      line-height: 1.3;
+      border: 1px solid;
+  }
+  /* Estos colores deben coincidir con tu theme.css y lo usado en LotesPage.module.css */
+  .statusDisponible { background-color: var(--color-acento-exito-fondo); color: #155724; border-color: var(--color-acento-exito-borde); }
+  .statusReservado { background-color: var(--color-acento-advertencia-fondo); color: #856404; border-color: var(--color-acento-advertencia-borde); }
+  .statusVendido { background-color: #e0e0e0; color: var(--color-texto-principal); border-color: #bdbdbd; }
+  
+ 
+  

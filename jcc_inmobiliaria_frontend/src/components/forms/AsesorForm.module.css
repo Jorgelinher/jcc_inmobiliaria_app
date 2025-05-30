@@ -1,0 +1,152 @@
+/* src/components/forms/LoteForm.module.css */
+
+.modalOverlay {
+    position: fixed; /* Se posiciona relativo a la ventana del navegador */
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.6); /* Fondo negro semitransparente */
+    display: flex;
+    align-items: center; /* Centra verticalmente el contenido */
+    justify-content: center; /* Centra horizontalmente el contenido */
+    z-index: 1000; /* Asegura que esté por encima de otros contenidos */
+}
+
+.modalContent {
+    background-color: #fff;
+    padding: 25px;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    width: 90%;
+    max-width: 500px; /* Ancho máximo del modal */
+    max-height: 90vh; /* Alto máximo, para que no ocupe toda la pantalla en vertical */
+    overflow-y: auto; /* Permite scroll si el contenido es muy largo */
+}
+
+.modalContent h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 1.5em;
+    color: #333;
+    text-align: center;
+}
+
+.formGroup {
+    margin-bottom: 18px;
+}
+
+.formGroup label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: bold;
+    color: #555;
+}
+
+.formGroup input[type="text"],
+.formGroup input[type="number"],
+.formGroup select,
+.formGroup textarea { /* Añadido textarea por si lo usas después */
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box; /* Para que padding no afecte el ancho total */
+    font-size: 1em;
+}
+
+.formGroup input:focus,
+.formGroup select:focus,
+.formGroup textarea:focus {
+    border-color: #007bff;
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.required {
+    color: red;
+    margin-left: 4px;
+}
+
+.formActions {
+    margin-top: 25px;
+    display: flex;
+    justify-content: flex-end; /* Alinea los botones a la derecha */
+    gap: 10px; /* Espacio entre botones */
+}
+
+.button {
+    padding: 10px 18px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+    font-weight: bold;
+}
+
+.buttonPrimary {
+    background-color: #007bff;
+    color: white;
+}
+
+.buttonPrimary:hover {
+    background-color: #0056b3;
+}
+
+.buttonSecondary {
+    background-color: #6c757d;
+    color: white;
+}
+
+.buttonSecondary:hover {
+    background-color: #545b62;
+}
+.asesorFormModalContent {
+    max-width: 800px !important; /* Ancho para el modal de Asesor, ajusta según necesites. Puede ser más grande por la cantidad de campos. */
+    /* Hereda la mayoría de los estilos de .modalContent de FormStyles.module.css */
+}
+
+/* Si necesitas un layout de grid para el formulario (ej. 2 columnas) */
+.formGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* Columnas responsivas */
+    gap: 0 var(--spacing-lg, 24px); /* Espacio entre columnas, sin gap vertical entre .formGroup */
+}
+
+/* Si quieres que un formGroup o un título de sección ocupe todas las columnas del grid */
+.formGroupSpanFull {
+    grid-column: 1 / -1;
+}
+
+/* Para los títulos de sección dentro del formulario */
+.formSectionTitle {
+    font-family: var(--fuente-encabezados, 'Montserrat', sans-serif);
+    font-size: var(--font-size-h4, 18px); /* Usar H4 para subtítulos de sección */
+    color: var(--color-primario, #2A4A6B);
+    margin-top: var(--spacing-lg, 24px);
+    margin-bottom: var(--spacing-sm, 8px); /* Menos espacio después del título de sección */
+    padding-bottom: var(--spacing-xs, 4px);
+    border-bottom: 1px solid var(--color-borde-general, #E9ECEF);
+    grid-column: 1 / -1; /* Asegurar que ocupe todo el ancho si está en un grid */
+}
+.formSectionTitle:first-of-type { /* El primer título de sección no necesita tanto margen superior */
+    margin-top: var(--spacing-sm, 8px);
+}
+.asesorFormModalContent {
+    max-width: 850px !important; /* Ancho sugerido para un formulario con varias columnas */
+    /* Hereda la mayoría de los estilos de .modalContent de FormStyles.module.css */
+}
+
+/* Layout de Grid para el formulario (si se aplica a la etiqueta <form>) */
+.formGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* Columnas responsivas */
+    /* Si siempre quieres 2 columnas, podrías usar: grid-template-columns: 1fr 1fr; */
+    gap: 0 var(--spacing-lg, 24px); /* Espacio entre columnas, sin gap vertical entre .formGroup directos del grid */
+                                     /* El gap vertical vendrá del margin-bottom de cada .formGroup */
+}
+
+/* Para elementos que deben ocupar todo el ancho del grid (como subtítulos o campos anchos) */
+.formGroupSpanFull {
+    grid-column: 1 / -1;
+}

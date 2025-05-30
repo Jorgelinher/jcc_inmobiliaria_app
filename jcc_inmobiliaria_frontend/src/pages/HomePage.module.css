@@ -1,0 +1,58 @@
+/* src/pages/ClientesPage.module.css */
+.container {
+    max-width: 80rem;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 2rem 1rem;
+  }
+  .headerContainer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+  }
+  .title {
+    font-size: 1.875rem; /* text-3xl */
+    font-weight: bold;
+    color: #2d3748; /* text-gray-800 */
+  }
+  .tableContainer {
+    background-color: white;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+    border-radius: 0.5rem;
+    overflow-x: auto;
+  }
+  .table {
+    min-width: 100%;
+    line-height: 1.5;
+  }
+  .table th {
+    background-color: #e2e8f0;
+    color: #4a5568;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    padding: 0.75rem 1.25rem;
+    text-align: left;
+  }
+  .table td {
+    color: #4a5568;
+    font-size: 0.875rem;
+    padding: 0.75rem 1.25rem;
+    border-bottom: 1px solid #e2e8f0;
+    white-space: nowrap;
+  }
+  .table tbody tr:hover {
+    background-color: #f7fafc;
+  }
+  .loadingMessage { padding: 2rem; text-align: center; color: #718096; font-size: 1.25rem; }
+  .errorMessage { padding: 1rem; margin: 1rem; background-color: #fff5f5; border: 1px solid #f56565; color: #c53030; border-radius: 0.375rem;}
+  .errorTitle { font-weight: bold; }
+  .noDataMessage {
+    background-color: white;
+    padding: 2rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1), 0 1px 2px 0 rgba(0,0,0,0.06);
+    text-align: center;
+    color: #718096;
+  }

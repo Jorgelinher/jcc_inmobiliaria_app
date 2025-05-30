@@ -1,0 +1,90 @@
+/* src/index.css */
+
+/* Importar fuentes de Google Fonts (asegúrate que los pesos necesarios estén incluidos) */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&family=Inter:wght@400;500;600&family=Open+Sans:wght@400;500;600;700&display=swap');
+
+/* Reseteo básico y estilos globales */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 100%; 
+}
+
+body {
+  font-family: var(--fuente-principal); /* Inter (o Open Sans) */
+  font-size: var(--font-size-base); /* 16px */
+  line-height: var(--line-height-base); /* 1.6 */
+  color: var(--color-texto-principal); /* #343A40 */
+  background-color: var(--color-fondo-app); /* #F8F9FA Blanco Hueso */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#root {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Estilos base para encabezados */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--fuente-encabezados); /* Montserrat */
+  color: var(--color-primario); /* Azul Corporativo Profundo por defecto */
+  margin-bottom: var(--spacing-md); /* Espacio inferior de 16px por defecto */
+}
+
+h1 { font-size: var(--font-size-h1); font-weight: 700; margin-bottom: var(--spacing-lg); /* 24px */} /* Montserrat Bold, 32px */
+h2 { font-size: var(--font-size-h2); font-weight: 700; margin-bottom: var(--spacing-md); /* 20px */} /* Montserrat Bold, 28px */
+h3 { font-size: var(--font-size-h3); font-weight: 600; margin-bottom: var(--spacing-md); /* 16px */} /* Montserrat SemiBold, 20px */
+h4 { font-size: var(--font-size-h4); font-weight: 500; margin-bottom: var(--spacing-sm); /* 12px */} /* Montserrat Medium, 18px */
+
+p {
+  margin-bottom: var(--spacing-md); /* 16px */
+  color: var(--color-texto-principal);
+  line-height: var(--line-height-base);
+}
+
+a {
+  color: var(--color-texto-enlace);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: var(--color-texto-enlace-hover);
+  text-decoration: underline;
+}
+
+input,
+button,
+select,
+textarea {
+  font-family: var(--fuente-principal); /* Inter para elementos de UI */
+  font-size: var(--font-size-md); /* 14px o 16px según prefieras para inputs */
+}
+
+/* Scrollbar styling (opcional, para tema claro sutil) */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-fondo-app); 
+}
+::-webkit-scrollbar-thumb {
+  background-color: #CBD5E0; /* Un gris medio para el scrollbar */
+  border-radius: 10px;
+  border: 2px solid var(--color-fondo-app); 
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: #A0AEC0; /* Un gris más oscuro al pasar el mouse */
+}

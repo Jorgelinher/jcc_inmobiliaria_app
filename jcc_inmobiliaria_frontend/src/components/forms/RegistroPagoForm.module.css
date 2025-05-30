@@ -1,0 +1,27 @@
+/* src/components/forms/RegistroPagoForm.module.css */
+
+.pagoModalContent {
+    max-width: 550px !important; /* Ancho específico para este modal. Ajusta si es necesario. */
+    /* Hereda otros estilos de .modalContent de FormStyles.module.css */
+}
+
+/* Estilo para el cuadro de información de la cuota (si lo usas) */
+.infoBoxSmall {
+    background-color: var(--fondo-principal);
+    padding: 10px 15px; /* Un poco más de padding */
+    margin-bottom: 20px; /* Separación antes del formulario */
+    border-radius: 4px;
+    border: 1px solid var(--color-borde-general);
+    font-size: 0.9em;
+    line-height: 1.5; /* Mejorar legibilidad */
+}
+
+.infoBoxSmall p {
+    margin: 6px 0; /* Espacio entre líneas de información */
+    color: var(--texto-secundario);
+}
+
+.infoBoxSmall p strong {
+    color: var(--texto-principal);
+    font-weight: 600; /* Asegurar que el strong sea visible */
+}

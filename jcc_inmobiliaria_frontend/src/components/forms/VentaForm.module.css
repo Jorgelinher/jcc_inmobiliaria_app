@@ -1,0 +1,9 @@
+/* src/components/forms/VentaForm.module.css */
+
+.ventaFormModalContent {
+    max-width: 900px !important; /* Ancho deseado para VentaForm */
+    /* Si necesitas más ajustes específicos para VentaForm, van aquí */
+}
+
+/* Puedes dejarlo vacío si FormStyles.module.css es suficiente,
+   excepto por la clase para el max-width si es diferente de otros modales. */

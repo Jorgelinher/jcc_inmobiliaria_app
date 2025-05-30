@@ -1,0 +1,272 @@
+/* src/pages/DetailPage.module.css */
+
+.pageContainer {
+    padding: var(--spacing-lg); /* 24px */
+    background-color: var(--color-fondo-app); /* #F8F9FA */
+    min-height: calc(100vh - 68px); /* Altura navbar */
+  }
+  
+  .title {
+    font-family: var(--fuente-encabezados); /* Montserrat */
+    font-size: var(--font-size-h1); /* 32px */
+    color: var(--color-primario); /* #2A4A6B */
+    text-align: left;
+    margin-bottom: var(--spacing-xl); /* 32px */
+    font-weight: 700;
+  }
+  
+  .headerActions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--spacing-lg); /* 24px */
+      flex-wrap: wrap;
+      gap: var(--spacing-md);
+  }
+  
+  .headerButtonsContainer {
+      display: flex;
+      gap: var(--spacing-md); /* 16px */
+      align-items: center;
+      flex-wrap: wrap;
+  }
+  
+  /* --- ESTILOS PARA SECCIONES DE DETALLE --- */
+  .sectionContainer {
+    background-color: var(--color-fondo-contenedor); /* #FFFFFF Blanco */
+    padding: var(--spacing-lg); /* 24px */
+    margin-bottom: var(--spacing-lg); /* 24px */
+    border-radius: var(--border-radius-lg); /* 8px */
+    border: 1px solid var(--color-borde-general); /* #E9ECEF */
+    box-shadow: var(--sombra-media); /* Sombra más notable para "elevar" la tarjeta */
+  }
+  
+  .sectionHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md); /* 16px */
+  }
+  
+  .sectionTitle {
+    font-family: var(--fuente-encabezados); /* Montserrat */
+    font-size: var(--font-size-h3); /* 20px (H3 de tu propuesta) */
+    color: var(--color-primario); /* #2A4A6B */
+    margin-top: 0;
+    margin-bottom: 0; /* Controlado por .sectionHeader o .sectionContainer */
+    /* padding-bottom: var(--spacing-sm); */ /* Quitar si .sectionHeader ya tiene margen */
+    /* border-bottom: 1px solid var(--color-borde-general); */ /* Quitar si el título es más simple */
+    font-weight: 600; /* SemiBold */
+  }
+  
+  .detailGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); /* Ajuste para más espacio */
+    gap: var(--spacing-sm) var(--spacing-lg); /* 8px vertical, 24px horizontal */
+  }
+  
+  .detailItem,
+  .detailItemFull {
+    font-family: var(--fuente-principal); /* Inter */
+    font-size: var(--font-size-base); /* 16px */
+    color: var(--color-texto-principal); /* #343A40 */
+    line-height: var(--line-height-base); /* 1.6 */
+    padding: var(--spacing-xs) 0; /* 4px de padding vertical */
+  }
+  
+  .detailItem strong,
+  .detailItemFull strong {
+    font-weight: 500; /* Inter Medium */
+    color: var(--color-texto-secundario); /* #6C757D (Gris Medio para etiquetas) */
+    margin-right: var(--spacing-sm); /* 8px */
+    display: block; 
+    margin-bottom: var(--spacing-xs); /* 4px */
+    font-size: var(--font-size-sm); /* 14px para etiquetas */
+  }
+  
+  .detailItemFull {
+    grid-column: 1 / -1; 
+  }
+  
+  .preformattedText,
+  .preformattedTextSmall {
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: var(--fuente-principal);
+    background-color: var(--color-fondo-app); /* #F8F9FA */
+    padding: var(--spacing-sm); /* 8px */
+    border-radius: var(--border-radius-sm);
+    font-size: 0.9em;
+    color: var(--color-texto-secundario);
+    max-height: 150px;
+    overflow-y: auto;
+    border: 1px solid var(--color-borde-general); /* Borde sutil */
+  }
+  .preformattedTextSmall {
+    max-height: 80px;
+  }
+  
+  .detailButton {
+    padding: 9px 18px; /* Ajusta según el tamaño deseado */
+    font-family: var(--fuente-encabezados); /* Montserrat */
+    font-size: var(--font-size-sm); /* O --font-size-btn si es 15px */
+    font-weight: 600; /* Semi-bold */
+    border-radius: var(--border-radius-md); /* 6px */
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: normal;
+    white-space: nowrap;
+    margin-left: 10px; /* Espacio entre botones si están en .headerButtonsContainer con flex */
+}
+.detailButton:first-child {
+    margin-left: 0;
+}
+
+.detailButtonPrimary {
+    background-color: var(--color-primario);
+    color: var(--color-primario-texto);
+    border-color: var(--color-primario);
+}
+.detailButtonPrimary:hover {
+    background-color: var(--color-primario-hover);
+    border-color: var(--color-primario-hover);
+}
+
+.detailButtonSecondary {
+    background-color: var(--color-secundario);
+    color: var(--color-secundario-texto);
+    border-color: var(--color-secundario);
+}
+.detailButtonSecondary:hover {
+    background-color: var(--color-secundario-hover);
+    border-color: var(--color-secundario-hover);
+}
+
+.detailButtonAccent {
+    background-color: var(--color-acento-exito); /* Verde Esmeralda */
+    color: var(--color-acento-exito-texto);
+    border-color: var(--color-acento-exito);
+}
+.detailButtonAccent:hover {
+    background-color: var(--color-acento-exito-hover);
+    border-color: var(--color-acento-exito-hover);
+}
+  
+  /* Reutilizar .payCuotaButton de la respuesta anterior o unificar con .detailButtonAccent */
+  .payCuotaButton {
+      background-color: var(--color-acento-exito); /* Verde Esmeralda */
+      color: var(--color-acento-exito-texto);
+      /* Heredar padding, etc. de .actionButtons > * en VentasPage.module.css o definir aquí */
+      padding: 6px 10px; 
+      font-size: 13px;
+      border-radius: var(--border-radius-sm);
+  }
+  .payCuotaButton:hover {
+      background-color: var(--color-acento-exito-hover);
+  }
+  
+  
+  .actionsContainer { 
+    margin-top: var(--spacing-lg, 24px);
+    padding-top: var(--spacing-md, 16px);
+    border-top: 1px solid var(--color-borde-general, #E9ECEF); 
+    display: flex; 
+    gap: var(--spacing-md, 16px);
+}
+  
+  /* Badges de estado (deben ser consistentes con VentasPage.module.css) */
+  .statusBadge { /* Copiar o importar de VentasPage.module.css o un archivo global de badges */
+      padding: 5px 12px;
+      border-radius: var(--border-radius-lg);
+      font-size: 11px;
+      font-weight: 600;
+      display: inline-block;
+      text-transform: capitalize;
+      text-align: center;
+      min-width: 90px;
+      border: 1px solid transparent;
+  }
+  .statusBadgeseparacion { background-color: var(--color-acento-advertencia-fondo); color: #856404; border-color: var(--color-acento-advertencia-borde); }
+  .statusBadgeprocesable { background-color: var(--color-acento-informacion-fondo); color: #004085; border-color: var(--color-acento-informacion-borde); }
+  .statusBadgecompletada { background-color: var(--color-acento-exito-fondo); color: #155724; border-color: var(--color-acento-exito-borde); }
+  .statusBadgeanulado { background-color: var(--color-acento-error-fondo); color: #721C24; border-color: var(--color-acento-error-borde); }
+  
+  .statusBadgeCuotapendiente { background-color: #E0E0E0; color: var(--color-texto-principal); border: 1px solid #BDBDBD;}
+  .statusBadgeCuotapagada { background-color: var(--color-acento-exito-fondo); color: #155724; border: 1px solid var(--color-acento-exito-borde);}
+  .statusBadgeCuotaparcialmente_pagada { background-color: var(--color-acento-informacion-fondo); color: #004085; border: 1px solid var(--color-acento-informacion-borde); }
+  .statusBadgeCuotaatrasada { background-color: var(--color-acento-advertencia-fondo); color: #856404; border: 1px solid var(--color-acento-advertencia-borde); }
+  .statusBadgeCuotavencida_no_pagada { background-color: var(--color-acento-error-fondo); color: #721C24; border-color: var(--color-acento-error-borde); }
+  .statusBadgeCuotacancelada_con_excedente { background-color: #E1BEE7; color: #4A148C; border-color: #CE93D8; } /* Púrpura claro */
+  
+  .tableResponsiveWrapper { /* Reutilizar de VentasPage.module.css o definir aquí si es diferente */
+    width: 100%;
+    overflow-x: auto;
+    background-color: var(--color-fondo-contenedor); 
+    border-radius: var(--border-radius-md); /* Borde más sutil para tablas internas */
+    /* box-shadow: var(--sombra-ligera); */ /* Sombra opcional para tablas internas */
+    border: 1px solid var(--color-borde-general);
+    margin-top: var(--spacing-sm);
+  }
+  .dataTableFix th, .dataTableFix td { /* Clases para tablas dentro de DetailPage */
+      /* Heredarán de .table th, .table td de VentasPage.module.css si importas esos estilos. */
+      /* Si no, define aquí estilos de tabla consistentes. */
+      padding: 10px 12px !important;
+  }
+  .dataTableFix th {
+      background-color: var(--color-borde-general) !important; /* #E9ECEF (Gris Claro para encabezados de tablas internas) */
+      color: var(--color-texto-principal) !important;
+      font-family: var(--fuente-principal) !important;
+      font-weight: 600 !important; /* Inter SemiBold */
+  }
+
+.headerButtonsContainer {
+    display: flex;
+    gap: 12px; 
+    align-items: center;
+}
+
+.actionButtons { /* Contenedor de los botones en la celda de la tabla */
+  display: flex; 
+  gap: var(--spacing-sm, 8px); 
+  align-items: center; 
+}
+
+.actionButtons > *,
+.detailButtonInTable { /* Clase base para botones dentro de tablas en páginas de detalle */
+  padding: 6px 10px; 
+  font-size: 13px; 
+  font-family: var(--fuente-principal, 'Inter', sans-serif);
+  font-weight: 500; 
+  border-radius: var(--border-radius-sm, 4px); 
+  cursor: pointer; 
+  border: 1px solid; /* Borde por defecto */
+  text-decoration: none; 
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  white-space: nowrap;
+  line-height: 1.4;
+  background-color: var(--color-fondo-contenedor, #FFFFFF); /* Fondo blanco por defecto */
+}
+
+.actionButtons > *:hover,
+.detailButtonInTable:hover {
+  opacity: 0.9; /* O un cambio de fondo/color más específico */
+}
+
+/* Estilo específico para el botón de eliminar */
+.deleteButtonInTable {
+  color: var(--color-acento-error, #DC3545); /* Texto Rojo Carmesí */
+  border-color: var(--color-acento-error, #DC3545); /* Borde Rojo Carmesí */
+}
+.deleteButtonInTable:hover {
+  background-color: var(--color-acento-error, #DC3545); /* Fondo Rojo Carmesí en hover */
+  color: var(--color-acento-error-texto, #FFFFFF); /* Texto Blanco en hover */
+  border-color: var(--color-acento-error, #DC3545);
+}

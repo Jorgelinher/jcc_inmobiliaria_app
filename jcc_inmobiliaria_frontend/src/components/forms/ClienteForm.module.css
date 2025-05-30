@@ -1,0 +1,16 @@
+/* src/components/forms/ClienteForm.module.css */
+
+.clienteModalContent {
+    max-width: 650px !important; /* Ancho específico para el modal de Cliente. Ajusta si es necesario. */
+    /* Hereda otros estilos de .modalContent de FormStyles.module.css */
+}
+
+/* Puedes añadir otros estilos específicos para el formulario de Cliente aquí si los necesitas.
+   Por ejemplo, si alguna fila (.formRow) necesita un layout particular. */
+
+/* Si quieres que la fila de tipo y número de documento, y la fila de teléfonos,
+   ocupen un espacio más balanceado, puedes añadir algo como: */
+.documentoRow > div, /* Asumiendo que el formRow de documentos tiene esta clase o la añades */
+.telefonosRow > div { /* Asumiendo que el formRow de teléfonos tiene esta clase o la añades */
+    flex: 1 !important; /* Para que los formGroup dentro de estas filas compartan espacio equitativamente */
+}

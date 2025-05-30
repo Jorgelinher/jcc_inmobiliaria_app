@@ -1,0 +1,57 @@
+# Entornos virtuales de Python (en la raíz del proyecto o dentro del backend)
+venv/
+jcc_inmobiliaria_backend/venv/ # Si tienes uno específico para el backend dentro de su carpeta
+env/
+.env # Archivos de variables de entorno generales
+jcc_inmobiliaria_backend/.env # Variables de entorno específicas del backend
+jcc_inmobiliaria_frontend/.env # Variables de entorno específicas del frontend
+jcc_inmobiliaria_frontend/.env.* # Otros .env locales del frontend
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Bases de datos SQLite (si la usas para desarrollo local y no quieres versionarla)
+*.sqlite3
+db.sqlite3 
+jcc_inmobiliaria_backend/db.sqlite3 # Si está dentro de la carpeta del backend
+
+# Archivos de media y estáticos generados (Django)
+media/
+static_root/
+staticfiles/ # Otra carpeta común para 'collectstatic'
+
+# Logs
+*.log
+logs/
+
+# Archivos de sistema operativo y editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.suo
+*.user
+*. benutzer
+*.userprefs
+
+# Dependencias de Node (Frontend - jcc_inmobiliaria_frontend)
+jcc_inmobiliaria_frontend/node_modules/
+jcc_inmobiliaria_frontend/dist/
+jcc_inmobiliaria_frontend/build/
+jcc_inmobiliaria_frontend/.pnp.*
+jcc_inmobiliaria_frontend/.yarn/*
+jcc_inmobiliaria_frontend/coverage/
+jcc_inmobiliaria_frontend/npm-debug.log*
+jcc_inmobiliaria_frontend/yarn-debug.log*
+jcc_inmobiliaria_frontend/yarn-error.log*
+jcc_inmobiliaria_frontend/.eslintcache
+
+# Archivos de configuración local de Vite que no deben ser versionados
+jcc_inmobiliaria_frontend/.vite/
+
+# Archivos específicos de Python/Django que a veces se generan
+*.pid
+*.seed
+celerybeat-schedule

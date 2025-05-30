@@ -1,0 +1,134 @@
+/* src/components/layout/Navbar.module.css */
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 2rem; /* Padding horizontal, el vertical vendrá de la altura */
+  background-color: var(--color-fondo-contenedor); /* Fondo Blanco Hueso para la navbar */
+  color: var(--color-texto-principal);
+  box-shadow: var(--sombra-ligera); /* Sombra sutil hacia abajo */
+  position: sticky;
+  top: 0;
+  z-index: 1000; /* Por encima de otros contenidos */
+  height: 68px; /* Altura fija para la navbar */
+}
+
+.brandLink {
+  font-family: var(--fuente-encabezados); /* Montserrat */
+  font-size: var(--font-size-h3); /* 20px (H3 de tu propuesta) */
+  font-weight: 700; /* Bold */
+  color: var(--color-primario); /* Azul Corporativo */
+  text-decoration: none;
+  transition: color 0.2s ease-in-out;
+  padding: 0.5rem 0; /* Para alinear con los tabs si es necesario */
+}
+
+.brandLink:hover {
+  color: var(--color-primario-hover);
+}
+
+.navLinks {
+  display: flex;
+  align-items: stretch; /* Para que los NavLink (tabs) ocupen toda la altura */
+  height: 100%;
+  margin-left: 2rem; /* Espacio después del brand */
+  flex-grow: 1; /* Para que ocupe el espacio central */
+}
+
+.link { /* Estilo para pestañas inactivas */
+  font-family: var(--fuente-encabezados); /* Montserrat para tabs */
+  font-size: var(--font-size-btn); /* 15px, Inter Medium (tu propuesta dice Inter Medium para botones, puede ser similar para tabs) */
+  font-weight: 500; /* Medium (Montserrat no tiene Medium por defecto, usa 500 o ajusta a Open Sans/Inter si prefieres) */
+  color: var(--color-texto-secundario); /* Gris Medio #6C757D */
+  background-color: var(--color-fondo-contenedor); /* Fondo Blanco Hueso */
+  text-decoration: none;
+  padding: 0 1.25rem; /* Padding horizontal para cada tab */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 3px solid transparent; /* Espacio para el borde activo e inactivo en hover */
+  transition: color 0.2s ease-in-out, border-color 0.2s ease-in-out, background-color 0.2s ease-in-out;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.link:hover {
+  color: var(--color-primario); /* Azul Corporativo en hover */
+  border-bottom-color: var(--color-borde-general); /* Borde inferior Gris Claro (#E9ECEF) */
+}
+
+.activeLink { /* Estilo para la pestaña activa */
+  font-family: var(--fuente-encabezados);
+  font-size: var(--font-size-btn);
+  font-weight: 600; /* SemiBold para la activa (Montserrat sí tiene SemiBold o usa 600) */
+  color: var(--color-primario); /* Texto Azul Corporativo */
+  background-color: var(--color-fondo-contenedor); /* Fondo Blanco Hueso (según propuesta: "Pestaña Activa: Fondo Blanco Hueso") */
+  text-decoration: none;
+  padding: 0 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 3px solid var(--color-primario); /* Borde inferior Azul Corporativo */
+  height: 100%;
+  box-sizing: border-box;
+  /* "Añadir padding y subtle shadow to the active tab" - la sombra podría ser un box-shadow sutil o un inset */
+  /* box-shadow: var(--sombra-ligera); Si se quiere sombra externa */
+}
+/* No se necesita .activeLink:hover si queremos que se mantenga igual al estar activa */
+
+
+.authControls {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem; /* Espacio entre UserInfo y Logout/Login */
+}
+
+.userInfo {
+  font-family: var(--fuente-principal); /* Inter o Open Sans */
+  color: var(--color-texto-secundario); /* Gris Medio */
+  font-size: var(--font-size-sm); /* 14px */
+}
+
+/* Botón de Logout y Login Link */
+.logoutButton,
+.authControls > a { /* Aplicar también al NavLink de Login */
+  font-family: var(--fuente-principal); /* Inter o Open Sans */
+  background-color: transparent;
+  color: var(--color-texto-enlace); /* Azul Corporativo */
+  border: 1px solid transparent; /* Sin borde por defecto para un look de enlace */
+  padding: 0.5rem 1rem;
+  border-radius: var(--border-radius-md);
+  cursor: pointer;
+  font-size: var(--font-size-md); /* 15px */
+  font-weight: 500; /* Medium */
+  text-decoration: none;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.logoutButton:hover,
+.authControls > a:hover {
+  background-color: var(--color-fondo-app); /* Fondo muy sutil al pasar el mouse */
+  color: var(--color-primario-hover);
+  text-decoration: none; /* Quitar subrayado de NavLink si se quiere */
+}
+
+/* Específico para el botón de logout si se quiere diferenciar más */
+.logoutButton.explicitButton { /* Añade esta clase al botón de logout si quieres que parezca más un botón */
+    border: 1px solid var(--color-secundario);
+    color: var(--color-secundario);
+}
+.logoutButton.explicitButton:hover {
+    background-color: var(--color-secundario);
+    color: var(--color-secundario-texto);
+    border-color: var(--color-secundario);
+}
+
+
+@media (max-width: 992px) { /* Ajustar breakpoint para cuando se ocultan los links */
+  .navLinks {
+    display: none; 
+  }
+  .navbar {
+    padding: 0.75rem 1.5rem; /* Ajustar padding para pantallas más pequeñas */
+  }
+}

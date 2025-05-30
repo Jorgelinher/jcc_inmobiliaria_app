@@ -1,0 +1,180 @@
+/* src/pages/DashboardPage.module.css */
+.pageContainer {
+  padding: var(--spacing-lg, 24px);
+  background-color: var(--color-fondo-app, #F8F9FA); /* Blanco Hueso */
+  min-height: calc(100vh - 68px); /* Asumiendo altura de navbar */
+}
+
+/* --- Filtros del Dashboard --- */
+.filterBar {
+  display: flex;
+  flex-wrap: wrap; 
+  gap: var(--spacing-md, 16px); 
+  padding: var(--spacing-md, 20px); 
+  background-color: var(--color-fondo-contenedor, #FFFFFF); /* Panel blanco */
+  border: 1px solid var(--color-secundario, #4DB0B5); /* Borde Turquesa Suave */
+  border-radius: var(--border-radius-lg, 8px);
+  margin-bottom: var(--spacing-xl, 32px); 
+  box-shadow: var(--sombra-ligera);
+  align-items: center;
+}
+
+.filterDate,
+.filterSelectCompact {
+  font-family: var(--fuente-principal, 'Inter', sans-serif);
+  font-size: var(--font-size-sm, 14px);
+  color: var(--color-texto-principal, #343A40);
+  background-color: var(--color-fondo-input, #FFFFFF);
+  border: 1px solid var(--color-borde-input, #CED4DA);
+  border-radius: var(--border-radius-md, 6px);
+  padding: 0 var(--spacing-sm, 8px);
+  height: 38px;
+  box-sizing: border-box;
+  flex-basis: 160px; 
+  flex-grow: 1; 
+  min-width: 140px; 
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.filterSelectCompact {
+  padding-right: 30px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23343A40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px;
+  appearance: none; -webkit-appearance: none; -moz-appearance: none;
+}
+.filterSelectCompact option { background-color: var(--color-fondo-contenedor, #FFFFFF); color: var(--color-texto-principal, #343A40); }
+.filterSelectCompact option[value=""] { color: var(--color-texto-secundario, #6C757D); }
+
+.filterDate:focus,
+.filterSelectCompact:focus {
+  border-color: var(--color-borde-input-focus, #2A4A6B);
+  box-shadow: 0 0 0 0.2rem rgba(42, 74, 107, 0.25); 
+  outline: none;
+}
+
+.resetButtonCompact { 
+  font-family: var(--fuente-principal, 'Inter', sans-serif);
+  font-weight: 500; 
+  font-size: var(--font-size-sm, 14px);
+  padding: 0 var(--spacing-md, 16px);
+  height: 38px;
+  background-color: transparent;
+  color: var(--color-primario, #2A4A6B);
+  border: 1px solid var(--color-primario, #2A4A6B); 
+  border-radius: var(--border-radius-md, 6px);
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  white-space: nowrap;
+  margin-left: auto; 
+}
+.resetButtonCompact:hover { 
+  background-color: var(--color-primario, #2A4A6B); 
+  color: var(--color-primario-texto, #FFFFFF);
+}
+
+.loadingMessage, .noDataMessage {
+  padding: var(--spacing-lg, 24px); text-align: center; font-size: var(--font-size-lg, 18px); 
+  margin: var(--spacing-xl, 32px) auto; border-radius: var(--border-radius-md, 6px); 
+  color: var(--color-texto-secundario, #6C757D); 
+  background-color: var(--color-fondo-contenedor, #FFFFFF);
+  border: 1px solid var(--color-borde-general, #E9ECEF);
+  max-width: 600px;
+}
+.errorMessage {
+    color: var(--color-acento-error, #DC3545); 
+    background-color: var(--color-acento-error-fondo, #F8D7DA); 
+    border: 1px solid var(--color-acento-error-borde, #F5C6CB); 
+    padding: var(--spacing-sm, 12px) var(--spacing-md, 18px); 
+    border-radius: var(--border-radius-md, 6px); 
+    margin-bottom: var(--spacing-lg, 24px); 
+    font-size: var(--font-size-md, 16px); 
+    font-family: var(--fuente-principal, 'Inter', sans-serif);
+    text-align: center;
+}
+.marginBottom { margin-bottom: var(--spacing-md, 16px); }
+
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+  gap: var(--spacing-lg, 24px);
+  margin-bottom: var(--spacing-xl, 32px); 
+}
+
+.kpiCard { 
+  background-color: var(--color-fondo-contenedor, #FFFFFF); 
+  padding: var(--spacing-md, 20px); 
+  border-radius: var(--border-radius-lg, 8px);
+  box-shadow: var(--sombra-media, 0px 4px 12px rgba(0,0,0,0.08));
+  text-align: center;
+  border: 1px solid var(--color-borde-general, #E9ECEF); 
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  display: flex; 
+  flex-direction: column;
+  justify-content: center; 
+  min-height: 130px; 
+}
+.kpiCard:hover { 
+  transform: translateY(-4px); 
+  box-shadow: 0 6px 16px rgba(0,0,0,0.1); 
+}
+
+.kpiTitle { 
+  font-family: var(--fuente-encabezados, 'Montserrat', sans-serif);
+  font-size: var(--font-size-h3, 20px); 
+  color: var(--color-primario, #2A4A6B); 
+  margin-bottom: var(--spacing-sm, 8px); 
+  font-weight: 600; /* SemiBold */
+  line-height: 1.3; 
+}
+
+.kpiValue { 
+  font-family: var(--fuente-encabezados, 'Montserrat', sans-serif);
+  font-size: 28px; 
+  color: var(--color-acento-exito, #28A745); 
+  font-weight: 700; /* Bold */
+  margin: var(--spacing-xs, 4px) 0 0 0;
+  line-height: 1.2; 
+}
+.kpiCard p.kpiValue.negative {
+    color: var(--color-acento-error, #DC3545);
+}
+
+.chartsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); 
+  gap: var(--spacing-lg, 24px); 
+}
+
+.chartContainer { 
+  padding: var(--spacing-md, 20px); 
+  background-color: var(--color-fondo-contenedor, #FFFFFF); 
+  border-radius: var(--border-radius-lg, 8px);
+  box-shadow: var(--sombra-media);
+  min-height: 400px; 
+  display: flex; 
+  flex-direction: column;
+  align-items: center; 
+  justify-content: flex-start; 
+  border: 1px solid var(--color-borde-general, #E9ECEF);
+  overflow: hidden; 
+}
+
+.chartContainer .noDataMessage,
+.chartContainer .errorMessage { 
+  font-family: var(--fuente-principal, 'Inter', sans-serif);
+  font-size: var(--font-size-md, 16px);
+  margin-top: 0; padding: 20px; 
+  color: var(--color-texto-secundario, #6C757D);
+  width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; text-align: center;
+}
+.chartContainer .errorMessage { 
+  color: var(--color-acento-error, #DC3545); 
+  border: none; background: none; 
+}
+
+.chart { 
+  width: 100%;
+  height: 330px; 
+  max-width: 100%;
+}

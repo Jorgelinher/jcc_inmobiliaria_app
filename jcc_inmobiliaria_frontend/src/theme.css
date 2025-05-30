@@ -1,0 +1,95 @@
+/* src/theme.css (Limpio y basado en tu última propuesta de tema claro) */
+:root {
+  /* Paleta de Colores Corporativos (Tema Claro) */
+  --color-primario: #2A4A6B;                 /* Azul Corporativo Profundo */
+  --color-primario-hover: #223C5A;          /* Más oscuro para hover */
+  --color-primario-texto: #FFFFFF;
+
+  --color-secundario: #4DB0B5;              /* Turquesa Suave */
+  --color-secundario-hover: #3E9A9E;        /* Más oscuro para hover */
+  --color-secundario-texto: #FFFFFF;        /* Texto para botones secundarios */
+
+  --color-fondo-app: #F8F9FA;              /* Blanco Hueso - Fondo general */
+  --color-fondo-contenedor: #FFFFFF;        /* Blanco - Para tarjetas, modales, paneles de filtro */
+  --color-fondo-alternating-row: #F1F3F5;  /* Gris muy claro para filas alternas de tabla */
+  --color-fondo-input: #FFFFFF;             /* Fondo de inputs */
+  
+  --color-texto-principal: #343A40;        /* Gris Oscuro - Para cuerpo de texto principal, datos */
+  --color-texto-secundario: #6C757D;       /* Gris Medio - Para texto descriptivo, etiquetas de ejes */
+  --color-texto-labels: #343A40;            /* Gris Oscuro para etiquetas de formulario (mejor contraste) */
+  --color-texto-placeholders: var(--color-texto-secundario);
+  --color-texto-sobre-primario: var(--color-primario-texto);
+  --color-texto-sobre-secundario: var(--color-secundario-texto);
+  --color-texto-enlace: var(--color-primario);
+  --color-texto-enlace-hover: var(--color-primario-hover);
+
+  /* Colores de Acento Semánticos */
+  --color-acento-exito: #28A745;         /* Verde Esmeralda */
+  --color-acento-exito-hover: #1E7E34;
+  --color-acento-exito-texto: #FFFFFF;
+  --color-acento-exito-fondo: #D4EDDA; 
+  --color-acento-exito-borde: #C3E6CB;
+
+  --color-acento-error: #DC3545;         /* Rojo Carmesí */
+  --color-acento-error-hover: #C82333;
+  --color-acento-error-texto: #FFFFFF;
+  --color-acento-error-fondo: #F8D7DA;
+  --color-acento-error-borde: #F5C6CB;
+
+  --color-acento-advertencia: #FFC107;   /* Ámbar */
+  --color-acento-advertencia-hover: #E0A800;
+  --color-acento-advertencia-texto: #212529; 
+  --color-acento-advertencia-fondo: #FFF3CD;
+  --color-acento-advertencia-borde: #FFEEBA;
+
+  --color-acento-informacion: #17A2B8;   /* Azul Cielo */
+  --color-acento-informacion-hover: #117A8B;
+  --color-acento-informacion-texto: #FFFFFF;
+  --color-acento-informacion-fondo: #D1ECF1;
+  --color-acento-informacion-borde: #BEE5EB;
+  
+  /* Colores específicos para la paleta de gráficos */
+  --color-grafico-1: var(--color-primario);         /* #2A4A6B */
+  --color-grafico-2: var(--color-secundario);       /* #4DB0B5 */
+  --color-grafico-3: var(--color-acento-exito);     /* #28A745 */
+  --color-grafico-4: var(--color-acento-informacion);/* #17A2B8 */
+  --color-grafico-5: var(--color-acento-advertencia);/* #FFC107 */
+  --color-grafico-6: #5F86AC;                     /* Azul Primario Claro (Personalizado) */
+  --color-grafico-7: #7FCDD1;                     /* Turquesa Secundario Claro (Personalizado) */
+  --color-grafico-8: #A0AEC0;                     /* Gris Neutro Gráfico (Personalizado) */
+
+  /* Bordes y Sombras */
+  --color-borde-general: #E9ECEF; /* Gris Claro */
+  --color-borde-input: #CED4DA; 
+  --color-borde-input-focus: var(--color-primario);
+  
+  --sombra-ligera: 0px 2px 4px rgba(0, 0, 0, 0.05);
+  --sombra-media: 0px 4px 12px rgba(0, 0, 0, 0.08);
+  --sombra-modal: 0px 8px 24px rgba(0, 0, 0, 0.1);
+
+  /* Tipografía */
+  --fuente-principal: 'Inter', 'Open Sans', sans-serif;
+  --fuente-encabezados: 'Montserrat', sans-serif;
+
+  --font-size-base: 16px; 
+  --line-height-base: 1.6;
+  --font-size-sm: 14px;  
+  --line-height-sm: 1.5;
+  --font-size-btn: 15px; 
+  --font-size-h1: 32px;
+  --font-size-h2: 28px;
+  --font-size-h3: 20px;
+  --font-size-h4: 18px;
+
+  /* Radios de borde */
+  --border-radius-sm: 4px;
+  --border-radius-md: 6px;
+  --border-radius-lg: 8px;
+
+  /* Espaciado */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+}

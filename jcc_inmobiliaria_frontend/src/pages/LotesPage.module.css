@@ -1,0 +1,251 @@
+/* src/pages/LotesPage.module.css */
+.pageContainer {
+    padding: var(--spacing-lg, 24px);
+    background-color: var(--color-fondo-app, #F8F9FA); /* Blanco Hueso */
+    min-height: calc(100vh - 68px); /* Altura de navbar */
+  }
+  
+  .title {
+    font-family: var(--fuente-encabezados, 'Montserrat', sans-serif);
+    font-size: var(--font-size-h1, 32px);
+    color: var(--color-primario, #2A4A6B);
+    text-align: left;
+    margin-bottom: var(--spacing-lg, 24px);
+    font-weight: 700;
+  }
+  
+  /* --- Contenedor de Filtros --- */
+  .filterContainer { /* Renombrado de .filterContainer a .filterContainerLotes si es necesario, o mantener genérico */
+    display: flex; /* Usar flex para alinear mejor los filtros en una línea */
+    flex-wrap: wrap;
+    gap: var(--spacing-md, 16px);
+    margin-bottom: var(--spacing-lg, 24px);
+    padding: var(--spacing-md, 20px);
+    background-color: var(--color-fondo-contenedor, #FFFFFF); /* Panel blanco */
+    border: 1px solid var(--color-secundario, #6699CC); /* Borde azul suave secundario */
+    border-radius: var(--border-radius-lg, 8px);
+    box-shadow: var(--sombra-ligera);
+    align-items: flex-end;
+  }
+  
+  .filterInput,
+  .filterSelect {
+    font-family: var(--fuente-principal, 'Inter', sans-serif);
+    font-size: var(--font-size-sm, 14px);
+    color: var(--color-texto-principal, #343A40);
+    background-color: var(--color-fondo-input, #FFFFFF);
+    border: 1px solid var(--color-borde-input, #CED4DA);
+    border-radius: var(--border-radius-md, 6px);
+    padding: 0 var(--spacing-sm, 8px);
+    height: 38px;
+    box-sizing: border-box;
+    flex-grow: 1; /* Para que los inputs se expandan */
+    min-width: 180px; /* Ancho mínimo para cada filtro */
+  }
+  .filterInput::placeholder { color: var(--color-texto-placeholders, #6C757D); }
+  .filterSelect {
+    padding-right: 30px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23343A40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 12px;
+    appearance: none; -webkit-appearance: none; -moz-appearance: none;
+  }
+  .filterSelect option { background-color: var(--color-fondo-contenedor, #FFFFFF); color: var(--color-texto-principal, #343A40); }
+  .filterSelect option[value=""] { color: var(--color-texto-secundario, #6C757D); }
+  
+  .filterInput:focus,
+  .filterSelect:focus {
+    border-color: var(--color-borde-input-focus, #2A4A6B);
+    box-shadow: 0 0 0 0.2rem rgba(42, 74, 107, 0.25); 
+    outline: none;
+  }
+  
+  .resetButton { /* Botón Limpiar Filtros - Estilo Secundario Opción Outline */
+    font-family: var(--fuente-principal, 'Inter', sans-serif);
+    font-weight: 500; /* Medium */
+    font-size: var(--font-size-btn, 15px); /* O var(--font-size-sm, 14px) */
+    padding: 0 var(--spacing-md, 16px);
+    height: 38px; /* Para alinear con los inputs */
+    background-color: transparent; /* Sin fondo */
+    color: var(--color-primario, #2A4A6B); /* Texto Azul Primario */
+    border: 1px solid var(--color-primario, #2A4A6B); /* Borde Azul Primario */
+    border-radius: var(--border-radius-md, 6px);
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0; /* Para que no se encoja si los otros filtros ocupan mucho espacio */
+  }
+  .resetButton:hover { 
+    background-color: var(--color-primario, #2A4A6B); 
+    color: var(--color-primario-texto, #FFFFFF); /* Texto Blanco en hover */
+  }
+  
+  /* --- Botón Crear --- */
+  .createButtonContainer { 
+    margin-bottom: var(--spacing-lg, 24px); 
+    text-align: right; 
+  }
+  .createButton { 
+    background-color: var(--color-primario, #2A4A6B); 
+    color: var(--color-primario-texto, #FFFFFF); 
+    padding: 10px 22px; 
+    font-family: var(--fuente-encabezados, 'Montserrat', sans-serif);
+    font-size: var(--font-size-btn, 15px); 
+    font-weight: 500; /* Medium */
+    border-radius: var(--border-radius-md, 6px); 
+    cursor: pointer; 
+    border: none; 
+    transition: background-color 0.2s ease;
+  }
+  .createButton:hover { background-color: var(--color-primario-hover, #223C5A); }
+  
+  /* --- Mensajes y Tabla --- */
+  .loadingMessage, .noDataMessage { 
+    padding: var(--spacing-lg, 24px); text-align: center; font-size: var(--font-size-lg, 16px); 
+    margin-top: var(--spacing-md, 16px); border-radius: var(--border-radius-md, 6px); 
+    color: var(--color-texto-secundario, #6C757D); 
+    background-color: var(--color-fondo-contenedor, #FFFFFF);
+    border: 1px solid var(--color-borde-general, #E9ECEF);
+  }
+  .errorMessage { /* Asegúrate que esta clase se use para errores de página si existe */
+      color: var(--color-acento-error, #DC3545); 
+      background-color: var(--color-acento-error-fondo, #F8D7DA); 
+      border: 1px solid var(--color-acento-error-borde, #F5C6CB); 
+      padding: var(--spacing-sm, 8px) var(--spacing-md, 16px); 
+      border-radius: var(--border-radius-md, 6px); 
+      margin-bottom: var(--spacing-md, 16px); 
+      font-size: var(--font-size-sm, 14px); 
+      font-family: var(--fuente-principal, 'Inter', sans-serif);
+  }
+  .marginBottom { margin-bottom: var(--spacing-md, 16px); } /* Clase de utilidad */
+  
+  .tableContainer, /* Mantener compatibilidad si .tableContainer se usa */
+  .tableResponsiveContainer { /* Usar este nombre para consistencia con VentasPage */
+    width: 100%;
+    overflow-x: auto;
+    background-color: var(--color-fondo-contenedor, #FFFFFF); 
+    border-radius: var(--border-radius-lg, 8px);
+    box-shadow: var(--sombra-media, 0 4px 12px rgba(0,0,0,0.08));
+    border: 1px solid var(--color-borde-general, #E9ECEF);
+    margin-top: var(--spacing-sm, 8px);
+  }
+  
+  .table {
+    width: 100%;
+    min-width: 900px; /* Ancho mínimo para la tabla de lotes */
+    border-collapse: collapse;
+  }
+  
+  .table th,
+  .table td {
+    padding: var(--spacing-sm, 12px) var(--spacing-md, 16px);
+    text-align: left;
+    border-bottom: 1px solid var(--color-borde-general, #E9ECEF);
+    font-family: var(--fuente-principal, 'Inter', sans-serif);
+    font-size: var(--font-size-sm, 14px);
+    line-height: 1.5; 
+  }
+  
+  .table th { /* Encabezado de Tabla */
+    background-color: var(--color-primario, #2A4A6B); 
+    color: var(--color-primario-texto, #FFFFFF); 
+    font-family: var(--fuente-principal, 'Inter', sans-serif); 
+    font-weight: 600; /* Inter SemiBold */
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 1; 
+  }
+  
+  .table td { 
+    color: var(--color-texto-principal, #343A40); 
+  }
+  .table td a { 
+    color: var(--color-texto-enlace, #2A4A6B); 
+    font-weight: 500; 
+    text-decoration: none;
+  }
+  .table td a:hover { 
+    color: var(--color-texto-enlace-hover, #223C5A); 
+    text-decoration: underline;
+  }
+  
+  /* Filas alternas */
+  .table tbody tr:nth-child(odd) {
+    background-color: var(--color-fondo-contenedor, #FFFFFF);
+  }
+  .table tbody tr:nth-child(even) {
+    background-color: var(--color-fondo-app, #F8F9FA);
+  }
+  .table tbody tr:hover { 
+    background-color: #E9ECEF; /* Gris Claro Suave para hover */
+  }
+  
+  .table tbody tr:last-child td { 
+    border-bottom: none; 
+  }
+  
+  .textAlignRight { text-align: right !important; }
+  
+  /* Botones de Acción en Tabla */
+  .actionButtons { 
+    display: flex; 
+    gap: var(--spacing-sm, 8px); 
+    align-items: center; 
+    justify-content: flex-start; 
+  }
+  .actionButtons > * { 
+    padding: 6px 10px; 
+    font-size: 13px; 
+    font-family: var(--fuente-principal, 'Inter', sans-serif);
+    font-weight: 500; 
+    border-radius: var(--border-radius-sm, 4px); 
+    cursor: pointer; 
+    border: 1px solid; 
+    text-decoration: none; 
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    white-space: nowrap;
+    line-height: 1.4;
+  }
+  .actionButtons > *:hover {
+    opacity: 0.9;
+  }
+  
+  .viewButton {
+      background-color: var(--color-fondo-contenedor, #FFFFFF);
+      color: var(--color-secundario, #4DB0B5);
+      border-color: var(--color-secundario, #4DB0B5);
+  }
+  .viewButton:hover {
+      background-color: var(--color-secundario, #4DB0B5);
+      color: var(--color-secundario-texto, #FFFFFF);
+  }
+  
+  .editButton {
+      background-color: var(--color-fondo-contenedor, #FFFFFF);
+      color: var(--color-acento-advertencia, #FFC107);
+      border-color: var(--color-acento-advertencia, #FFC107);
+  }
+  .editButton:hover {
+      background-color: var(--color-acento-advertencia, #FFC107);
+      color: var(--color-acento-advertencia-texto, #212529);
+  }
+  
+  .deleteButton {
+      background-color: var(--color-fondo-contenedor, #FFFFFF);
+      color: var(--color-acento-error, #DC3545);
+      border-color: var(--color-acento-error, #DC3545);
+  }
+  .deleteButton:hover {
+      background-color: var(--color-acento-error, #DC3545);
+      color: var(--color-acento-error-texto, #FFFFFF);
+  }
+  
+  /* Estilos específicos para LotesPage si los necesitas más allá de los generales */

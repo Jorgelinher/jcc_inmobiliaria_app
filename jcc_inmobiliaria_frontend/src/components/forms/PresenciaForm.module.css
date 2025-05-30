@@ -1,0 +1,12 @@
+/* src/components/forms/PresenciaForm.module.css */
+
+.presenciaFormModalContent {
+    max-width: 750px !important; /* Ancho específico para el modal de Presencias. Ajusta según necesites. */
+    /* Hereda la mayoría de los estilos de .modalContent de FormStyles.module.css */
+}
+
+/* Si necesitas otros estilos específicos para PresenciaForm, puedes añadirlos aquí.
+   Por ejemplo, para el layout de alguna fila en particular si es diferente. */
+
+/* No es necesario redefinir .inputWithButton o .selectButton si se importan y usan 
+   correctamente desde formBaseStyles en PresenciaForm.jsx */
