@@ -4,16 +4,19 @@ from django.middleware.csrf import get_token as get_csrf_token_value
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie, csrf_protect
 from django.utils.dateparse import parse_date
-from django.db.models import Sum, Count, Value, DecimalField, Q
-from django.db.models.functions import Coalesce, TruncMonth
+from django.db.models import Sum, Count, Value, DecimalField, Q, Case, When, IntegerField, F
+from django.db.models.functions import Coalesce, TruncMonth, Cast
 from datetime import datetime, date, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 from dateutil.relativedelta import relativedelta
 from django.shortcuts import get_object_or_404
 from django.db import transaction
 import traceback
-from rest_framework.decorators import action # <--- AÑADIR ESTA IMPORTACIÓN
-from django.utils import timezone # Asegúrate que timezone esté importado
+from rest_framework.decorators import action 
+from django.utils import timezone
+from django.db.models import Sum, Count, Value, DecimalField, Q, Case, When, IntegerField, F # Ensure DecimalField, Value are imported
+from django.db.models.functions import Coalesce, TruncMonth # Ensure Coalesce is imported
+from decimal import Decimal
 
 from .models import (
     Lote, Cliente, Asesor, Venta, ActividadDiaria,
@@ -68,7 +71,7 @@ class AuthStatusView(APIView):
             return Response({'isAuthenticated': True, 'user': {'id': request.user.id, 'username': request.user.username, 'email': request.user.email}})
         return Response({'isAuthenticated': False, 'user': None})
 
-# --- ModelViewSets para CRUD ---
+# --- ModelViewSets para CRUD (sin cambios aquí, se omiten por brevedad) ---
 class LoteViewSet(viewsets.ModelViewSet):
     queryset = Lote.objects.all().order_by('ubicacion_proyecto', 'etapa', 'manzana', 'numero_lote')
     serializer_class = LoteSerializer; permission_classes = [permissions.IsAuthenticated]
@@ -94,7 +97,6 @@ class ActividadDiariaViewSet(viewsets.ModelViewSet):
 class RegistroPagoViewSet(viewsets.ModelViewSet):
     queryset = RegistroPago.objects.all().select_related('venta', 'cuota_plan_pago_cubierta').order_by('-fecha_pago')
     serializer_class = RegistroPagoSerializer; permission_classes = [permissions.IsAuthenticated]
-    # La lógica de actualización de Venta y Cuota está en las señales de RegistroPago.
 
 class VentaViewSet(viewsets.ModelViewSet):
     queryset = Venta.objects.all().select_related(
@@ -108,21 +110,21 @@ class VentaViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_class = VentaFilter
-
+    
     def _crear_o_actualizar_plan_pago(self, venta_instance):
-        print(f"[VentaViewSet] Iniciando _crear_o_actualizar_plan_pago para Venta ID: {venta_instance.id_venta}")
-        PlanPagoVenta.objects.filter(venta=venta_instance).delete() # Eliminar plan existente y sus cuotas
-        print(f"[VentaViewSet] Plan de pago existente (si lo hubo) eliminado para Venta ID: {venta_instance.id_venta}")
+        # print(f"[VentaViewSet] Iniciando _crear_o_actualizar_plan_pago para Venta ID: {venta_instance.id_venta}") # DEBUG
+        PlanPagoVenta.objects.filter(venta=venta_instance).delete() 
+        # print(f"[VentaViewSet] Plan de pago existente (si lo hubo) eliminado para Venta ID: {venta_instance.id_venta}") #DEBUG
 
         if venta_instance.tipo_venta == Venta.TIPO_VENTA_CREDITO and venta_instance.plazo_meses_credito and venta_instance.plazo_meses_credito > 0:
             monto_a_financiar = venta_instance.valor_lote_venta - venta_instance.cuota_inicial_requerida
             if monto_a_financiar <= Decimal('0.00'):
-                print(f"[VentaViewSet] No hay monto a financiar para Venta ID: {venta_instance.id_venta} (Monto: {monto_a_financiar}). No se crea plan.")
+                # print(f"[VentaViewSet] No hay monto a financiar para Venta ID: {venta_instance.id_venta} (Monto: {monto_a_financiar}). No se crea plan.") # DEBUG
                 return None
 
             numero_cuotas = venta_instance.plazo_meses_credito
             if numero_cuotas <= 0:
-                 print(f"[VentaViewSet ERROR] Número de cuotas es {numero_cuotas} para Venta ID: {venta_instance.id_venta}")
+                 # print(f"[VentaViewSet ERROR] Número de cuotas es {numero_cuotas} para Venta ID: {venta_instance.id_venta}") # DEBUG
                  return None
 
             monto_cuota_bruto = monto_a_financiar / Decimal(numero_cuotas)
@@ -136,13 +138,13 @@ class VentaViewSet(viewsets.ModelViewSet):
             
             fecha_primera_cuota = venta_instance.fecha_venta + relativedelta(months=1)
             
-            print(f"[VentaViewSet] Creando PlanPago para Venta ID: {venta_instance.id_venta}. Monto: {monto_a_financiar}, Cuotas: {numero_cuotas}, Cuota Reg: {monto_cuota_regular_calculado}, Última Cuota: {monto_ultima_cuota}, Inicio: {fecha_primera_cuota}")
+            # print(f"[VentaViewSet] Creando PlanPago para Venta ID: {venta_instance.id_venta}. Monto: {monto_a_financiar}, Cuotas: {numero_cuotas}, Cuota Reg: {monto_cuota_regular_calculado}, Última Cuota: {monto_ultima_cuota}, Inicio: {fecha_primera_cuota}") #DEBUG
 
             plan_pago = PlanPagoVenta.objects.create(
                 venta=venta_instance,
                 monto_total_credito=monto_a_financiar,
                 numero_cuotas=numero_cuotas,
-                monto_cuota_regular_original=monto_cuota_regular_calculado, # <--- CORRECCIÓN AQUÍ
+                monto_cuota_regular_original=monto_cuota_regular_calculado,
                 fecha_inicio_pago_cuotas=fecha_primera_cuota
             )
 
@@ -160,10 +162,10 @@ class VentaViewSet(viewsets.ModelViewSet):
                     )
                 )
             CuotaPlanPago.objects.bulk_create(cuotas_a_crear)
-            print(f"[VentaViewSet] {len(cuotas_a_crear)} cuotas creadas para PlanPago ID: {plan_pago.id_plan_pago}")
+            # print(f"[VentaViewSet] {len(cuotas_a_crear)} cuotas creadas para PlanPago ID: {plan_pago.id_plan_pago}") # DEBUG
             return plan_pago
         return None
-    # --- INICIO: NUEVA ACCIÓN PARA MARCAR FIRMA DE CONTRATO ---
+
     @action(detail=True, methods=['post'])
     @transaction.atomic
     def marcar_firma_contrato(self, request, pk=None):
@@ -179,28 +181,25 @@ class VentaViewSet(viewsets.ModelViewSet):
             return Response(
                 {"message": "El contrato ya fue marcado como firmado previamente.", 
                  "fecha_firma": venta.fecha_firma_contrato},
-                status=status.HTTP_200_OK # O 400 si se considera un error intentar marcar de nuevo
+                status=status.HTTP_200_OK
             )
 
-        # Obtener fecha de firma del request (opcional, si no se pasa, se usa la actual)
         fecha_firma_str = request.data.get('fecha_firma_contrato')
-        fecha_firma = None
+        fecha_firma_obj = None
         if fecha_firma_str:
             try:
-                fecha_firma = datetime.strptime(fecha_firma_str, '%Y-%m-%d').date()
+                fecha_firma_obj = datetime.strptime(fecha_firma_str, '%Y-%m-%d').date()
             except ValueError:
                 return Response({"error": "Formato de fecha_firma_contrato inválido. Use YYYY-MM-DD."}, status=status.HTTP_400_BAD_REQUEST)
         
-        # Llamar al método del modelo
-        venta.marcar_como_firmada(fecha_firma=fecha_firma, save_instance=True)
+        venta.marcar_como_firmada(fecha_firma=fecha_firma_obj) # El método del modelo ahora maneja el save
         
         serializer = self.get_serializer(venta)
         return Response(serializer.data)
-    # --- FIN: NUEVA ACCIÓN ---
 
     @transaction.atomic
     def create(self, request, *args, **kwargs):
-        print("[VentaViewSet CREATE INICIO] Data recibida:", request.data)
+        # print("[VentaViewSet CREATE INICIO] Data recibida:", request.data) # DEBUG
         nuevo_cliente_data_req = request.data.get('nuevo_cliente_data')
         cliente_id_req = request.data.get('cliente')
         cliente_instance = None
@@ -212,43 +211,41 @@ class VentaViewSet(viewsets.ModelViewSet):
                 if cliente_existente: cliente_instance = cliente_existente
                 else: cliente_instance = cliente_create_serializer.save()
             else: 
-                print("[VentaViewSet CREATE ERROR] ClienteCreateSerializer inválido:", cliente_create_serializer.errors)
+                # print("[VentaViewSet CREATE ERROR] ClienteCreateSerializer inválido:", cliente_create_serializer.errors) # DEBUG
                 return Response(cliente_create_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         elif cliente_id_req:
             try: cliente_instance = Cliente.objects.get(pk=cliente_id_req)
             except Cliente.DoesNotExist: 
-                print(f"[VentaViewSet CREATE ERROR] Cliente ID {cliente_id_req} no encontrado.")
+                # print(f"[VentaViewSet CREATE ERROR] Cliente ID {cliente_id_req} no encontrado.") # DEBUG
                 return Response({'cliente': ['Cliente existente no encontrado.']}, status=status.HTTP_400_BAD_REQUEST)
         else: 
-            print("[VentaViewSet CREATE ERROR] No se proveyó cliente ni datos de nuevo cliente.")
+            # print("[VentaViewSet CREATE ERROR] No se proveyó cliente ni datos de nuevo cliente.") # DEBUG
             return Response({'detail': 'Debe proporcionar un cliente existente o datos para uno nuevo.'}, status=status.HTTP_400_BAD_REQUEST)
 
         venta_data = request.data.copy()
         if cliente_instance: venta_data['cliente'] = cliente_instance.pk
         if 'nuevo_cliente_data' in venta_data: del venta_data['nuevo_cliente_data']
         
-        print("[VentaViewSet CREATE] Data para VentaSerializer:", venta_data)
+        # print("[VentaViewSet CREATE] Data para VentaSerializer:", venta_data) #DEBUG
         serializer = self.get_serializer(data=venta_data)
         
         if not serializer.is_valid():
-            print("[VentaViewSet CREATE ERROR] VentaSerializer inválido:", serializer.errors)
+            # print("[VentaViewSet CREATE ERROR] VentaSerializer inválido:", serializer.errors) #DEBUG
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
         venta_instance = serializer.save() 
-        print(f"[VentaViewSet CREATE] Venta guardada ID: {venta_instance.id_venta}, Valor: {venta_instance.valor_lote_venta}")
-
-
+        # print(f"[VentaViewSet CREATE] Venta guardada ID: {venta_instance.id_venta}, Valor: {venta_instance.valor_lote_venta}") #DEBUG
         
         self._crear_o_actualizar_plan_pago(venta_instance)
         
-        venta_instance.refresh_from_db() # Asegurar que la instancia refleje el plan de pago creado
+        venta_instance.refresh_from_db() 
         response_serializer = self.get_serializer(venta_instance) 
         headers = self.get_success_headers(response_serializer.data)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     @transaction.atomic
     def update(self, request, *args, **kwargs):
-        print(f"[VentaViewSet UPDATE INICIO] ID: {kwargs.get('pk')}, Data recibida:", request.data)
+        # print(f"[VentaViewSet UPDATE INICIO] ID: {kwargs.get('pk')}, Data recibida:", request.data) #DEBUG
         partial = kwargs.pop('partial', False)
         instance = self.get_object() 
 
@@ -261,17 +258,18 @@ class VentaViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(instance, data=venta_data, partial=partial)
         
         if not serializer.is_valid():
-            print("[VentaViewSet UPDATE ERROR] VentaSerializer inválido:", serializer.errors)
+            # print("[VentaViewSet UPDATE ERROR] VentaSerializer inválido:", serializer.errors) #DEBUG
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         venta_instance = serializer.save()
-        print(f"[VentaViewSet UPDATE] Venta actualizada ID: {venta_instance.id_venta}, Valor: {venta_instance.valor_lote_venta}")
+        # print(f"[VentaViewSet UPDATE] Venta actualizada ID: {venta_instance.id_venta}, Valor: {venta_instance.valor_lote_venta}") #DEBUG
 
         self._crear_o_actualizar_plan_pago(venta_instance)
         
         venta_instance.refresh_from_db()
         response_serializer = self.get_serializer(venta_instance)
         return Response(response_serializer.data)
+
 
 class PresenciaViewSet(viewsets.ModelViewSet):
     queryset = Presencia.objects.all().select_related('cliente', 'lote_interes_inicial', 'asesor_captacion_opc', 'asesor_call_agenda', 'asesor_liner', 'asesor_closer', 'venta_asociada').order_by('-fecha_hora_presencia')
@@ -282,59 +280,58 @@ class PresenciaViewSet(viewsets.ModelViewSet):
     
     @transaction.atomic
     def create(self, request, *args, **kwargs):
-        # ... (lógica de creación de Presencia como estaba) ...
-        print("\n[PresenciaViewSet CREATE INICIO] ===========================================")
-        print("[PresenciaViewSet CREATE] Data recibida:", request.data)
+        # print("\n[PresenciaViewSet CREATE INICIO] ===========================================") #DEBUG
+        # print("[PresenciaViewSet CREATE] Data recibida:", request.data) #DEBUG
         nuevo_cliente_data_req = request.data.get('nuevo_cliente_data')
         cliente_id_req = request.data.get('cliente')
         cliente_instance = None
         if nuevo_cliente_data_req:
-            print("[PresenciaViewSet CREATE] Intentando crear/obtener cliente desde nuevo_cliente_data.")
+            # print("[PresenciaViewSet CREATE] Intentando crear/obtener cliente desde nuevo_cliente_data.") #DEBUG
             cliente_create_serializer = ClienteCreateSerializer(data=nuevo_cliente_data_req)
             if cliente_create_serializer.is_valid():
                 numero_documento = nuevo_cliente_data_req.get('numero_documento')
-                print(f"[PresenciaViewSet CREATE] Buscando cliente existente con N° Doc: {numero_documento}")
+                # print(f"[PresenciaViewSet CREATE] Buscando cliente existente con N° Doc: {numero_documento}") #DEBUG
                 cliente_existente = Cliente.objects.filter(numero_documento=numero_documento).first()
                 if cliente_existente:
                     cliente_instance = cliente_existente
-                    print(f"[PresenciaViewSet CREATE] Cliente existente encontrado: ID {cliente_instance.id_cliente}")
+                    # print(f"[PresenciaViewSet CREATE] Cliente existente encontrado: ID {cliente_instance.id_cliente}") #DEBUG
                 else:
                     cliente_instance = cliente_create_serializer.save()
-                    print(f"[PresenciaViewSet CREATE] Nuevo cliente creado: ID {cliente_instance.id_cliente}")
+                    # print(f"[PresenciaViewSet CREATE] Nuevo cliente creado: ID {cliente_instance.id_cliente}") #DEBUG
             else:
-                print("[PresenciaViewSet CREATE ERROR] ClienteCreateSerializer inválido:", cliente_create_serializer.errors)
+                # print("[PresenciaViewSet CREATE ERROR] ClienteCreateSerializer inválido:", cliente_create_serializer.errors) #DEBUG
                 return Response(cliente_create_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         elif cliente_id_req:
             try:
                 cliente_instance = Cliente.objects.get(pk=cliente_id_req)
-                print(f"[PresenciaViewSet CREATE] Cliente existente por ID encontrado: {cliente_instance.id_cliente}")
+                # print(f"[PresenciaViewSet CREATE] Cliente existente por ID encontrado: {cliente_instance.id_cliente}") #DEBUG
             except Cliente.DoesNotExist:
-                print(f"[PresenciaViewSet CREATE ERROR] Cliente con ID {cliente_id_req} no encontrado.")
+                # print(f"[PresenciaViewSet CREATE ERROR] Cliente con ID {cliente_id_req} no encontrado.") #DEBUG
                 return Response({'cliente': ['Cliente existente no encontrado.']}, status=status.HTTP_400_BAD_REQUEST)
         else:
-            print("[PresenciaViewSet CREATE ERROR] No se proporcionó cliente existente ni datos para nuevo cliente.")
+            # print("[PresenciaViewSet CREATE ERROR] No se proporcionó cliente existente ni datos para nuevo cliente.") #DEBUG
             return Response({'detail': 'Debe proporcionar un cliente existente o datos para uno nuevo para la presencia.'}, status=status.HTTP_400_BAD_REQUEST)
 
         presencia_data = request.data.copy()
         if cliente_instance: presencia_data['cliente'] = cliente_instance.pk
         if 'nuevo_cliente_data' in presencia_data: del presencia_data['nuevo_cliente_data'] 
         
-        print("[PresenciaViewSet CREATE] Data para PresenciaSerializer:", presencia_data)
+        # print("[PresenciaViewSet CREATE] Data para PresenciaSerializer:", presencia_data) #DEBUG
         serializer = self.get_serializer(data=presencia_data)
         
         if serializer.is_valid():
-            print("[PresenciaViewSet CREATE] PresenciaSerializer válido. Intentando guardar...")
+            # print("[PresenciaViewSet CREATE] PresenciaSerializer válido. Intentando guardar...") #DEBUG
             try:
                 instancia_guardada = serializer.save()
-                print(f"[PresenciaViewSet CREATE ÉXITO] Presencia guardada ID: {instancia_guardada.id_presencia}, Cliente ID: {instancia_guardada.cliente.id_cliente if instancia_guardada.cliente else 'N/A'}")
+                # print(f"[PresenciaViewSet CREATE ÉXITO] Presencia guardada ID: {instancia_guardada.id_presencia}, Cliente ID: {instancia_guardada.cliente.id_cliente if instancia_guardada.cliente else 'N/A'}") #DEBUG
                 headers = self.get_success_headers(serializer.data)
                 return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
             except Exception as e:
-                print(f"[PresenciaViewSet CREATE ERROR AL GUARDAR] Excepción durante serializer.save(): {str(e)}")
-                traceback.print_exc()
+                # print(f"[PresenciaViewSet CREATE ERROR AL GUARDAR] Excepción durante serializer.save(): {str(e)}") #DEBUG
+                # traceback.print_exc() #DEBUG
                 return Response({"detail": f"Error interno al guardar la presencia: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         else:
-            print("[PresenciaViewSet CREATE ERROR] PresenciaSerializer inválido:", serializer.errors)
+            # print("[PresenciaViewSet CREATE ERROR] PresenciaSerializer inválido:", serializer.errors) #DEBUG
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class PlanPagoVentaViewSet(viewsets.ReadOnlyModelViewSet):
@@ -370,27 +367,11 @@ class CuotaPlanPagoViewSet(viewsets.ModelViewSet):
         return Response({"detail": "La eliminación de cuotas individuales no está permitida."}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def perform_update(self, serializer):
-        cuota_instance = serializer.instance 
-        # Guardar los campos que vinieron en el request y que el serializer permite actualizar
+        # cuota_instance = serializer.instance # DEBUG
         updated_instance = serializer.save()
-        
-        # Volver a llamar a actualizar_estado para asegurar la consistencia del estado
-        # después de que los campos (ej. monto_pagado) hayan sido actualizados por el serializer.
         updated_instance.actualizar_estado(save_instance=True)
 
 
-# --- Vistas personalizadas (GetAdvisorsForFilterAPIView, GetDashboardDataAPIView, GetCommissionSummaryDataAPIView, GetDefaultCommissionRateAPIView, etc.) ...
-# ... (El resto de las vistas como estaban) ...
-
-
-# --- Vistas personalizadas (sin cambios significativos para esta funcionalidad) ---
-# ... (GetAdvisorsForFilterAPIView, GetDashboardDataAPIView, GetCommissionSummaryDataAPIView, GetDefaultCommissionRateAPIView, etc.) ...
-
-
-# --- Vistas personalizadas APIView ---
-# ... (GetAdvisorsForFilterAPIView, GetDashboardDataAPIView, GetCommissionSummaryDataAPIView, GetDefaultCommissionRateAPIView sin cambios)
-# ... (CalculateCommissionAPIView, GetCommissionStructureAPIView, GetGeneralConfigsAPIView sin cambios)
-# Se omite el resto de vistas por brevedad
 class GetAdvisorsForFilterAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     def get(self, request, format=None):
@@ -400,82 +381,255 @@ class GetAdvisorsForFilterAPIView(APIView):
 
 class GetDashboardDataAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+
     def get(self, request, format=None):
         try:
-            start_date_str = request.query_params.get('startDate'); end_date_str = request.query_params.get('endDate')
-            asesor_id_filter = request.query_params.get('asesorId'); tipo_venta_filter = request.query_params.get('tipoVenta')
-            tipo_asesor_ranking_filter = request.query_params.get('tipoAsesor')
-            medio_captacion_filter = request.query_params.get('medio_captacion')
-            status_venta_filter = request.query_params.get('status_venta')
+            # print(f"Dashboard Request Query Params: {request.query_params}") # DEBUG
 
-            start_date = parse_date(start_date_str) if start_date_str else None
-            end_date = parse_date(end_date_str) if end_date_str else None
-            if end_date: end_date = datetime.combine(end_date, datetime.max.time()).date()
+            raw_start_date = request.query_params.get('startDate')
+            raw_end_date = request.query_params.get('endDate')
+            parsed_start_date = parse_date(raw_start_date) if raw_start_date else None
+            parsed_end_date = parse_date(raw_end_date) if raw_end_date else None
 
-            queryset_ventas = Venta.objects.all()
-            if start_date: queryset_ventas = queryset_ventas.filter(fecha_venta__gte=start_date)
-            if end_date: queryset_ventas = queryset_ventas.filter(fecha_venta__lte=end_date)
-            if asesor_id_filter: queryset_ventas = queryset_ventas.filter(vendedor_principal_id=asesor_id_filter)
-            if tipo_venta_filter: queryset_ventas = queryset_ventas.filter(tipo_venta=tipo_venta_filter)
-            if status_venta_filter: queryset_ventas = queryset_ventas.filter(status_venta=status_venta_filter)
-            if medio_captacion_filter: queryset_ventas = queryset_ventas.filter(presencia_que_origino__medio_captacion=medio_captacion_filter)
+            filters = {
+                'startDate': parsed_start_date,
+                'endDate': parsed_end_date,
+                'asesorId': request.query_params.get('asesorId'),
+                'tipoVenta': request.query_params.get('tipoVenta'),
+                'tipoAsesor': request.query_params.get('tipoAsesor'), 
+                'medio_captacion': request.query_params.get('medio_captacion'),
+                'status_venta': request.query_params.get('status_venta'),
+            }
 
-            kpis_ventas = queryset_ventas.aggregate(total_monto=Coalesce(Sum('valor_lote_venta', output_field=DecimalField()), Value(Decimal('0.0')), output_field=DecimalField()), total_numero=Coalesce(Count('id_venta'), Value(0)))
-            total_ventas_monto = kpis_ventas['total_monto']; total_ventas_numero = kpis_ventas['total_numero']
-            asesores_activos = Asesor.objects.count()
-            lotes_disponibles = Lote.objects.filter(estado_lote='Disponible').count()
-            lotes_reservados = Lote.objects.filter(estado_lote='Reservado').count()
-            lotes_vendidos = Lote.objects.filter(estado_lote='Vendido').count()
-            ventas_por_tipo_q = queryset_ventas.values('tipo_venta').annotate(cantidad=Count('id_venta')).order_by('tipo_venta')
-            ventas_por_tipo_data = [['Tipo de Venta', 'Cantidad']]; tipo_venta_display_map = dict(Venta.TIPO_VENTA_CHOICES)
-            for item in ventas_por_tipo_q: display_name = tipo_venta_display_map.get(item['tipo_venta'], item['tipo_venta']); ventas_por_tipo_data.append([display_name, item['cantidad']])
-            if len(ventas_por_tipo_data) == 1: ventas_por_tipo_data.append(['Sin datos', 0])
-            ventas_mensuales_q = queryset_ventas.annotate(mes_agg=TruncMonth('fecha_venta')).values('mes_agg').annotate(total_monto_mes=Coalesce(Sum('valor_lote_venta', output_field=DecimalField()), Value(Decimal('0.0')), output_field=DecimalField())).order_by('mes_agg')
-            ventas_mensuales_data = [['Mes', 'Monto Total Ventas']]
-            for item in ventas_mensuales_q:
-                if item['mes_agg']: ventas_mensuales_data.append([item['mes_agg'].strftime('%Y-%m'), float(item['total_monto_mes'])])
-            if len(ventas_mensuales_data) == 1: ventas_mensuales_data.append(['Sin datos', 0.0])
-            def get_ranking_data(asesor_tipo_actual_val, base_queryset):
-                ranking_q = base_queryset.filter(vendedor_principal__tipo_asesor_actual=asesor_tipo_actual_val).values('vendedor_principal__nombre_asesor').annotate(num_ventas=Count('id_venta')).order_by('-num_ventas')[:5]
-                data_ranking = [[f'Asesor {asesor_tipo_actual_val}', 'N° Ventas']]
-                for item_rank in ranking_q: data_ranking.append([item_rank['vendedor_principal__nombre_asesor'], item_rank['num_ventas']])
-                if len(data_ranking) == 1: data_ranking.append(['Sin datos', 0])
-                return data_ranking
-            ranking_juniors_data = get_ranking_data('Junior', queryset_ventas) if not tipo_asesor_ranking_filter or tipo_asesor_ranking_filter == 'Junior' else [['Asesor Junior', 'N° Ventas'],['Filtrado',0]]
-            ranking_socios_data = get_ranking_data('Socio', queryset_ventas) if not tipo_asesor_ranking_filter or tipo_asesor_ranking_filter == 'Socio' else [['Asesor Socio', 'N° Ventas'],['Filtrado',0]]
+            if filters['endDate'] is not None:
+                filters['endDate'] = datetime.combine(filters['endDate'], datetime.max.time()).date()
 
-            queryset_pagos = RegistroPago.objects.all()
-            if start_date: queryset_pagos = queryset_pagos.filter(fecha_pago__gte=start_date)
-            if end_date: queryset_pagos = queryset_pagos.filter(fecha_pago__lte=end_date)
-            if asesor_id_filter: queryset_pagos = queryset_pagos.filter(venta__vendedor_principal_id=asesor_id_filter)
-            if tipo_venta_filter: queryset_pagos = queryset_pagos.filter(venta__tipo_venta=tipo_venta_filter)
-            if status_venta_filter: queryset_pagos = queryset_pagos.filter(venta__status_venta=status_venta_filter)
-            if medio_captacion_filter: queryset_pagos = queryset_pagos.filter(venta__presencia_que_origino__medio_captacion=medio_captacion_filter)
-            recaudo_mensual_q = queryset_pagos.annotate(mes_pago=TruncMonth('fecha_pago')).values('mes_pago').annotate(total_recaudado=Coalesce(Sum('monto_pago', output_field=DecimalField()), Value(Decimal('0.00')))).order_by('mes_pago')
-            recaudo_mensual_data = [['Mes', 'Recaudo Total (S/.)']]
-            for item in recaudo_mensual_q:
-                if item['mes_pago']: recaudo_mensual_data.append([item['mes_pago'].strftime('%Y-%m'), float(item['total_recaudado'])])
-            if len(recaudo_mensual_data) == 1: recaudo_mensual_data.append(['Sin datos', 0.0])
+            # Inicializar QuerySets base
+            pagos_filtrados = RegistroPago.objects.all()
+            presencias_filtradas = Presencia.objects.all()
+            ventas_filtradas = Venta.objects.all()
 
-            queryset_presencias = Presencia.objects.all()
-            if start_date: queryset_presencias = queryset_presencias.filter(fecha_hora_presencia__date__gte=start_date)
-            if end_date: queryset_presencias = queryset_presencias.filter(fecha_hora_presencia__date__lte=end_date)
-            if asesor_id_filter: queryset_presencias = queryset_presencias.filter(Q(asesor_captacion_opc_id=asesor_id_filter) | Q(asesor_call_agenda_id=asesor_id_filter) | Q(asesor_liner_id=asesor_id_filter) | Q(asesor_closer_id=asesor_id_filter)).distinct()
-            if medio_captacion_filter: queryset_presencias = queryset_presencias.filter(medio_captacion=medio_captacion_filter)
+            # Aplicar filtros de fecha
+            if filters.get('startDate'):
+                pagos_filtrados = pagos_filtrados.filter(fecha_pago__gte=filters['startDate'])
+                presencias_filtradas = presencias_filtradas.filter(fecha_hora_presencia__date__gte=filters['startDate'])
+                ventas_filtradas = ventas_filtradas.filter(fecha_venta__gte=filters['startDate'])
+            
+            if filters.get('endDate'):
+                pagos_filtrados = pagos_filtrados.filter(fecha_pago__lte=filters['endDate'])
+                presencias_filtradas = presencias_filtradas.filter(fecha_hora_presencia__date__lte=filters['endDate'])
+                ventas_filtradas = ventas_filtradas.filter(fecha_venta__lte=filters['endDate'])
+            
+            # --- INICIO: APLICAR OTROS FILTROS A LOS QUERYSETS PRINCIPALES ---
+            if filters.get('asesorId'):
+                ventas_filtradas = ventas_filtradas.filter(vendedor_principal_id=filters['asesorId'])
+                presencias_filtradas = presencias_filtradas.filter(
+                    Q(asesor_captacion_opc_id=filters['asesorId']) | 
+                    Q(asesor_call_agenda_id=filters['asesorId']) | 
+                    Q(asesor_liner_id=filters['asesorId']) | 
+                    Q(asesor_closer_id=filters['asesorId'])
+                ).distinct()
+                pagos_filtrados = pagos_filtrados.filter(venta__vendedor_principal_id=filters['asesorId'])
 
-            trunc_kind = TruncMonth('fecha_hora_presencia'); date_format = '%Y-%m'
+            if filters.get('tipoVenta'):
+                ventas_filtradas = ventas_filtradas.filter(tipo_venta=filters['tipoVenta'])
+                pagos_filtrados = pagos_filtrados.filter(venta__tipo_venta=filters['tipoVenta'])
 
-            historico_presencias_q = queryset_presencias.annotate(periodo=trunc_kind).values('periodo').annotate(cantidad=Count('id_presencia')).order_by('periodo')
-            historico_presencias_data = [['Periodo', 'Cantidad de Presencias']]
-            for item in historico_presencias_q:
-                if item['periodo']: periodo_str = item['periodo'].strftime(date_format); historico_presencias_data.append([periodo_str, item['cantidad']])
-            if len(historico_presencias_data) == 1: historico_presencias_data.append(['Sin datos', 0])
+            if filters.get('medio_captacion'):
+                ventas_filtradas = ventas_filtradas.filter(presencia_que_origino__medio_captacion=filters['medio_captacion'])
+                presencias_filtradas = presencias_filtradas.filter(medio_captacion=filters['medio_captacion'])
+                pagos_filtrados = pagos_filtrados.filter(venta__presencia_que_origino__medio_captacion=filters['medio_captacion'])
+            
+            if filters.get('status_venta'):
+                ventas_filtradas = ventas_filtradas.filter(status_venta=filters['status_venta'])
+                pagos_filtrados = pagos_filtrados.filter(venta__status_venta=filters['status_venta'])
+            # --- FIN: APLICAR OTROS FILTROS ---
 
-            response_data = {"success": True, "message": "Datos del dashboard cargados correctamente.", "tarjetas": {"totalVentasMonto": total_ventas_monto, "totalVentasNumero": total_ventas_numero, "asesoresActivos": asesores_activos, "lotesDisponibles": lotes_disponibles, "lotesReservados": lotes_reservados, "lotesVendidos": lotes_vendidos,}, "graficos": {"ventasPorTipo": ventas_por_tipo_data, "ventasMensuales": ventas_mensuales_data, "rankingJuniors": ranking_juniors_data, "rankingSocios": ranking_socios_data, "recaudoMensual": recaudo_mensual_data, "historicoPresencias": historico_presencias_data,}}
+            # --- KPIs ---
+            kpi_monto_total_recaudo = pagos_filtrados.aggregate(
+                total=Coalesce(Sum('monto_pago', output_field=DecimalField()), Value(Decimal('0.0')), output_field=DecimalField())
+            )['total']
+            
+            kpi_n_presencias_realizadas = presencias_filtradas.filter(status_presencia=Presencia.STATUS_PRESENCIA_REALIZADA).count()
+            
+            # Ventas para tasa de conversión: solo las que son "Procesable" o "Completada"
+            kpi_n_ventas_para_conversion = ventas_filtradas.filter(
+                status_venta__in=[Venta.STATUS_VENTA_PROCESABLE, Venta.STATUS_VENTA_COMPLETADA]
+            ).count()
+            
+            kpi_tasa_conversion = (kpi_n_ventas_para_conversion / kpi_n_presencias_realizadas * 100) if kpi_n_presencias_realizadas > 0 else Decimal('0.0')
+            
+            kpi_n_ventas_solo_procesables = ventas_filtradas.filter(status_venta=Venta.STATUS_VENTA_PROCESABLE).count()
+
+            kpi_lotes_disponibles = Lote.objects.filter(estado_lote='Disponible').count() # Global
+            kpi_lotes_vendidos = Lote.objects.filter(estado_lote='Vendido').count() # Global
+
+            tarjetas_data = {
+                "montoTotalRecaudo": kpi_monto_total_recaudo,
+                "nPresenciasRealizadas": kpi_n_presencias_realizadas,
+                "tasaConversionVentas": kpi_tasa_conversion,
+                "nVentasProcesables": kpi_n_ventas_solo_procesables,
+                "lotesDisponibles": kpi_lotes_disponibles,
+                "lotesVendidos": kpi_lotes_vendidos,
+            }
+            # print(f"KPIs calculados: {tarjetas_data}") # DEBUG
+
+            # --- Gráficos ---
+            # 1. Histórico Ventas vs Presencias (SIN FILTROS de dashboard)
+            ventas_historico_q = Venta.objects.annotate(mes=TruncMonth('fecha_venta')).values('mes').annotate(cantidad=Count('id_venta')).order_by('mes')
+            presencias_historico_q = Presencia.objects.annotate(mes=TruncMonth('fecha_hora_presencia__date')).values('mes').annotate(cantidad=Count('id_presencia')).order_by('mes')
+            
+            historico_combinado = {}
+            for v_hist in ventas_historico_q:
+                if v_hist['mes']: historico_combinado.setdefault(v_hist['mes'].strftime('%Y-%m'), {'ventas': 0, 'presencias': 0})['ventas'] = v_hist['cantidad']
+            for p_hist in presencias_historico_q:
+                if p_hist['mes']: historico_combinado.setdefault(p_hist['mes'].strftime('%Y-%m'), {'ventas': 0, 'presencias': 0})['presencias'] = p_hist['cantidad']
+            
+            grafico_historico_ventas_presencias = [['Mes', 'Ventas', 'Presencias']]
+            for mes_str, data_hist in sorted(historico_combinado.items()):
+                grafico_historico_ventas_presencias.append([mes_str, data_hist.get('ventas', 0), data_hist.get('presencias', 0)])
+            if len(grafico_historico_ventas_presencias) == 1: grafico_historico_ventas_presencias.append(['Sin datos', 0, 0])
+
+            # 2. Estado de Ventas (Doughnut) - USA ventas_filtradas
+            ventas_por_estado_q = ventas_filtradas.values('status_venta').annotate(cantidad=Count('id_venta')).order_by('status_venta')
+            grafico_estado_ventas = [['Estado', 'Cantidad']]
+            status_display_map = dict(Venta.STATUS_VENTA_CHOICES)
+            for item_estado in ventas_por_estado_q:
+                display_name = status_display_map.get(item_estado['status_venta'], item_estado['status_venta'])
+                grafico_estado_ventas.append([display_name, item_estado['cantidad']])
+            if len(grafico_estado_ventas) == 1: grafico_estado_ventas.append(['Sin datos', 0])
+
+            # 3. Embudo de Ventas - USA presencias_filtradas y ventas_filtradas
+            embudo_nivel1_total_presencias = presencias_filtradas.count()
+            embudo_nivel2_presencias_realizadas = presencias_filtradas.filter(status_presencia='realizada').count()
+            embudo_nivel3_ventas_procesables = ventas_filtradas.filter(status_venta='procesable').count()
+
+            grafico_embudo_ventas = [['Etapa', 'Cantidad', {'role': 'tooltip', 'type': 'string', 'p': {'html': True}}]]
+            if embudo_nivel1_total_presencias >= 0: 
+                perc_realizadas = (embudo_nivel2_presencias_realizadas / embudo_nivel1_total_presencias * 100) if embudo_nivel1_total_presencias > 0 else 0
+                perc_ventas_procesables_sobre_total_pres = (embudo_nivel3_ventas_procesables / embudo_nivel1_total_presencias * 100) if embudo_nivel1_total_presencias > 0 else 0
+                perc_ventas_procesables_sobre_realizadas = (embudo_nivel3_ventas_procesables / embudo_nivel2_presencias_realizadas * 100) if embudo_nivel2_presencias_realizadas > 0 else 0
+                
+                grafico_embudo_ventas.extend([
+                    ['Presencias Totales', embudo_nivel1_total_presencias, f"Presencias Totales: {embudo_nivel1_total_presencias} (100%)"],
+                    ['Presencias Realizadas', embudo_nivel2_presencias_realizadas, f"Presencias Realizadas: {embudo_nivel2_presencias_realizadas} ({perc_realizadas:.1f}% de Totales)"],
+                    ['Ventas Procesables', embudo_nivel3_ventas_procesables, f"Ventas Procesables: {embudo_nivel3_ventas_procesables} ({perc_ventas_procesables_sobre_realizadas:.1f}% de Realizadas, {perc_ventas_procesables_sobre_total_pres:.1f}% de Totales)"]
+                ])
+            # No añadir explícitamente "Sin datos" para el embudo si los niveles son 0.
+
+            # 4. Disponibilidad de Lotes por Proyecto (Tabla Detallada) - NO FILTRADO por dashboard filters
+            proyectos_definidos = ["OASIS 1 (HUACHO 1)", "OASIS 2 (AUCALLAMA)", "OASIS 3 (HUACHO 2)"]
+            tabla_disponibilidad_lotes_data = []
+
+            for proyecto_nombre in proyectos_definidos:
+                lotes_del_proyecto = Lote.objects.filter(ubicacion_proyecto=proyecto_nombre)
+                total_lotes = lotes_del_proyecto.count()
+                
+                disponibles_count = lotes_del_proyecto.filter(estado_lote=Lote.ESTADO_LOTE_CHOICES[0][0]).count() # 'Disponible'
+                reservados_count = lotes_del_proyecto.filter(estado_lote=Lote.ESTADO_LOTE_CHOICES[1][0]).count()  # 'Reservado'
+                vendidos_count = lotes_del_proyecto.filter(estado_lote=Lote.ESTADO_LOTE_CHOICES[2][0]).count()    # 'Vendido'
+                
+                tabla_disponibilidad_lotes_data.append({
+                    "proyecto": proyecto_nombre,
+                    "total_lotes": total_lotes,
+                    "disponibles_cantidad": disponibles_count,
+                    "reservados_cantidad": reservados_count,
+                    "vendidos_cantidad": vendidos_count,
+                })
+
+            # 5. Ranking Asesores (Matriz/Tabla) - USA ventas_filtradas y filtro tipoAsesor
+            ranking_asesores_q_base = ventas_filtradas
+            if filters.get('tipoAsesor'):
+                ranking_asesores_q_base = ranking_asesores_q_base.filter(vendedor_principal__tipo_asesor_actual=filters['tipoAsesor'])
+            
+            ranking_data_raw = ranking_asesores_q_base.values(
+                'vendedor_principal__nombre_asesor', 
+                'vendedor_principal__tipo_asesor_actual', 
+                'status_venta'
+            ).annotate(cantidad=Count('id_venta')).order_by(
+                'vendedor_principal__tipo_asesor_actual', 
+                'vendedor_principal__nombre_asesor'
+            )
+
+            grafico_ranking_asesores_pivot = {}
+            estados_venta_orden_claves = [Venta.STATUS_VENTA_SEPARACION, Venta.STATUS_VENTA_PROCESABLE, Venta.STATUS_VENTA_ANULADO, Venta.STATUS_VENTA_COMPLETADA]
+            estados_venta_orden_display = [dict(Venta.STATUS_VENTA_CHOICES).get(s,s).capitalize() for s in estados_venta_orden_claves]
+
+            for item_rank in ranking_data_raw:
+                asesor_nombre = item_rank['vendedor_principal__nombre_asesor']
+                asesor_tipo = item_rank['vendedor_principal__tipo_asesor_actual']
+                if asesor_nombre not in grafico_ranking_asesores_pivot:
+                    grafico_ranking_asesores_pivot[asesor_nombre] = {'tipo': asesor_tipo}
+                    for estado_clave in estados_venta_orden_claves:
+                        grafico_ranking_asesores_pivot[asesor_nombre][estado_clave] = 0
+                
+                if item_rank['status_venta'] in estados_venta_orden_claves:
+                     grafico_ranking_asesores_pivot[asesor_nombre][item_rank['status_venta']] = item_rank['cantidad']
+            
+            grafico_ranking_asesores = [['Asesor', 'Tipo'] + estados_venta_orden_display]
+            for asesor_nombre_rank, data_rank in sorted(grafico_ranking_asesores_pivot.items(), key=lambda x: (x[1].get('tipo', ''), x[0])):
+                 fila = [asesor_nombre_rank, data_rank.get('tipo','N/A')]
+                 for estado_clave_rank in estados_venta_orden_claves:
+                     fila.append(data_rank.get(estado_clave_rank,0))
+                 grafico_ranking_asesores.append(fila)
+            if len(grafico_ranking_asesores) == 1: grafico_ranking_asesores.append(['Sin datos', '-', 0, 0, 0, 0])
+
+            # 6. Recaudo por Medio de Captación (Bar) - USA pagos_filtrados
+            recaudo_por_medio_q = pagos_filtrados.filter(venta__presencia_que_origino__isnull=False).values(
+                'venta__presencia_que_origino__medio_captacion'
+            ).annotate(
+                total_recaudado=Coalesce(Sum('monto_pago', output_field=DecimalField()), Value(Decimal('0.0')), output_field=DecimalField())
+            ).order_by('-total_recaudado')
+
+            grafico_recaudo_medio_captacion = [['Medio de Captación', 'Recaudo Total (S/.)']]
+            medio_display_map = dict(Presencia.MEDIO_CAPTACION_CHOICES)
+            for item_medio in recaudo_por_medio_q:
+                medio_clave = item_medio['venta__presencia_que_origino__medio_captacion']
+                display_name_medio = medio_display_map.get(medio_clave, medio_clave if medio_clave else "Desconocido")
+                grafico_recaudo_medio_captacion.append([display_name_medio, float(item_medio['total_recaudado'])])
+            if len(grafico_recaudo_medio_captacion) == 1: grafico_recaudo_medio_captacion.append(['Sin datos', 0.0])
+            # --- FIN LÓGICA DE GRÁFICOS ---
+            
+            response_data = {
+                "success": True, 
+                "message": "Datos del dashboard cargados correctamente.", 
+                "tarjetas": tarjetas_data,
+                "graficos": {
+                    "historicoVentasPresencias": grafico_historico_ventas_presencias,
+                    "estadoVentas": grafico_estado_ventas,
+                    "embudoVentas": grafico_embudo_ventas,
+                    "tablaDisponibilidadLotes": tabla_disponibilidad_lotes_data, # Cambio de clave
+                    "rankingAsesores": grafico_ranking_asesores,
+                    "recaudoPorMedioCaptacion": grafico_recaudo_medio_captacion,
+                }
+            }
             return Response(response_data)
         except Exception as e:
-            print(f"Error en GetDashboardDataAPIView: {str(e)}"); import traceback; traceback.print_exc(); empty_chart_data = [['Error', 0]]
-            return Response({"success": False, "message": f"Error al procesar los datos del dashboard: Ocurrió un error inesperado. Detalle: {str(e)}", "tarjetas": {"totalVentasMonto": 0, "totalVentasNumero": 0, "asesoresActivos": 0, "lotesDisponibles": 0, "lotesReservados": 0, "lotesVendidos": 0,}, "graficos": {"ventasPorTipo": [['Tipo de Venta', 'Cantidad']] + empty_chart_data, "ventasMensuales": [['Mes', 'Monto Total Ventas']] + empty_chart_data, "rankingJuniors": [['Asesor Junior', 'N° Ventas']] + empty_chart_data, "rankingSocios": [['Asesor Socio', 'N° Ventas']] + empty_chart_data, "recaudoMensual": [['Mes', 'Recaudo Total (S/.)']] + empty_chart_data, "historicoPresencias": [['Periodo', 'Cantidad de Presencias']] + empty_chart_data,}}, status=500)
+            # import traceback 
+            # traceback.print_exc() 
+            print(f"ERROR en GetDashboardDataAPIView: {str(e)}") 
+            
+            fallback_grafico_simple = [['Error', 'Valor'], ['Error', 0]]
+            fallback_grafico_historico = [['Mes', 'Ventas', 'Presencias'], ['Error', 0, 0]]
+            fallback_grafico_ranking = [['Asesor', 'Tipo', 'Separación', 'Procesable', 'Anulada', 'Completada'], ['Error', '-', 0,0,0,0]]
+            fallback_grafico_embudo = [['Etapa', 'Cantidad', {'role': 'tooltip', 'type': 'string', 'p': {'html': True}}], ['Error', 0, 'Error al cargar']]
+            fallback_tabla_disponibilidad = [] # Para la tabla, un array vacío es un buen fallback
+
+
+            return Response({
+                "success": False, 
+                "message": f"Error al procesar los datos del dashboard: Ocurrió un error inesperado. Detalle: {str(e)}", 
+                "tarjetas": { "montoTotalRecaudo": 0, "nPresenciasRealizadas": 0, "tasaConversionVentas": 0, "nVentasProcesables": 0, "lotesDisponibles": 0, "lotesVendidos": 0,},
+                "graficos": { 
+                    "historicoVentasPresencias": fallback_grafico_historico,
+                    "estadoVentas": fallback_grafico_simple,
+                    "embudoVentas": fallback_grafico_embudo,
+                    "tablaDisponibilidadLotes": fallback_tabla_disponibilidad, # Cambio de clave
+                    "rankingAsesores": fallback_grafico_ranking,
+                    "recaudoPorMedioCaptacion": fallback_grafico_simple,
+                }
+            }, status=500)
+
 
 class GetCommissionSummaryDataAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -608,7 +762,7 @@ class GetCommissionSummaryDataAPIView(APIView):
                 summary_list.append(asesor_summary)
             return Response({"success": True, "summary": summary_list})
         except Exception as e:
-            print(f"Error en GetCommissionSummaryDataAPIView: {str(e)}"); import traceback; traceback.print_exc()
+            # print(f"Error en GetCommissionSummaryDataAPIView: {str(e)}"); import traceback; traceback.print_exc() # DEBUG
             return Response({"success": False, "message": f"Error al procesar el resumen de comisiones: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class GetDefaultCommissionRateAPIView(APIView):
@@ -650,8 +804,8 @@ class GetDefaultCommissionRateAPIView(APIView):
             return Response({
                 "success": False,
                 "message": f"No se encontró una regla de comisión directa para los parámetros: Rol '{rol_asesor_en_venta}', Tipo Venta '{tipo_venta}', Participación '{participacion_aplicable}'.",
-                "porcentaje_comision_default": None # En frontend, si es null, no mostrar sugerencia.
-            }, status=status.HTTP_404_NOT_FOUND) # Devolver 404 es semánticamente correcto si la regla no se encuentra
+                "porcentaje_comision_default": None 
+            }, status=status.HTTP_404_NOT_FOUND)
 
 
 class CalculateCommissionAPIView(APIView):

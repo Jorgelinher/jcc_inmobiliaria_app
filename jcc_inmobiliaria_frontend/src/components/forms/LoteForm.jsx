@@ -1,6 +1,6 @@
 // src/components/forms/LoteForm.jsx
 import React, { useState, useEffect } from 'react';
-import styles from './FormStyles.module.css';
+import styles from './FormStyles.module.css'; //
 
 const ESTADO_LOTE_CHOICES = [
     { value: 'Disponible', label: 'Disponible' },
@@ -8,20 +8,29 @@ const ESTADO_LOTE_CHOICES = [
     { value: 'Vendido', label: 'Vendido' },
 ];
 
+// --- INICIO: Definir las opciones para la ubicación del proyecto ---
+const UBICACION_PROYECTO_CHOICES = [
+    { value: '', label: 'Seleccione un proyecto...' }, // Opción por defecto/invitación
+    { value: 'OASIS 1 (HUACHO 1)', label: 'OASIS 1 (HUACHO 1)' },
+    { value: 'OASIS 2 (AUCALLAMA)', label: 'OASIS 2 (AUCALLAMA)' },
+    { value: 'OASIS 3 (HUACHO 2)', label: 'OASIS 3 (HUACHO 2)' },
+    // Puedes añadir más proyectos aquí si es necesario
+    // { value: 'Otro Proyecto', label: 'Otro Proyecto' }, // Si necesitas una opción "Otro"
+];
+// --- FIN: Definir las opciones para la ubicación del proyecto ---
+
 function LoteForm({ show, onClose, onSubmit, initialData }) {
     const getInitialFormData = () => ({
-        ubicacion_proyecto: '',
+        ubicacion_proyecto: '', // Valor inicial vacío para que se muestre "Seleccione un proyecto..."
         manzana: '',
         numero_lote: '',
         etapa: '',
         area_m2: '',
-        precio_lista_soles: '', // Precio Contado
-        // --- INICIO: NUEVOS CAMPOS DE PRECIOS A CRÉDITO ---
+        precio_lista_soles: '', 
         precio_credito_12_meses_soles: '',
         precio_credito_24_meses_soles: '',
         precio_credito_36_meses_soles: '',
-        // --- FIN: NUEVOS CAMPOS DE PRECIOS A CRÉDITO ---
-        precio_lista_dolares: '', // Opcional, precio en dólares
+        precio_lista_dolares: '', 
         estado_lote: 'Disponible',
         colindancias: '',
         partida_registral: '',
@@ -34,17 +43,15 @@ function LoteForm({ show, onClose, onSubmit, initialData }) {
         if (show) {
             if (initialData) {
                 setFormData({
-                    ubicacion_proyecto: initialData.ubicacion_proyecto || '',
+                    ubicacion_proyecto: initialData.ubicacion_proyecto || '', // Usar '' si es null/undefined
                     manzana: initialData.manzana || '',
                     numero_lote: initialData.numero_lote || '',
                     etapa: initialData.etapa !== null && initialData.etapa !== undefined ? initialData.etapa : '',
                     area_m2: initialData.area_m2 || '',
                     precio_lista_soles: initialData.precio_lista_soles || '',
-                    // --- INICIO: POPULAR NUEVOS CAMPOS DESDE initialData ---
                     precio_credito_12_meses_soles: initialData.precio_credito_12_meses_soles || '',
                     precio_credito_24_meses_soles: initialData.precio_credito_24_meses_soles || '',
                     precio_credito_36_meses_soles: initialData.precio_credito_36_meses_soles || '',
-                    // --- FIN: POPULAR NUEVOS CAMPOS DESDE initialData ---
                     precio_lista_dolares: initialData.precio_lista_dolares || '',
                     estado_lote: initialData.estado_lote || 'Disponible',
                     colindancias: initialData.colindancias || '',
@@ -69,15 +76,19 @@ function LoteForm({ show, onClose, onSubmit, initialData }) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        // Validación para asegurar que se haya seleccionado un proyecto
+        if (!formData.ubicacion_proyecto) {
+            // Podrías manejar esto con un error en el estado del formulario si prefieres
+            alert("Por favor, seleccione una ubicación del proyecto.");
+            return;
+        }
         const dataToSubmit = {
             ...formData,
             area_m2: formData.area_m2 === '' ? null : parseFloat(formData.area_m2),
             precio_lista_soles: formData.precio_lista_soles === '' ? null : parseFloat(formData.precio_lista_soles),
-            // --- INICIO: CONVERTIR NUEVOS PRECIOS PARA SUBMIT ---
             precio_credito_12_meses_soles: formData.precio_credito_12_meses_soles === '' ? null : parseFloat(formData.precio_credito_12_meses_soles),
             precio_credito_24_meses_soles: formData.precio_credito_24_meses_soles === '' ? null : parseFloat(formData.precio_credito_24_meses_soles),
             precio_credito_36_meses_soles: formData.precio_credito_36_meses_soles === '' ? null : parseFloat(formData.precio_credito_36_meses_soles),
-            // --- FIN: CONVERTIR NUEVOS PRECIOS PARA SUBMIT ---
             precio_lista_dolares: formData.precio_lista_dolares === '' ? null : parseFloat(formData.precio_lista_dolares),
             etapa: formData.etapa === '' ? null : parseInt(formData.etapa, 10),
         };
@@ -86,13 +97,27 @@ function LoteForm({ show, onClose, onSubmit, initialData }) {
 
     return (
         <div className={styles.modalOverlay}>
-            <div className={styles.modalContent} style={{maxWidth: '700px'}}> {/* Un poco más ancho para los nuevos campos */}
+            <div className={styles.modalContent} style={{maxWidth: '700px'}}>
                 <h2>{initialData?.id_lote ? 'Editar Lote' : 'Crear Nuevo Lote'}</h2>
                 <form onSubmit={handleSubmit}>
                     <div className={styles.formRow}>
                         <div className={styles.formGroup} style={{flex: 2}}>
                             <label htmlFor="ubicacion_proyecto">Ubicación del Proyecto <span className={styles.required}>*</span></label>
-                            <input type="text" id="ubicacion_proyecto" name="ubicacion_proyecto" value={formData.ubicacion_proyecto} onChange={handleChange} required />
+                            {/* --- INICIO: CAMBIO A SELECT --- */}
+                            <select 
+                                id="ubicacion_proyecto" 
+                                name="ubicacion_proyecto" 
+                                value={formData.ubicacion_proyecto} 
+                                onChange={handleChange} 
+                                required
+                            >
+                                {UBICACION_PROYECTO_CHOICES.map(opcion => (
+                                    <option key={opcion.value} value={opcion.value}>
+                                        {opcion.label}
+                                    </option>
+                                ))}
+                            </select>
+                            {/* --- FIN: CAMBIO A SELECT --- */}
                         </div>
                         <div className={styles.formGroup} style={{flex: 1}}>
                             <label htmlFor="etapa">Etapa (Número)</label>
@@ -125,7 +150,6 @@ function LoteForm({ show, onClose, onSubmit, initialData }) {
                         </div>
                     </div>
                     
-                    {/* --- INICIO: INPUTS PARA NUEVOS PRECIOS A CRÉDITO --- */}
                     <div className={styles.formRow}>
                         <div className={styles.formGroup}>
                             <label htmlFor="precio_credito_12_meses_soles">Precio Crédito 12 Meses</label>
@@ -140,7 +164,6 @@ function LoteForm({ show, onClose, onSubmit, initialData }) {
                             <input type="number" id="precio_credito_36_meses_soles" name="precio_credito_36_meses_soles" value={formData.precio_credito_36_meses_soles} onChange={handleChange} step="0.01" placeholder="Ej: 65000.00"/>
                         </div>
                     </div>
-                    {/* --- FIN: INPUTS PARA NUEVOS PRECIOS A CRÉDITO --- */}
                     
                     <div className={styles.formRow}>
                         <div className={styles.formGroup}>
