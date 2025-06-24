@@ -119,6 +119,27 @@ export const updateCliente = (id, data) => apiClient.put(`/gestion/clientes/${id
 export const deleteCliente = (id) => apiClient.delete(`/gestion/clientes/${id}/`);
 export const getClienteById = (id) => apiClient.get(`/gestion/clientes/${id}/`);
 
+// --- Nuevos endpoints para clientes ---
+export const getClientesSinPresencia = (search = '', limit = 50) => {
+    const params = new URLSearchParams();
+    if (search) params.append('search', search);
+    if (limit) params.append('limit', limit);
+    return apiClient.get(`/gestion/clientes/sin_presencia/?${params.toString()}`);
+};
+
+export const getClientesParaVentas = (search = '', limit = 50) => {
+    const params = new URLSearchParams();
+    if (search) params.append('search', search);
+    if (limit) params.append('limit', limit);
+    return apiClient.get(`/gestion/clientes/para_ventas/?${params.toString()}`);
+};
+
+export const searchClientes = (query) => {
+    const params = new URLSearchParams();
+    if (query) params.append('q', query);
+    return apiClient.get(`/gestion/clientes/search/?${params.toString()}`);
+};
+
 // --- CRUD Asesores ---
 export const getAsesores = (queryParams = '') => apiClient.get(`/gestion/asesores/${queryParams ? `?${queryParams}` : ''}`);
 export const createAsesor = (data) => apiClient.post('/gestion/asesores/', data);

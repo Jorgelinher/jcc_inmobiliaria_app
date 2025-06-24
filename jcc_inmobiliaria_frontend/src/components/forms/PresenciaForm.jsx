@@ -6,6 +6,7 @@ import styles from './PresenciaForm.module.css'; // Estilos específicos para Pr
 import VentaForm from './VentaForm';
 import ClienteForm from './ClienteForm';
 import LoteSelector from '../ui/LoteSelector';
+import ClienteSearch from '../ui/ClienteSearch';
 
 const MEDIO_CAPTACION_CHOICES = [
     { value: 'campo_opc', label: 'Campo OPC' }, { value: 'redes_facebook', label: 'Redes Facebook' },
@@ -59,14 +60,14 @@ function PresenciaForm({ show, onClose, onSubmit, initialData }) {
     const [isClienteModalOpen, setIsClienteModalOpen] = useState(false);
     const [clienteFormError, setClienteFormError] = useState('');
     const [isLoteSelectorModalOpen, setIsLoteSelectorModalOpen] = useState(false);
+    const [selectedClienteInfo, setSelectedClienteInfo] = useState(null);
 
     const fetchDropdownData = useCallback(async () => {
         setLoadingRelatedData(true);
         setFormError(''); // Limpiar error previo
         try {
-            console.log("[PresenciaForm] Fetching dropdown data (clientes, asesores, ventas)...");
-            const [clientesRes, asesoresRes, ventasRes] = await Promise.all([
-                apiService.getClientes(),
+            console.log("[PresenciaForm] Fetching dropdown data (asesores, ventas)...");
+            const [asesoresRes, ventasRes] = await Promise.all([
                 apiService.getAsesores(),
                 // --- CAMBIO TEMPORAL PARA DEPURACIÓN: Fetch todas las ventas o un conjunto más amplio ---
                 // apiService.getVentas("status_venta=separacion&status_venta=procesable") // Original
@@ -74,9 +75,6 @@ function PresenciaForm({ show, onClose, onSubmit, initialData }) {
                                       // Ejemplo: "status_venta__in=separacion,procesable" si tu backend lo soporta,
                                       // o simplemente "" para traer todas y filtrar en frontend si son pocas.
             ]);
-            
-            console.log("[PresenciaForm] Clientes response:", clientesRes.data);
-            setClientesList(clientesRes.data.results || clientesRes.data || []);
             
             console.log("[PresenciaForm] Asesores response:", asesoresRes.data);
             setAsesoresList(asesoresRes.data.results || asesoresRes.data || []);
@@ -90,7 +88,7 @@ function PresenciaForm({ show, onClose, onSubmit, initialData }) {
             }
 
         } catch (error) {
-            console.error("[PresenciaForm] Error cargando datos para selects (clientes/asesores/ventas):", error);
+            console.error("[PresenciaForm] Error cargando datos para selects (asesores/ventas):", error);
             setFormError("Error cargando datos necesarios para el formulario.");
         } finally {
             setLoadingRelatedData(false);
@@ -157,11 +155,22 @@ function PresenciaForm({ show, onClose, onSubmit, initialData }) {
             } else {
                 setIsVentaModalOpen(false);
             }
-        } else if (name === "cliente" && value === "_CREAR_NUEVO_") {
+        } else {
+            setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+        }
+    };
+
+    const handleClienteSelect = (cliente) => {
+        console.log("[PresenciaForm] Cliente seleccionado:", cliente);
+        setFormData(prev => ({ ...prev, cliente: cliente.id_cliente }));
+    };
+
+    const handleClienteSearchChange = (clienteId) => {
+        if (clienteId === '_CREAR_NUEVO_') {
             setClienteFormError('');
             setIsClienteModalOpen(true);
         } else {
-            setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+            setFormData(prev => ({ ...prev, cliente: clienteId }));
         }
     };
 
@@ -190,84 +199,109 @@ function PresenciaForm({ show, onClose, onSubmit, initialData }) {
             const response = await apiService.createCliente(clienteDataDelModal);
             const nuevoCliente = response.data;
             alert(`Cliente "${nuevoCliente.nombres_completos_razon_social}" creado con ID: ${nuevoCliente.id_cliente}`);
-            setClientesList(prevList => [nuevoCliente, ...prevList].sort((a,b) => a.nombres_completos_razon_social.localeCompare(b.nombres_completos_razon_social)));
             setFormData(prev => ({ ...prev, cliente: nuevoCliente.id_cliente }));
+            setSelectedClienteInfo({
+                id_cliente: nuevoCliente.id_cliente,
+                nombres_completos_razon_social: nuevoCliente.nombres_completos_razon_social,
+                telefono_principal: nuevoCliente.telefono_principal,
+                display_text: `${nuevoCliente.nombres_completos_razon_social} (${nuevoCliente.telefono_principal || 'Sin teléfono'})`
+            });
             setIsClienteModalOpen(false);
         } catch (err) {
             console.error("[PresenciaForm] Error al crear cliente:", err.response?.data || err.message);
             const errorData = err.response?.data;
             let errorMsg = "Error desconocido al crear cliente.";
             if (errorData) {
-                if (errorData.numero_documento) errorMsg = `N° Documento: ${errorData.numero_documento.join(', ')}`;
-                else if (typeof errorData === 'string') errorMsg = errorData;
-                else if (errorData.detail) errorMsg = errorData.detail;
-                else if (typeof errorData === 'object') errorMsg = Object.values(errorData).flat().join('; ');
+                if (typeof errorData === 'string') {
+                    errorMsg = errorData;
+                } else if (errorData.error) {
+                    errorMsg = errorData.error;
+                } else if (errorData.detail) {
+                    errorMsg = errorData.detail;
+                } else if (errorData.errors) {
+                    const errorFields = Object.keys(errorData.errors);
+                    errorMsg = `Errores en campos: ${errorFields.join(', ')}`;
+                }
             }
             setClienteFormError(errorMsg);
         }
     };
-    
+
     const handleVentaFormSubmit = async (ventaFormDataFromModal) => {
         // ... (lógica como estaba) ...
-        setFormError(''); 
-        if (!formData.cliente) {
-            alert("Por favor, primero seleccione o cree un cliente para la presencia antes de asociar una venta.");
-            setIsVentaModalOpen(false); 
-            setCrearNuevaVenta(false);  
-            return;
-        }
+        setFormError('');
         try {
-            const ventaPrellenada = {
-                ...ventaFormDataFromModal, 
-                cliente: formData.cliente, 
-                // El VentaForm seleccionará el lote, pero podemos pre-sugerir el lote de interés si está en el form de venta
-                // y el usuario no lo ha cambiado.
-            };
-            console.log("[PresenciaForm] Enviando para crear venta desde presencia:", ventaPrellenada);
-            const response = await apiService.createVenta(ventaPrellenada);
-            const ventaCreada = response.data;
-            alert('Nueva venta registrada con éxito! ID: ' + ventaCreada.id_venta);
-            setNuevaVentaData(ventaCreada); 
-            setFormData(prev => ({ ...prev, venta_asociada: ventaCreada.id_venta })); 
-            setVentasList(prev => [ventaCreada, ...prev].sort((a,b) => (a.id_venta || '').localeCompare(b.id_venta || '')));
+            console.log("[PresenciaForm] Creando nueva venta desde modal:", ventaFormDataFromModal);
+            const response = await apiService.createVenta(ventaFormDataFromModal);
+            const nuevaVenta = response.data;
+            console.log("[PresenciaForm] Nueva venta creada:", nuevaVenta);
+            
+            alert(`Venta "${nuevaVenta.id_venta}" creada exitosamente para cliente "${nuevaVenta.cliente_detalle?.nombres_completos_razon_social || 'Cliente'}"`);
+            
+            setNuevaVentaData(nuevaVenta);
+            setFormData(prev => ({ ...prev, venta_asociada: nuevaVenta.id_venta }));
             setIsVentaModalOpen(false);
-            setCrearNuevaVenta(true); // Mantener el checkbox marcado para indicar que se creó una venta
+            setCrearNuevaVenta(false);
+            
+            // Actualizar lista de ventas
+            setVentasList(prevList => [nuevaVenta, ...prevList]);
+            
         } catch (err) {
-            console.error("[PresenciaForm] Error al crear la venta:", err.response?.data || err.message);
+            console.error("[PresenciaForm] Error al crear venta:", err.response?.data || err.message);
             const errorData = err.response?.data;
-            let errorMsg = "Error desconocido al crear la venta asociada.";
+            let errorMsg = "Error desconocido al crear venta.";
             if (errorData) {
-                if (typeof errorData === 'string') errorMsg = errorData;
-                else if (errorData.detail) errorMsg = errorData.detail;
-                else if (typeof errorData === 'object') errorMsg = Object.entries(errorData).map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : value}`).join('; ');
+                if (typeof errorData === 'string') {
+                    errorMsg = errorData;
+                } else if (errorData.error) {
+                    errorMsg = errorData.error;
+                } else if (errorData.detail) {
+                    errorMsg = errorData.detail;
+                } else if (errorData.errors) {
+                    const errorFields = Object.keys(errorData.errors);
+                    errorMsg = `Errores en campos: ${errorFields.join(', ')}`;
+                }
             }
-            alert(`Error al crear la venta: ${errorMsg}`);
+            setFormError(errorMsg);
         }
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setFormError('');
-        console.log("[PresenciaForm] Iniciando handleSubmit con formData:", formData);
+        
+        if (!formData.cliente) {
+            setFormError('Debe seleccionar un cliente.');
+            return;
+        }
 
-        if (!formData.cliente || formData.cliente === "_CREAR_NUEVO_") {
-            setFormError("Por favor, seleccione o cree un cliente.");
+        if (!formData.fecha_hora_presencia) {
+            setFormError('Debe especificar fecha y hora de presencia.');
             return;
         }
-        if (!formData.proyecto_interes || !formData.modalidad || !formData.medio_captacion || !formData.fecha_hora_presencia) {
-            setFormError("Cliente, Fecha/Hora, Proyecto, Modalidad y Medio de Captación son requeridos.");
+
+        if (!formData.proyecto_interes) {
+            setFormError('Debe especificar el proyecto de interés.');
             return;
         }
-        
-        let ventaAsociadaId = formData.venta_asociada;
-        // Si se marcó crear nueva venta Y se guardó exitosamente (nuevaVentaData tiene ID)
-        if (crearNuevaVenta && nuevaVentaData && nuevaVentaData.id_venta) {
-            ventaAsociadaId = nuevaVentaData.id_venta;
-        } else if (crearNuevaVenta && !nuevaVentaData) {
-            // Si se marcó crear pero el modal de venta se cerró sin crearla, no enviar venta_asociada
-            ventaAsociadaId = null; 
+
+        if (!formData.medio_captacion) {
+            setFormError('Debe especificar el medio de captación.');
+            return;
         }
-        
+
+        if (!formData.modalidad) {
+            setFormError('Debe especificar la modalidad.');
+            return;
+        }
+
+        if (!formData.status_presencia) {
+            setFormError('Debe especificar el estado de la presencia.');
+            return;
+        }
+
+        const ventaAsociadaId = crearNuevaVenta && nuevaVentaData ? nuevaVentaData.id_venta : formData.venta_asociada;
+
         const dataToSubmit = {
             cliente: formData.cliente,
             fecha_hora_presencia: formData.fecha_hora_presencia,
@@ -305,11 +339,15 @@ function PresenciaForm({ show, onClose, onSubmit, initialData }) {
                             <div className={formBaseStyles.formRow}>
                                 <div className={formBaseStyles.formGroup} style={{flex: 1.5}}>
                                     <label htmlFor="cliente">Cliente <span className={formBaseStyles.required}>*</span></label>
-                                    <select id="cliente" name="cliente" value={formData.cliente} onChange={handleChange} required>
-                                        <option value="">Seleccione Cliente</option>
-                                        <option value="_CREAR_NUEVO_">--- Crear Nuevo Cliente ---</option>
-                                        {clientesList.map(c => (<option key={c.id_cliente} value={c.id_cliente}>{c.nombres_completos_razon_social} ({c.numero_documento})</option>))}
-                                    </select>
+                                    <ClienteSearch
+                                        value={formData.cliente}
+                                        onChange={handleClienteSearchChange}
+                                        onClienteSelect={handleClienteSelect}
+                                        placeholder="Buscar cliente por nombre, teléfono o DNI..."
+                                        required={true}
+                                        showCreateOption={true}
+                                        context="presencias"
+                                    />
                                 </div>
                                 <div className={formBaseStyles.formGroup} style={{flex: 1}}>
                                     <label htmlFor="fecha_hora_presencia">Fecha y Hora Presencia <span className={formBaseStyles.required}>*</span></label>

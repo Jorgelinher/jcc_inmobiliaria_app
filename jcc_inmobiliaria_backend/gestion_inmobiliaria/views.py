@@ -17,6 +17,10 @@ from django.utils import timezone
 from django.db.models import Sum, Count, Value, DecimalField, Q, Case, When, IntegerField, F # Ensure DecimalField, Value are imported
 from django.db.models.functions import Coalesce, TruncMonth # Ensure Coalesce is imported
 from decimal import Decimal
+from rest_framework.permissions import AllowAny
+from rest_framework.authentication import TokenAuthentication
+from rest_framework.views import APIView
+from django.conf import settings
 
 from .models import (
     Lote, Cliente, Asesor, Venta, ActividadDiaria,
@@ -81,6 +85,147 @@ class ClienteViewSet(viewsets.ModelViewSet):
     queryset = Cliente.objects.all().order_by('nombres_completos_razon_social')
     serializer_class = ClienteSerializer; permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend]; filterset_class = ClienteFilter
+    
+    @action(detail=False, methods=['get'])
+    def sin_presencia(self, request):
+        """
+        Obtiene clientes que NO tienen presencia registrada.
+        Útil para evitar duplicados en el formulario de presencias.
+        """
+        try:
+            # Obtener IDs de clientes que ya tienen presencia
+            clientes_con_presencia = Presencia.objects.values_list('cliente_id', flat=True).distinct()
+            
+            # Filtrar clientes que NO están en esa lista
+            clientes_sin_presencia = Cliente.objects.exclude(
+                id_cliente__in=clientes_con_presencia
+            ).order_by('nombres_completos_razon_social')
+            
+            # Aplicar búsqueda si se proporciona
+            search = request.query_params.get('search', '')
+            if search:
+                clientes_sin_presencia = clientes_sin_presencia.filter(
+                    Q(nombres_completos_razon_social__icontains=search) |
+                    Q(telefono_principal__icontains=search) |
+                    Q(numero_documento__icontains=search)
+                )
+            
+            # Limitar resultados para evitar desplegables muy largos
+            limit = int(request.query_params.get('limit', 50))
+            clientes_sin_presencia = clientes_sin_presencia[:limit]
+            
+            # Serializar con formato para desplegable
+            data = []
+            for cliente in clientes_sin_presencia:
+                data.append({
+                    'id_cliente': cliente.id_cliente,
+                    'nombres_completos_razon_social': cliente.nombres_completos_razon_social,
+                    'telefono_principal': cliente.telefono_principal or '',
+                    'numero_documento': cliente.numero_documento,
+                    'display_text': f"{cliente.nombres_completos_razon_social} ({cliente.telefono_principal or 'Sin teléfono'})"
+                })
+            
+            return Response({
+                'results': data,
+                'count': len(data),
+                'total_available': Cliente.objects.exclude(id_cliente__in=clientes_con_presencia).count()
+            })
+            
+        except Exception as e:
+            return Response(
+                {'error': f'Error al obtener clientes sin presencia: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['get'])
+    def search(self, request):
+        """
+        Búsqueda predictiva de clientes para desplegables.
+        Retorna clientes que coincidan con el término de búsqueda.
+        """
+        try:
+            search = request.query_params.get('q', '')
+            if not search or len(search) < 2:
+                return Response({'results': [], 'count': 0})
+            
+            # Buscar en nombre, teléfono y documento
+            clientes = Cliente.objects.filter(
+                Q(nombres_completos_razon_social__icontains=search) |
+                Q(telefono_principal__icontains=search) |
+                Q(numero_documento__icontains=search)
+            ).order_by('nombres_completos_razon_social')[:20]  # Limitar a 20 resultados
+            
+            data = []
+            for cliente in clientes:
+                data.append({
+                    'id_cliente': cliente.id_cliente,
+                    'nombres_completos_razon_social': cliente.nombres_completos_razon_social,
+                    'telefono_principal': cliente.telefono_principal or '',
+                    'numero_documento': cliente.numero_documento,
+                    'display_text': f"{cliente.nombres_completos_razon_social} ({cliente.telefono_principal or 'Sin teléfono'})"
+                })
+            
+            return Response({
+                'results': data,
+                'count': len(data)
+            })
+            
+        except Exception as e:
+            return Response(
+                {'error': f'Error en búsqueda de clientes: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['get'])
+    def para_ventas(self, request):
+        """
+        Obtiene TODOS los clientes para formularios de ventas.
+        Útil para permitir múltiples ventas por cliente.
+        PARA VENTAS: 1 cliente puede tener múltiples ventas
+        """
+        try:
+            # Obtener todos los clientes
+            clientes = Cliente.objects.all().order_by('nombres_completos_razon_social')
+            
+            # Aplicar búsqueda si se proporciona
+            search = request.query_params.get('search', '')
+            if search:
+                clientes = clientes.filter(
+                    Q(nombres_completos_razon_social__icontains=search) |
+                    Q(telefono_principal__icontains=search) |
+                    Q(numero_documento__icontains=search)
+                )
+            
+            # Limitar resultados para evitar desplegables muy largos
+            limit = int(request.query_params.get('limit', 50))
+            clientes = clientes[:limit]
+            
+            # Serializar con formato para desplegable
+            data = []
+            for cliente in clientes:
+                # Verificar si el cliente tiene presencia previa
+                tiene_presencia = Presencia.objects.filter(cliente=cliente).exists()
+                
+                data.append({
+                    'id_cliente': cliente.id_cliente,
+                    'nombres_completos_razon_social': cliente.nombres_completos_razon_social,
+                    'telefono_principal': cliente.telefono_principal or '',
+                    'numero_documento': cliente.numero_documento,
+                    'tiene_presencia': tiene_presencia,
+                    'display_text': f"{cliente.nombres_completos_razon_social} ({cliente.telefono_principal or 'Sin teléfono'}){' *' if tiene_presencia else ''}"
+                })
+            
+            return Response({
+                'results': data,
+                'count': len(data),
+                'total_available': Cliente.objects.count()
+            })
+            
+        except Exception as e:
+            return Response(
+                {'error': f'Error al obtener clientes para ventas: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class AsesorViewSet(viewsets.ModelViewSet):
     queryset = Asesor.objects.all().order_by('nombre_asesor')
@@ -822,3 +967,110 @@ class GetGeneralConfigsAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     def get(self, request, format=None):
         return Response({'message': 'Configuraciones generales (TODO)'})
+
+class WebhookPresenciaCRMAPIView(APIView):
+    """
+    Endpoint para recibir notificaciones de presencias realizadas desde el CRM.
+    Seguridad: requiere header 'X-CRM-Webhook-Token'.
+    Formato esperado (JSON):
+    {
+        "id_presencia_crm": "string", // ID único de la presencia en el CRM
+        "cliente": { ... }, // datos mínimos del cliente (ver ClienteCreateSerializer)
+        "fecha_hora_presencia": "YYYY-MM-DDTHH:MM:SS",
+        "proyecto_interes": "string",
+        "lote_interes_inicial": "id_lote" (opcional),
+        "asesor_captacion_opc": "id_asesor" (opcional),
+        "medio_captacion": "string",
+        "modalidad": "presencial|virtual",
+        "status_presencia": "realizada",
+        "resultado_interaccion": "string" (opcional),
+        "observaciones": "string" (opcional),
+        "venta": { // si hubo venta directa tras la presencia
+            "fecha_venta": "YYYY-MM-DD",
+            "lote": "id_lote",
+            "tipo_venta": "contado|credito",
+            "plazo_meses_credito": 0|12|24|36,
+            "vendedor_principal": "id_asesor",
+            "valor_lote_venta": "decimal",
+            "cuota_inicial_requerida": "decimal",
+            "participacion_junior_venta": "string" (opcional),
+            "id_socio_participante": "id_asesor" (opcional),
+            "participacion_socio_venta": "string" (opcional),
+            "modalidad_presentacion": "string" (opcional),
+            "notas": "string" (opcional)
+        }
+    }
+    """
+    permission_classes = [AllowAny]  # El control es por token, no por usuario autenticado
+
+    def post(self, request, *args, **kwargs):
+        from .serializers import PresenciaSerializer, VentaSerializer, ClienteCreateSerializer
+        from .models import Presencia, Venta, Cliente, Lote, Asesor
+        import datetime
+        import pytz
+
+        # --- Seguridad básica por token ---
+        expected_token = getattr(settings, 'CRM_WEBHOOK_TOKEN', None)
+        received_token = request.headers.get('X-CRM-Webhook-Token')
+        if not expected_token or received_token != expected_token:
+            return Response({'detail': 'Token de autenticación inválido.'}, status=401)
+
+        data = request.data
+        # --- Cliente ---
+        cliente_data = data.get('cliente')
+        if not cliente_data:
+            return Response({'detail': 'Falta información de cliente.'}, status=400)
+        cliente_serializer = ClienteCreateSerializer(data=cliente_data)
+        if not cliente_serializer.is_valid():
+            return Response({'detail': 'Datos de cliente inválidos.', 'errors': cliente_serializer.errors}, status=400)
+        numero_documento = cliente_data.get('numero_documento')
+        cliente_obj = Cliente.objects.filter(numero_documento=numero_documento).first()
+        if not cliente_obj:
+            cliente_obj = cliente_serializer.save()
+
+        # --- Buscar o crear Presencia ---
+        id_presencia_crm = data.get('id_presencia_crm')
+        presencia_obj = None
+        if id_presencia_crm:
+            presencia_obj = Presencia.objects.filter(observaciones__icontains=f"CRM:{id_presencia_crm}").first()
+        if not presencia_obj:
+            presencia_fields = {
+                'cliente': cliente_obj,
+                'fecha_hora_presencia': data.get('fecha_hora_presencia', datetime.datetime.now(pytz.UTC)),
+                'proyecto_interes': data.get('proyecto_interes', ''),
+                'modalidad': data.get('modalidad', 'presencial'),
+                'status_presencia': data.get('status_presencia', 'realizada'),
+                'medio_captacion': data.get('medio_captacion', ''),
+                'observaciones': (data.get('observaciones', '') or '') + (f" [CRM:{id_presencia_crm}]" if id_presencia_crm else ''),
+            }
+            # Relacionales opcionales
+            lote_id = data.get('lote_interes_inicial')
+            if lote_id:
+                lote_obj = Lote.objects.filter(id_lote=lote_id).first()
+                if lote_obj:
+                    presencia_fields['lote_interes_inicial'] = lote_obj
+            for asesor_field in ['asesor_captacion_opc']:
+                asesor_id = data.get(asesor_field)
+                if asesor_id:
+                    asesor_obj = Asesor.objects.filter(id_asesor=asesor_id).first()
+                    if asesor_obj:
+                        presencia_fields[asesor_field] = asesor_obj
+            resultado_interaccion = data.get('resultado_interaccion')
+            if resultado_interaccion:
+                presencia_fields['resultado_interaccion'] = resultado_interaccion
+            presencia_obj = Presencia.objects.create(**presencia_fields)
+
+        # --- Si hay venta, crear y vincular ---
+        venta_data = data.get('venta')
+        venta_obj = None
+        if venta_data:
+            venta_data['cliente'] = cliente_obj.pk
+            venta_data['presencia_que_origino'] = presencia_obj.pk
+            venta_serializer = VentaSerializer(data=venta_data)
+            if venta_serializer.is_valid():
+                venta_obj = venta_serializer.save()
+                presencia_obj.venta_asociada = venta_obj
+                presencia_obj.save()
+            else:
+                return Response({'detail': 'Datos de venta inválidos.', 'errors': venta_serializer.errors}, status=400)
+        return Response({'detail': 'Presencia y vinculación procesadas correctamente.', 'id_presencia': presencia_obj.id_presencia, 'id_venta': venta_obj.id_venta if venta_obj else None})

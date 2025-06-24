@@ -26,4 +26,5 @@ urlpatterns = [
     path('calculate-commission/', views.CalculateCommissionAPIView.as_view(), name='calculate_commission_api'),
     path('commission-structure/', views.GetCommissionStructureAPIView.as_view(), name='get_commission_structure_api'),
     path('general-configs/', views.GetGeneralConfigsAPIView.as_view(), name='get_general_configs_api'),
+    path('webhook-presencia-crm/', views.WebhookPresenciaCRMAPIView.as_view(), name='webhook_presencia_crm'),
 ]

@@ -5,6 +5,7 @@ import styles from './FormStyles.module.css'; // Estilos generales del formulari
 import customStyles from './VentaForm.module.css'; // Estilos específicos para VentaForm si son necesarios (opcional)
 import ClienteForm from './ClienteForm';
 import LoteSelector from '../ui/LoteSelector'; // Asegúrate que la ruta sea correcta
+import ClienteSearch from '../ui/ClienteSearch';
 
 const TIPO_VENTA_CHOICES = [
     { value: 'contado', label: 'Contado' },
@@ -231,24 +232,56 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
     }, [formData.vendedor_principal, asesoresList]);
 
     const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormError(''); 
-        let newFormDataState = { ...formData, [name]: value };
-
+        const { name, value, type, checked } = e.target;
+        setFormError('');
+        
         if (name === "cliente" && value === "_CREAR_NUEVO_") {
             setClienteFormError('');
             setIsClienteModalOpen(true);
-            return; 
-        } else if (name === "tipo_venta") {
-            newFormDataState.plazo_meses_credito = value === 'contado' ? 0 : ''; 
-            newFormDataState.valor_lote_venta = ''; // Se recalculará
-            if (value === 'contado' && selectedLoteDetails) {
-                newFormDataState.cuota_inicial_requerida = selectedLoteDetails.precio_lista_soles || '0.00';
-            } else if (value === 'credito') {
-                newFormDataState.cuota_inicial_requerida = '0.00'; // Resetear o pedir que se ingrese
+            return;
+        }
+        
+        setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+        
+        // Lógica específica para vendedor_principal
+        if (name === "vendedor_principal") {
+            const asesor = asesoresList.find(a => a.id_asesor === value);
+            setTipoVendedorPrincipal(asesor ? asesor.tipo_asesor_actual : null);
+            
+            // Resetear participación si cambia el tipo
+            if (asesor && asesor.tipo_asesor_actual === 'Socio') {
+                setFormData(prev => ({ 
+                    ...prev, 
+                    participacion_junior_venta: 'N/A',
+                    participacion_socio_venta: 'N/A'
+                }));
             }
         }
-        setFormData(newFormDataState);
+        
+        // Lógica específica para id_socio_participante
+        if (name === "id_socio_participante") {
+            if (!value) {
+                setFormData(prev => ({ 
+                    ...prev, 
+                    participacion_socio_venta: 'N/A',
+                    porcentaje_comision_socio_personalizado: ''
+                }));
+            }
+        }
+    };
+
+    const handleClienteSelect = (cliente) => {
+        console.log("[VentaForm] Cliente seleccionado:", cliente);
+        setFormData(prev => ({ ...prev, cliente: cliente.id_cliente }));
+    };
+
+    const handleClienteSearchChange = (clienteId) => {
+        if (clienteId === '_CREAR_NUEVO_') {
+            setClienteFormError('');
+            setIsClienteModalOpen(true);
+        } else {
+            setFormData(prev => ({ ...prev, cliente: clienteId }));
+        }
     };
 
     const handleLoteSelectedFromModal = (lote) => {
@@ -386,20 +419,16 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
 
                             <div className={styles.formGroup}>
                                 <label htmlFor="cliente">Cliente <span className={styles.required}>*</span></label>
-                                <select 
-                                    id="cliente" 
-                                    name="cliente" 
-                                    value={formData.cliente} 
-                                    onChange={handleChange} 
-                                    required
+                                <ClienteSearch
+                                    value={formData.cliente}
+                                    onChange={handleClienteSearchChange}
+                                    onClienteSelect={handleClienteSelect}
+                                    placeholder="Buscar cliente por nombre, teléfono o DNI..."
+                                    required={true}
                                     disabled={isModalForPresencia && !!clientePredefinidoPresencia}
-                                >
-                                    <option value="">Seleccione Cliente</option>
-                                    {!(isModalForPresencia && !!clientePredefinidoPresencia) && 
-                                        <option value="_CREAR_NUEVO_">--- Crear Nuevo Cliente ---</option> 
-                                    }
-                                    {clientesList.map(c => (<option key={c.id_cliente} value={c.id_cliente}>{c.nombres_completos_razon_social} ({c.numero_documento})</option>))}
-                                </select>
+                                    showCreateOption={!(isModalForPresencia && !!clientePredefinidoPresencia)}
+                                    context="ventas"
+                                />
                             </div>
                             
                             <hr className={styles.formSeparator}/>

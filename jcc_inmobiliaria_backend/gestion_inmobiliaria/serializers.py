@@ -37,9 +37,16 @@ class ClienteCreateSerializer(serializers.ModelSerializer):
         read_only_fields = ('id_cliente',)
 
 class ClienteSummarySerializer(serializers.ModelSerializer):
+    display_text = serializers.SerializerMethodField()
+    
     class Meta:
         model = Cliente
-        fields = ['id_cliente', 'nombres_completos_razon_social', 'tipo_documento', 'numero_documento', 'email_principal', 'telefono_principal', 'direccion']
+        fields = ['id_cliente', 'nombres_completos_razon_social', 'tipo_documento', 'numero_documento', 'email_principal', 'telefono_principal', 'direccion', 'display_text']
+    
+    def get_display_text(self, obj):
+        """Retorna el texto para mostrar en desplegables: Nombre (Teléfono)"""
+        telefono = obj.telefono_principal or 'Sin teléfono'
+        return f"{obj.nombres_completos_razon_social} ({telefono})"
 
 class ClienteSerializer(serializers.ModelSerializer):
     class Meta:
