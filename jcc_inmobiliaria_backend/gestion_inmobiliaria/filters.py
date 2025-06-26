@@ -140,6 +140,11 @@ class PresenciaFilter(django_filters.FilterSet):
     asesor_liner_nombre = django_filters.CharFilter(field_name='asesor_liner__nombre_asesor', lookup_expr='icontains', label="Nombre Asesor Liner")
     asesor_closer_nombre = django_filters.CharFilter(field_name='asesor_closer__nombre_asesor', lookup_expr='icontains', label="Nombre Asesor Closer")
 
+    tipo_tour = django_filters.ChoiceFilter(
+        choices=[('tour', 'Tour'), ('no_tour', 'No Tour')],
+        field_name='tipo_tour',
+        label="Tipo de Tour"
+    )
 
     class Meta:
         model = Presencia
@@ -148,5 +153,6 @@ class PresenciaFilter(django_filters.FilterSet):
             'cliente_nombre', 'proyecto_interes', 'modalidad', 
             'status_presencia', 'resultado_interaccion',
             'asesor_captacion_opc_nombre', 'asesor_call_agenda_nombre',
-            'asesor_liner_nombre', 'asesor_closer_nombre'
+            'asesor_liner_nombre', 'asesor_closer_nombre',
+            'tipo_tour',
         ]

@@ -21,6 +21,10 @@ from rest_framework.permissions import AllowAny
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.views import APIView
 from django.conf import settings
+from django.shortcuts import render
+from rest_framework import viewsets, status, filters
+from rest_framework.pagination import PageNumberPagination
+from django_filters.rest_framework import DjangoFilterBackend
 
 from .models import (
     Lote, Cliente, Asesor, Venta, ActividadDiaria,
@@ -43,6 +47,12 @@ from .filters import (
     LoteFilter, ClienteFilter, AsesorFilter, VentaFilter, ActividadDiariaFilter,
     PresenciaFilter
 )
+
+# Clase de paginación personalizada que permite cambiar el tamaño de página
+class CustomPageNumberPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 100
 
 # --- Vistas de Autenticación ---
 @method_decorator(ensure_csrf_cookie, name='dispatch')
@@ -78,8 +88,11 @@ class AuthStatusView(APIView):
 # --- ModelViewSets para CRUD (sin cambios aquí, se omiten por brevedad) ---
 class LoteViewSet(viewsets.ModelViewSet):
     queryset = Lote.objects.all().order_by('ubicacion_proyecto', 'etapa', 'manzana', 'numero_lote')
-    serializer_class = LoteSerializer; permission_classes = [permissions.IsAuthenticated]
-    filter_backends = [DjangoFilterBackend]; filterset_class = LoteFilter
+    serializer_class = LoteSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = LoteFilter
+    pagination_class = CustomPageNumberPagination
 
 class ClienteViewSet(viewsets.ModelViewSet):
     queryset = Cliente.objects.all().order_by('nombres_completos_razon_social')
@@ -241,7 +254,13 @@ class ActividadDiariaViewSet(viewsets.ModelViewSet):
 
 class RegistroPagoViewSet(viewsets.ModelViewSet):
     queryset = RegistroPago.objects.all().select_related('venta', 'cuota_plan_pago_cubierta').order_by('-fecha_pago')
-    serializer_class = RegistroPagoSerializer; permission_classes = [permissions.IsAuthenticated]
+    serializer_class = RegistroPagoSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 class VentaViewSet(viewsets.ModelViewSet):
     queryset = Venta.objects.all().select_related(
@@ -262,6 +281,8 @@ class VentaViewSet(viewsets.ModelViewSet):
         # print(f"[VentaViewSet] Plan de pago existente (si lo hubo) eliminado para Venta ID: {venta_instance.id_venta}") #DEBUG
 
         if venta_instance.tipo_venta == Venta.TIPO_VENTA_CREDITO and venta_instance.plazo_meses_credito and venta_instance.plazo_meses_credito > 0:
+            proyecto = venta_instance.lote.ubicacion_proyecto.strip().lower() if venta_instance.lote and venta_instance.lote.ubicacion_proyecto else ''
+            es_dolares = ('aucallama' in proyecto) or ('oasis 2' in proyecto)
             monto_a_financiar = venta_instance.valor_lote_venta - venta_instance.cuota_inicial_requerida
             if monto_a_financiar <= Decimal('0.00'):
                 # print(f"[VentaViewSet] No hay monto a financiar para Venta ID: {venta_instance.id_venta} (Monto: {monto_a_financiar}). No se crea plan.") # DEBUG
@@ -297,15 +318,25 @@ class VentaViewSet(viewsets.ModelViewSet):
             for i in range(1, numero_cuotas + 1):
                 fecha_vencimiento_cuota = fecha_primera_cuota + relativedelta(months=i-1)
                 monto_esta_cuota = monto_ultima_cuota if i == numero_cuotas else monto_cuota_regular_calculado
-                
-                cuotas_a_crear.append(
-                    CuotaPlanPago(
-                        plan_pago_venta=plan_pago,
-                        numero_cuota=i,
-                        fecha_vencimiento=fecha_vencimiento_cuota,
-                        monto_programado=monto_esta_cuota
+                if es_dolares:
+                    cuotas_a_crear.append(
+                        CuotaPlanPago(
+                            plan_pago_venta=plan_pago,
+                            numero_cuota=i,
+                            fecha_vencimiento=fecha_vencimiento_cuota,
+                            monto_programado=Decimal('0.00'),
+                            monto_programado_dolares=monto_esta_cuota
+                        )
                     )
-                )
+                else:
+                    cuotas_a_crear.append(
+                        CuotaPlanPago(
+                            plan_pago_venta=plan_pago,
+                            numero_cuota=i,
+                            fecha_vencimiento=fecha_vencimiento_cuota,
+                            monto_programado=monto_esta_cuota
+                        )
+                    )
             CuotaPlanPago.objects.bulk_create(cuotas_a_crear)
             # print(f"[VentaViewSet] {len(cuotas_a_crear)} cuotas creadas para PlanPago ID: {plan_pago.id_plan_pago}") # DEBUG
             return plan_pago
@@ -338,6 +369,31 @@ class VentaViewSet(viewsets.ModelViewSet):
                 return Response({"error": "Formato de fecha_firma_contrato inválido. Use YYYY-MM-DD."}, status=status.HTTP_400_BAD_REQUEST)
         
         venta.marcar_como_firmada(fecha_firma=fecha_firma_obj) # El método del modelo ahora maneja el save
+        
+        serializer = self.get_serializer(venta)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    @transaction.atomic
+    def revertir_firma_contrato(self, request, pk=None):
+        venta = self.get_object()
+        
+        if venta.status_venta != Venta.STATUS_VENTA_PROCESABLE:
+            return Response(
+                {"error": "Solo se puede revertir la firma en ventas que estén en estado 'Procesable'."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if not venta.cliente_firmo_contrato:
+            return Response(
+                {"message": "El contrato no está marcado como firmado."},
+                status=status.HTTP_200_OK
+            )
+
+        # Revertir la firma del contrato
+        venta.cliente_firmo_contrato = False
+        venta.fecha_firma_contrato = None
+        venta.save(update_fields=['cliente_firmo_contrato', 'fecha_firma_contrato'])
         
         serializer = self.get_serializer(venta)
         return Response(serializer.data)

@@ -1,3 +1,21 @@
+# ============================================================================
+# PROTECCIÓN CRÍTICA - NO ELIMINAR NI MODIFICAR SIN AUTORIZACIÓN
+# ============================================================================
+# 
+# Este archivo contiene funcionalidad CRÍTICA para el manejo de ventas en dólares
+# (Aucallama/Oasis 2) y soles. Los siguientes elementos NO DEBEN ser eliminados
+# ni modificados sin autorización explícita:
+#
+# 1. Métodos get_monto_total_credito_dolares y get_saldo_total_dolares
+# 2. Cálculos de montos en dólares basados en precio_dolares del lote
+# 3. Conversión de cuota inicial de soles a dólares usando tipo_cambio
+# 4. Manejo de campos monto_pago_dolares y tipo_cambio_pago
+# 5. Validaciones para proyectos en dólares
+# 6. Cualquier serializer method relacionado con lógica de monedas
+#
+# ÚLTIMA ACTUALIZACIÓN: 26/Jun/2025 - Sistema robusto para Aucallama/Oasis 2
+# ============================================================================
+
 # gestion_inmobiliaria/serializers.py
 from rest_framework import serializers
 from django.db import transaction
@@ -7,6 +25,7 @@ from .models import (
     RegistroPago, Presencia,
     PlanPagoVenta, CuotaPlanPago
 )
+from decimal import Decimal
 
 class LoteSerializer(serializers.ModelSerializer):
     class Meta:
@@ -15,10 +34,19 @@ class LoteSerializer(serializers.ModelSerializer):
             'id_lote', 'ubicacion_proyecto', 'manzana', 'numero_lote', 'etapa', 
             'area_m2', 'precio_lista_soles', 
             'precio_credito_12_meses_soles', 'precio_credito_24_meses_soles', 'precio_credito_36_meses_soles',
-            'precio_lista_dolares', 'estado_lote', 
+            'precio_lista_dolares',
+            'precio_credito_12_meses_dolares', 'precio_credito_24_meses_dolares', 'precio_credito_36_meses_dolares',
+            'estado_lote', 
             'colindancias', 'partida_registral', 'observaciones_lote', 
             'fecha_creacion', 'ultima_modificacion'
         ]
+    def validate(self, data):
+        proyecto = (data.get('ubicacion_proyecto') or '').strip().lower()
+        # Permitir cualquier variante que contenga 'aucallama' u 'oasis 2'
+        if not (('aucallama' in proyecto) or ('oasis 2' in proyecto)):
+            if data.get('precio_lista_soles') in [None, '']:
+                raise serializers.ValidationError({'precio_lista_soles': 'Este campo es obligatorio para proyectos que no son Aucallama u Oasis 2.'})
+        return data
 
 class ClienteCreateSerializer(serializers.ModelSerializer):
     telefono_principal = serializers.CharField(required=False, allow_blank=True, max_length=20, allow_null=True)
@@ -112,13 +140,22 @@ class AsesorSerializer(serializers.ModelSerializer):
 class CuotaPlanPagoSerializer(serializers.ModelSerializer):
     estado_cuota_display = serializers.CharField(source='get_estado_cuota_display', read_only=True)
     saldo_cuota = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    monto_programado_display = serializers.SerializerMethodField()
+    saldo_cuota_display = serializers.SerializerMethodField()
+    monto_pagado_soles = serializers.SerializerMethodField()
+    tipo_cambio_pago = serializers.SerializerMethodField()
+    monto_pagado_dolares = serializers.SerializerMethodField()
+    saldo_cuota_dolares = serializers.SerializerMethodField()
 
     class Meta:
         model = CuotaPlanPago
         fields = [
             'id_cuota', 'plan_pago_venta', 'numero_cuota', 'fecha_vencimiento', 
             'monto_programado', 'monto_pagado', 'estado_cuota', 'estado_cuota_display',
-            'fecha_pago_efectivo', 'saldo_cuota'
+            'fecha_pago_efectivo', 'saldo_cuota',
+            'monto_programado_display', 'saldo_cuota_display',
+            'monto_pagado_soles', 'tipo_cambio_pago',
+            'monto_pagado_dolares', 'saldo_cuota_dolares',
         ]
         read_only_fields = ('id_cuota', 'estado_cuota_display', 'saldo_cuota', 'plan_pago_venta')
         extra_kwargs = {
@@ -127,38 +164,150 @@ class CuotaPlanPagoSerializer(serializers.ModelSerializer):
             'fecha_pago_efectivo': {'required': False, 'allow_null': True},
         }
 
+    def get_monto_programado_display(self, obj):
+        if obj.plan_pago_venta and obj.plan_pago_venta.venta and (
+            'aucallama' in obj.plan_pago_venta.venta.lote.ubicacion_proyecto.lower() or
+            'oasis 2' in obj.plan_pago_venta.venta.lote.ubicacion_proyecto.lower()
+        ):
+            return {'dolares': obj.monto_programado_dolares, 'soles': None}
+        return {'dolares': None, 'soles': obj.monto_programado}
+
+    def get_saldo_cuota_display(self, obj):
+        if obj.plan_pago_venta and obj.plan_pago_venta.venta and (
+            'aucallama' in obj.plan_pago_venta.venta.lote.ubicacion_proyecto.lower() or
+            'oasis 2' in obj.plan_pago_venta.venta.lote.ubicacion_proyecto.lower()
+        ):
+            return {'dolares': obj.saldo_cuota, 'soles': None}
+        return {'dolares': None, 'soles': obj.saldo_cuota}
+
+    def get_monto_pagado_soles(self, obj):
+        pagos = obj.pagos_que_la_cubren.all()
+        total = 0
+        for p in pagos:
+            if p.monto_pago_dolares is not None and p.tipo_cambio_pago is not None:
+                total += float(p.monto_pago_dolares) * float(p.tipo_cambio_pago)
+            elif p.monto_pago is not None:
+                total += float(p.monto_pago)
+        return round(total, 2)
+
+    def get_tipo_cambio_pago(self, obj):
+        pagos = obj.pagos_que_la_cubren.filter(monto_pago_dolares__isnull=False, tipo_cambio_pago__isnull=False).order_by('-fecha_pago', '-id_pago')
+        if pagos:
+            ultimo_pago = pagos[0]
+            return float(ultimo_pago.tipo_cambio_pago)
+        return None
+
+    def get_monto_pagado_dolares(self, obj):
+        pagos = obj.pagos_que_la_cubren.all()
+        total = sum([float(p.monto_pago_dolares) for p in pagos if p.monto_pago_dolares is not None])
+        return round(total, 2)
+
+    def get_saldo_cuota_dolares(self, obj):
+        if obj.plan_pago_venta and obj.plan_pago_venta.venta and (
+            'aucallama' in obj.plan_pago_venta.venta.lote.ubicacion_proyecto.lower() or
+            'oasis 2' in obj.plan_pago_venta.venta.lote.ubicacion_proyecto.lower()
+        ):
+            pagado = self.get_monto_pagado_dolares(obj)
+            programado = float(obj.monto_programado_dolares or 0)
+            return round(programado - pagado, 2)
+        return None
+
 class PlanPagoVentaSerializer(serializers.ModelSerializer):
     cuotas = CuotaPlanPagoSerializer(many=True, read_only=True)
     venta_id_str = serializers.CharField(source='venta.id_venta', read_only=True)
     venta_cliente_nombre = serializers.CharField(source='venta.cliente.nombres_completos_razon_social', read_only=True)
     venta_lote_id = serializers.CharField(source='venta.lote.id_lote', read_only=True)
+    monto_cuota_regular_display = serializers.SerializerMethodField()
+    monto_pagado_dolares = serializers.SerializerMethodField()
+    saldo_total_dolares = serializers.SerializerMethodField()
+    monto_total_credito_dolares = serializers.SerializerMethodField()
 
     class Meta:
         model = PlanPagoVenta
         fields = [
             'id_plan_pago', 'venta', 'venta_id_str', 'venta_cliente_nombre', 'venta_lote_id',
-            'monto_total_credito', 'numero_cuotas',
-            'monto_cuota_regular_original', # <--- CORRECCIÓN AQUÍ
-            'fecha_inicio_pago_cuotas', 
-            'observaciones', 'fecha_creacion', 'ultima_modificacion',
-            'cuotas'
+            'monto_total_credito', 'monto_total_credito_dolares', 'numero_cuotas',
+            'monto_cuota_regular_original', 'monto_cuota_regular_display',
+            'fecha_inicio_pago_cuotas', 'observaciones', 'cuotas',
+            'monto_pagado_dolares', 'saldo_total_dolares',
         ]
         read_only_fields = ('id_plan_pago', 'fecha_creacion', 'ultima_modificacion', 'venta_id_str', 'cuotas', 'venta_cliente_nombre', 'venta_lote_id')
 
+    def get_monto_cuota_regular_display(self, obj):
+        if obj.venta and obj.venta.lote and (
+            'aucallama' in obj.venta.lote.ubicacion_proyecto.lower() or
+            'oasis 2' in obj.venta.lote.ubicacion_proyecto.lower()
+        ):
+            return {'dolares': obj.monto_cuota_regular_original, 'soles': None}
+        return {'dolares': None, 'soles': obj.monto_cuota_regular_original}
+
+    def get_monto_pagado_dolares(self, obj):
+        pagos = obj.venta.registros_pago.all()
+        total = sum([float(p.monto_pago_dolares) for p in pagos if p.monto_pago_dolares is not None])
+        return round(total, 2)
+
+    def get_monto_total_credito_dolares(self, obj):
+        if obj.venta and obj.venta.lote and (
+            'aucallama' in obj.venta.lote.ubicacion_proyecto.lower() or
+            'oasis 2' in obj.venta.lote.ubicacion_proyecto.lower()
+        ):
+            # Para proyectos en dólares, calcular el monto financiado en dólares
+            # basado en el precio_dolares del lote menos la cuota inicial en dólares
+            precio_dolares = obj.venta.precio_dolares or Decimal('0.00')
+            cuota_inicial_dolares = Decimal('0.00')
+            
+            # Si hay cuota inicial, convertirla de soles a dólares usando el tipo de cambio
+            if obj.venta.cuota_inicial_requerida and obj.venta.cuota_inicial_requerida > Decimal('0.00'):
+                if obj.venta.tipo_cambio and obj.venta.tipo_cambio > Decimal('0.00'):
+                    cuota_inicial_dolares = (obj.venta.cuota_inicial_requerida / obj.venta.tipo_cambio).quantize(Decimal('0.01'))
+            
+            monto_financiado_dolares = precio_dolares - cuota_inicial_dolares
+            return round(monto_financiado_dolares, 2)
+        return None
+
+    def get_saldo_total_dolares(self, obj):
+        if obj.venta and obj.venta.lote and (
+            'aucallama' in obj.venta.lote.ubicacion_proyecto.lower() or
+            'oasis 2' in obj.venta.lote.ubicacion_proyecto.lower()
+        ):
+            # Para proyectos en dólares, calcular el saldo total en dólares
+            monto_financiado_dolares = self.get_monto_total_credito_dolares(obj) or Decimal('0.00')
+            pagos_en_dolares = Decimal(str(self.get_monto_pagado_dolares(obj) or 0))
+            saldo_total_dolares = monto_financiado_dolares - pagos_en_dolares
+            return round(saldo_total_dolares, 2)
+        return None
+
 class RegistroPagoSerializer(serializers.ModelSerializer):
     cuota_info = CuotaPlanPagoSerializer(source='cuota_plan_pago_cubierta', read_only=True, allow_null=True)
+    monto_pago_display = serializers.SerializerMethodField()
 
     class Meta:
         model = RegistroPago
         fields = [
-            'id_pago', 'venta', 'fecha_pago', 'monto_pago', 'metodo_pago', 
-            'referencia_pago', 'notas_pago', 'fecha_registro_pago', 
-            'cuota_plan_pago_cubierta', 'cuota_info'
+            'id_pago', 'venta', 'fecha_pago', 'monto_pago', 'monto_pago_dolares', 'tipo_cambio_pago', 'monto_pago_soles',
+            'metodo_pago', 'referencia_pago', 'notas_pago', 'fecha_registro_pago', 
+            'cuota_plan_pago_cubierta', 'cuota_info',
+            'monto_pago_display'
         ]
         read_only_fields = ('fecha_registro_pago', 'cuota_info')
         extra_kwargs = {
-            'cuota_plan_pago_cubierta': {'required': False, 'allow_null': True}
+            'monto_pago': {'required': False, 'allow_null': True},
+            'monto_pago_dolares': {'required': False, 'allow_null': True},
+            'tipo_cambio_pago': {'required': False, 'allow_null': True},
+            'monto_pago_soles': {'required': False, 'allow_null': True},
         }
+
+    def validate(self, data):
+        monto_pago = data.get('monto_pago', None)
+        monto_pago_dolares = data.get('monto_pago_dolares', None)
+        if (monto_pago is None or monto_pago == '') and (monto_pago_dolares is None or monto_pago_dolares == ''):
+            raise serializers.ValidationError({'monto_pago': 'Este campo es requerido si no se ingresa un monto en dólares.'})
+        return data
+
+    def get_monto_pago_display(self, obj):
+        if obj.monto_pago_dolares and obj.tipo_cambio_pago:
+            return f"${obj.monto_pago_dolares} (TC: {obj.tipo_cambio_pago})"
+        return f"S/. {obj.monto_pago}"
 
 class VentaSerializer(serializers.ModelSerializer):
     lote_info = serializers.CharField(source='lote.__str__', read_only=True, allow_null=True)
@@ -171,6 +320,9 @@ class VentaSerializer(serializers.ModelSerializer):
     presencia_que_origino_id = serializers.PrimaryKeyRelatedField(source='presencia_que_origino', read_only=True, allow_null=True)
     nuevo_cliente_data = ClienteCreateSerializer(required=False, write_only=True, allow_null=True)
     plan_pago_detalle = PlanPagoVentaSerializer(source='plan_pago_venta', read_only=True, allow_null=True)
+    precio_dolares = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, allow_null=True)
+    tipo_cambio = serializers.DecimalField(max_digits=8, decimal_places=3, required=False, allow_null=True)
+    saldo_pendiente_dolares = serializers.SerializerMethodField()
 
     # --- INICIO: AÑADIR CAMPOS DE FIRMA ---
     cliente_firmo_contrato = serializers.BooleanField(read_only=True)
@@ -203,6 +355,9 @@ class VentaSerializer(serializers.ModelSerializer):
             'presencia_que_origino_id',
             'porcentaje_comision_vendedor_principal_personalizado',
             'porcentaje_comision_socio_personalizado',
+            'precio_dolares',
+            'tipo_cambio',
+            'saldo_pendiente_dolares',
         ]
         read_only_fields = (
             'valor_lote_venta', 
@@ -246,19 +401,72 @@ class VentaSerializer(serializers.ModelSerializer):
         if not lote: 
             raise serializers.ValidationError({"lote": "Se requiere un lote para la venta."})
 
+        proyecto = lote.ubicacion_proyecto.strip().lower() if lote and lote.ubicacion_proyecto else ''
+        es_dolares = ('aucallama' in proyecto) or ('oasis 2' in proyecto)
+        if es_dolares:
+            if not data.get('precio_dolares') or float(data.get('precio_dolares') or 0) <= 0:
+                raise serializers.ValidationError({"precio_dolares": "Debe ingresar el precio en dólares para este proyecto."})
+            if not data.get('tipo_cambio') or float(data.get('tipo_cambio') or 0) <= 0:
+                raise serializers.ValidationError({"tipo_cambio": "Debe ingresar un tipo de cambio válido para este proyecto."})
+
         if tipo_venta == Venta.TIPO_VENTA_CREDITO:
             if not plazo_meses or plazo_meses not in [12, 24, 36]:
                 raise serializers.ValidationError({"plazo_meses_credito": "Debe seleccionar un plazo válido (12, 24, o 36 meses) para ventas a crédito."})
             if lote:
-                if plazo_meses == 12 and not lote.precio_credito_12_meses_soles:
-                    raise serializers.ValidationError({"plazo_meses_credito": f"El lote {lote.id_lote} no tiene precio definido para 12 meses."})
-                elif plazo_meses == 24 and not lote.precio_credito_24_meses_soles:
-                    raise serializers.ValidationError({"plazo_meses_credito": f"El lote {lote.id_lote} no tiene precio definido para 24 meses."})
-                elif plazo_meses == 36 and not lote.precio_credito_36_meses_soles:
-                    raise serializers.ValidationError({"plazo_meses_credito": f"El lote {lote.id_lote} no tiene precio definido para 36 meses."})
+                if plazo_meses == 12:
+                    if es_dolares:
+                        if not lote.precio_credito_12_meses_dolares:
+                            raise serializers.ValidationError({"plazo_meses_credito": f"El lote {lote.id_lote} no tiene precio definido para 12 meses (dólares)."})
+                    else:
+                        if not lote.precio_credito_12_meses_soles:
+                            raise serializers.ValidationError({"plazo_meses_credito": f"El lote {lote.id_lote} no tiene precio definido para 12 meses."})
+                elif plazo_meses == 24:
+                    if es_dolares:
+                        if not lote.precio_credito_24_meses_dolares:
+                            raise serializers.ValidationError({"plazo_meses_credito": f"El lote {lote.id_lote} no tiene precio definido para 24 meses (dólares)."})
+                    else:
+                        if not lote.precio_credito_24_meses_soles:
+                            raise serializers.ValidationError({"plazo_meses_credito": f"El lote {lote.id_lote} no tiene precio definido para 24 meses."})
+                elif plazo_meses == 36:
+                    if es_dolares:
+                        if not lote.precio_credito_36_meses_dolares:
+                            raise serializers.ValidationError({"plazo_meses_credito": f"El lote {lote.id_lote} no tiene precio definido para 36 meses (dólares)."})
+                    else:
+                        if not lote.precio_credito_36_meses_soles:
+                            raise serializers.ValidationError({"plazo_meses_credito": f"El lote {lote.id_lote} no tiene precio definido para 36 meses."})
         elif tipo_venta == Venta.TIPO_VENTA_CONTADO:
              data['plazo_meses_credito'] = 0
         return data
+
+    def create(self, validated_data):
+        # LOG para depuración
+        print("[VentaSerializer.create] validated_data:", validated_data)
+        precio_dolares = validated_data.get('precio_dolares')
+        tipo_cambio = validated_data.get('tipo_cambio')
+        print(f"[VentaSerializer.create] precio_dolares: {precio_dolares}, tipo_cambio: {tipo_cambio}")
+        # Crea la instancia pero NO la guarda aún
+        venta = Venta(**validated_data)
+        # Asigna explícitamente los campos antes de guardar
+        if precio_dolares is not None:
+            venta.precio_dolares = precio_dolares
+        if tipo_cambio is not None:
+            venta.tipo_cambio = tipo_cambio
+        print(f"[VentaSerializer.create] venta.precio_dolares: {venta.precio_dolares}, venta.tipo_cambio: {venta.tipo_cambio}")
+        # Ahora sí guarda, para que el método save() tenga los datos correctos
+        venta.save()
+        print(f"[VentaSerializer.create] venta.valor_lote_venta después de save: {venta.valor_lote_venta}")
+        return venta
+
+    def get_saldo_pendiente_dolares(self, obj):
+        if obj.lote and (
+            'aucallama' in obj.lote.ubicacion_proyecto.lower() or
+            'oasis 2' in obj.lote.ubicacion_proyecto.lower()
+        ):
+            if obj.precio_dolares:
+                total = float(obj.precio_dolares)
+                pagado = sum([float(p.monto_pago_dolares) for p in obj.registros_pago.all() if p.monto_pago_dolares is not None])
+                return round(total - pagado, 2)
+        return None
 
 class ActividadDiariaSerializer(serializers.ModelSerializer):
     asesor_nombre = serializers.CharField(source='asesor.nombre_asesor', read_only=True, allow_null=True)
@@ -281,7 +489,7 @@ class PresenciaSerializer(serializers.ModelSerializer):
     nuevo_cliente_data = ClienteCreateSerializer(required=False, write_only=True, allow_null=True)
     class Meta:
         model = Presencia
-        fields = [ 'id_presencia', 'cliente', 'cliente_detalle', 'nuevo_cliente_data', 'fecha_hora_presencia', 'proyecto_interes', 'lote_interes_inicial', 'lote_interes_inicial_id_str', 'asesor_captacion_opc', 'asesor_captacion_opc_nombre', 'medio_captacion', 'medio_captacion_display', 'asesor_call_agenda', 'asesor_call_agenda_nombre', 'asesor_liner', 'asesor_liner_nombre', 'asesor_closer', 'asesor_closer_nombre', 'modalidad', 'modalidad_display', 'status_presencia', 'status_presencia_display', 'resultado_interaccion', 'resultado_interaccion_display', 'venta_asociada', 'venta_asociada_id_str', 'observaciones', 'fecha_registro_sistema', 'ultima_modificacion' ]
+        fields = [ 'id_presencia', 'cliente', 'cliente_detalle', 'nuevo_cliente_data', 'fecha_hora_presencia', 'proyecto_interes', 'lote_interes_inicial', 'lote_interes_inicial_id_str', 'asesor_captacion_opc', 'asesor_captacion_opc_nombre', 'medio_captacion', 'medio_captacion_display', 'asesor_call_agenda', 'asesor_call_agenda_nombre', 'asesor_liner', 'asesor_liner_nombre', 'asesor_closer', 'asesor_closer_nombre', 'modalidad', 'modalidad_display', 'status_presencia', 'status_presencia_display', 'resultado_interaccion', 'resultado_interaccion_display', 'venta_asociada', 'venta_asociada_id_str', 'observaciones', 'fecha_registro_sistema', 'ultima_modificacion', 'tipo_tour' ]
         read_only_fields = ( 'cliente_detalle', 'fecha_registro_sistema', 'ultima_modificacion', 'asesor_captacion_opc_nombre', 'asesor_call_agenda_nombre', 'asesor_liner_nombre', 'asesor_closer_nombre', 'lote_interes_inicial_id_str', 'venta_asociada_id_str', 'status_presencia_display', 'resultado_interaccion_display', 'modalidad_display', 'medio_captacion_display')
         extra_kwargs = { 'cliente': {'required': False, 'allow_null': True} }
     def validate(self, data):

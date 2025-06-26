@@ -151,6 +151,8 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20,  # Valor por defecto, el frontend podrá cambiarlo con ?page_size=10|20|50|100
 }
 
 # --- CONFIGURACIÓN DE INTEGRACIÓN CON CRM ---

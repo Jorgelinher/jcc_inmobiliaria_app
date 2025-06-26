@@ -11,7 +11,7 @@ from .models import (
 
 @admin.register(Lote)
 class LoteAdmin(admin.ModelAdmin):
-    list_display = ('id_lote', 'ubicacion_proyecto', 'manzana', 'etapa', 'numero_lote', 'estado_lote', 'area_m2', 'precio_lista_soles', 'precio_credito_12_meses_soles', 'precio_credito_24_meses_soles', 'precio_credito_36_meses_soles', 'ultima_modificacion')
+    list_display = ('id_lote', 'ubicacion_proyecto', 'manzana', 'etapa', 'numero_lote', 'estado_lote', 'area_m2', 'precio_lista_soles', 'precio_credito_12_meses_soles', 'precio_credito_24_meses_soles', 'precio_credito_36_meses_soles', 'precio_lista_dolares', 'precio_credito_12_meses_dolares', 'precio_credito_24_meses_dolares', 'precio_credito_36_meses_dolares', 'ultima_modificacion')
     list_filter = ('estado_lote', 'etapa', 'ubicacion_proyecto', 'manzana')
     search_fields = ('id_lote', 'ubicacion_proyecto', 'manzana', 'numero_lote', 'partida_registral')
     list_per_page = 25
@@ -23,7 +23,10 @@ class LoteAdmin(admin.ModelAdmin):
             'fields': ('area_m2', 'colindancias', 'partida_registral')
         }),
         ('Precios (S/.)', {
-            'fields': ('precio_lista_soles', 'precio_credito_12_meses_soles', 'precio_credito_24_meses_soles', 'precio_credito_36_meses_soles', 'precio_lista_dolares')
+            'fields': ('precio_lista_soles', 'precio_credito_12_meses_soles', 'precio_credito_24_meses_soles', 'precio_credito_36_meses_soles')
+        }),
+        ('Precios ($)', {
+            'fields': ('precio_lista_dolares', 'precio_credito_12_meses_dolares', 'precio_credito_24_meses_dolares', 'precio_credito_36_meses_dolares')
         }),
         ('Observaciones', {
             'fields': ('observaciones_lote',),
@@ -102,7 +105,7 @@ class RegistroPagoInline(admin.TabularInline):
 
 @admin.register(Venta)
 class VentaAdmin(admin.ModelAdmin):
-    list_display = ('id_venta', 'fecha_venta', 'lote_link', 'cliente_link', 'vendedor_principal', 'tipo_venta', 'plazo_meses_credito', 'valor_lote_venta', 'monto_pagado_actual', 'status_venta')
+    list_display = ('id_venta', 'fecha_venta', 'lote_link', 'cliente_link', 'vendedor_principal', 'tipo_venta', 'plazo_meses_credito', 'valor_lote_venta', 'precio_dolares', 'tipo_cambio', 'monto_pagado_actual', 'status_venta')
     list_filter = ('status_venta', 'tipo_venta', 'fecha_venta', 'vendedor_principal', 'plazo_meses_credito')
     search_fields = ('id_venta', 'lote__id_lote', 'cliente__nombres_completos_razon_social', 'vendedor_principal__nombre_asesor')
     autocomplete_fields = ['lote', 'cliente', 'vendedor_principal', 'id_socio_participante'] 
@@ -113,7 +116,7 @@ class VentaAdmin(admin.ModelAdmin):
             'fields': ('id_venta', 'fecha_venta', 'lote', 'cliente', 'vendedor_principal', 'id_socio_participante')
         }),
         ("Tipo y Plan de Venta", {
-            'fields': ('tipo_venta', 'plazo_meses_credito', 'cuota_inicial_requerida', 'valor_lote_venta')
+            'fields': ('tipo_venta', 'plazo_meses_credito', 'cuota_inicial_requerida', 'valor_lote_venta', 'precio_dolares', 'tipo_cambio')
         }),
         ("Detalles Económicos (Pagos Generales)", {
             'fields': ('monto_pagado_actual', 'saldo_pendiente')

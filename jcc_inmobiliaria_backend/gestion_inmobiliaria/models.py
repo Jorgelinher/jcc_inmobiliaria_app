@@ -7,6 +7,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from dateutil.relativedelta import relativedelta 
+from uuid import uuid4
 
 # --- Función Auxiliar para generar IDs Correlativos ---
 def generar_siguiente_id(modelo, prefijo, longitud_numero=4):
@@ -53,11 +54,14 @@ class Lote(models.Model):
     numero_lote = models.CharField(max_length=50, blank=True, null=True, verbose_name="Número de Lote")
     etapa = models.PositiveSmallIntegerField(verbose_name="Etapa del Lote (Número)", blank=True, null=True, help_text="Número de la etapa del lote dentro del proyecto (ej: 1, 2, 3)")
     area_m2 = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Área (m²)")
-    precio_lista_soles = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Precio Contado (S/.)")
+    precio_lista_soles = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name="Precio Contado (S/.)")
     precio_credito_12_meses_soles = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name="Precio Crédito 12 Meses (S/.)")
     precio_credito_24_meses_soles = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name="Precio Crédito 24 Meses (S/.)")
     precio_credito_36_meses_soles = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name="Precio Crédito 36 Meses (S/.)")
     precio_lista_dolares = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True, verbose_name="Precio Lista ($) (Opcional)")
+    precio_credito_12_meses_dolares = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True, verbose_name="Precio Crédito 12 Meses ($)")
+    precio_credito_24_meses_dolares = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True, verbose_name="Precio Crédito 24 Meses ($)")
+    precio_credito_36_meses_dolares = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True, verbose_name="Precio Crédito 36 Meses ($)")
     estado_lote = models.CharField(max_length=20, choices=ESTADO_LOTE_CHOICES, default='Disponible', verbose_name="Estado del Lote")
     colindancias = models.TextField(blank=True, null=True, verbose_name="Colindancias")
     partida_registral = models.CharField(max_length=100, blank=True, null=True, verbose_name="Partida Registral")
@@ -194,6 +198,9 @@ class Venta(models.Model):
     porcentaje_comision_vendedor_principal_personalizado = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(Decimal('0.00')), MaxValueValidator(Decimal('100.00'))], verbose_name="Porcentaje Comisión Personalizada Vendedor Principal (%)", help_text="Dejar en blanco para usar tabla de comisiones. Ingresar valor entre 0.00 y 100.00.")
     porcentaje_comision_socio_personalizado = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(Decimal('0.00')), MaxValueValidator(Decimal('100.00'))], verbose_name="Porcentaje Comisión Personalizada Socio Participante (%)", help_text="Dejar en blanco para usar tabla de comisiones. Aplicable si hay socio participante. Ingresar valor entre 0.00 y 100.00.")
 
+    precio_dolares = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name="Precio Venta ($)")
+    tipo_cambio = models.DecimalField(max_digits=8, decimal_places=3, null=True, blank=True, verbose_name="Tipo de Cambio (S/ por $)")
+
     @property
     def saldo_pendiente(self):
         valor_venta = self.valor_lote_venta if self.valor_lote_venta is not None else Decimal('0.00')
@@ -250,19 +257,26 @@ class Venta(models.Model):
                                  (update_fields and any(field in update_fields for field in ['lote', 'tipo_venta', 'plazo_meses_credito']))
 
         if recalculate_valor_lote and self.lote:
-            if self.tipo_venta == self.TIPO_VENTA_CONTADO:
-                self.valor_lote_venta = self.lote.precio_lista_soles
-                if self.plazo_meses_credito != 0: self.plazo_meses_credito = 0
-            elif self.tipo_venta == self.TIPO_VENTA_CREDITO:
-                precio_seleccionado = None
-                if self.plazo_meses_credito == 12: precio_seleccionado = self.lote.precio_credito_12_meses_soles
-                elif self.plazo_meses_credito == 24: precio_seleccionado = self.lote.precio_credito_24_meses_soles
-                elif self.plazo_meses_credito == 36: precio_seleccionado = self.lote.precio_credito_36_meses_soles
-                
-                if precio_seleccionado is not None: 
-                    self.valor_lote_venta = precio_seleccionado
-                elif is_new_instance or not self.valor_lote_venta or self.valor_lote_venta == Decimal('0.00'):
-                    self.valor_lote_venta = self.lote.precio_lista_soles 
+            proyecto = self.lote.ubicacion_proyecto.strip().lower() if self.lote.ubicacion_proyecto else ''
+            if ('aucallama' in proyecto) or ('oasis 2' in proyecto):
+                if self.precio_dolares and self.tipo_cambio:
+                    self.valor_lote_venta = (self.precio_dolares * self.tipo_cambio).quantize(Decimal('0.01'))
+                else:
+                    self.valor_lote_venta = Decimal('0.00')
+            else:
+                if self.tipo_venta == self.TIPO_VENTA_CONTADO:
+                    self.valor_lote_venta = self.lote.precio_lista_soles
+                    if self.plazo_meses_credito != 0: self.plazo_meses_credito = 0
+                elif self.tipo_venta == self.TIPO_VENTA_CREDITO:
+                    precio_seleccionado = None
+                    if self.plazo_meses_credito == 12: precio_seleccionado = self.lote.precio_credito_12_meses_soles
+                    elif self.plazo_meses_credito == 24: precio_seleccionado = self.lote.precio_credito_24_meses_soles
+                    elif self.plazo_meses_credito == 36: precio_seleccionado = self.lote.precio_credito_36_meses_soles
+                    
+                    if precio_seleccionado is not None: 
+                        self.valor_lote_venta = precio_seleccionado
+                    elif is_new_instance or not self.valor_lote_venta or self.valor_lote_venta == Decimal('0.00'):
+                        self.valor_lote_venta = self.lote.precio_lista_soles 
         super().save(*args, **kwargs)
 
     def __str__(self): return f"Venta {self.id_venta} - Lote {self.lote.id_lote if self.lote else 'N/A'} ({self.get_status_venta_display()})"
@@ -281,57 +295,245 @@ class PlanPagoVenta(models.Model):
     observaciones = models.TextField(blank=True, null=True)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     ultima_modificacion = models.DateTimeField(auto_now=True)
+    
+    # Campos para almacenar los valores originales
+    _numero_cuotas_original = None
+    _monto_cuota_regular_original_backup = None
+    
+    def save(self, *args, **kwargs):
+        # Si es la primera vez que se guarda (created=True), guardar los valores originales
+        if not self.pk:  # Nuevo registro
+            self._numero_cuotas_original = self.numero_cuotas
+            self._monto_cuota_regular_original_backup = self.monto_cuota_regular_original
+            print(f"[PlanPagoVenta] Guardando valores originales: {self.numero_cuotas} cuotas, {self.monto_cuota_regular_original} por cuota")
+        
+        super().save(*args, **kwargs)
+    
     def __str__(self): return f"Plan de Pago para Venta {self.venta.id_venta} - {self.numero_cuotas} cuotas"
     @transaction.atomic
     def recalcular_cuotas_pendientes(self, save_cuotas=True):
         print(f"\n[PlanPagoVenta ID {self.id_plan_pago}] >>> INICIO recalcular_cuotas_pendientes para Venta ID: {self.venta.id_venta}")
-        monto_original_a_financiar_por_plan = self.monto_total_credito
-        monto_capital_cubierto_por_cuotas_pagadas_actual = self.cuotas.filter(estado_cuota='pagada').aggregate(total_programado_de_pagadas=Sum('monto_programado'))['total_programado_de_pagadas'] or Decimal('0.00')
-        print(f"  Monto original a financiar (del plan): {monto_original_a_financiar_por_plan}")
-        print(f"  Monto capital ya cubierto por cuotas EN ESTADO 'pagada' (suma de sus monto_programado): {monto_capital_cubierto_por_cuotas_pagadas_actual}")
-        saldo_capital_a_redistribuir = monto_original_a_financiar_por_plan - monto_capital_cubierto_por_cuotas_pagadas_actual
+        
+        # Determinar si es proyecto en dólares (Aucallama/Oasis 2)
+        es_proyecto_dolares = (
+            self.venta and self.venta.lote and (
+                'aucallama' in self.venta.lote.ubicacion_proyecto.lower() or
+                'oasis 2' in self.venta.lote.ubicacion_proyecto.lower()
+            )
+        )
+        
+        # Verificar si hay pagos registrados
+        if es_proyecto_dolares:
+            monto_total_pagado = sum(p.monto_pago_dolares or Decimal('0.00') for p in self.venta.registros_pago.all())
+        else:
+            monto_total_pagado = self.venta.monto_pagado_actual or Decimal('0.00')
+        
+        print(f"  Monto total pagado: {monto_total_pagado}")
+        
+        # Si no hay pagos, restaurar el plan a su estado inicial original
+        if monto_total_pagado <= Decimal('0.00'):
+            print(f"  No hay pagos registrados. Restaurando plan a estado inicial original...")
+            
+            # Eliminar todas las cuotas actuales
+            cuotas_actuales = self.cuotas.all()
+            if cuotas_actuales.exists():
+                print(f"  Eliminando {cuotas_actuales.count()} cuotas actuales...")
+                cuotas_actuales.delete()
+            
+            # Calcular el número de cuotas original basándose en el plazo de crédito de la venta
+            numero_cuotas_original = self.venta.plazo_meses_credito
+            if numero_cuotas_original == 0:
+                # Si no hay plazo definido, usar 24 cuotas como valor por defecto
+                numero_cuotas_original = 24
+                print(f"  No se encontró plazo de crédito, usando 24 cuotas por defecto")
+            
+            print(f"  Número de cuotas original: {numero_cuotas_original}")
+            
+            # Calcular el monto de cuota regular original
+            if es_proyecto_dolares:
+                precio_dolares = self.venta.precio_dolares or Decimal('0.00')
+                cuota_inicial_dolares = Decimal('0.00')
+                if self.venta.cuota_inicial_requerida and self.venta.cuota_inicial_requerida > Decimal('0.00'):
+                    if self.venta.tipo_cambio and self.venta.tipo_cambio > Decimal('0.00'):
+                        cuota_inicial_dolares = (self.venta.cuota_inicial_requerida / self.venta.tipo_cambio).quantize(Decimal('0.01'))
+                monto_financiado = precio_dolares - cuota_inicial_dolares
+            else:
+                monto_financiado = self.monto_total_credito
+            
+            monto_cuota_original = (monto_financiado / Decimal(numero_cuotas_original)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            
+            # Restaurar el monto_cuota_regular_original
+            self.monto_cuota_regular_original = monto_cuota_original
+            print(f"  Monto cuota regular restaurado a: {monto_cuota_original}")
+            
+            # Recrear las cuotas originales
+            from datetime import date, timedelta
+            fecha_inicio = self.fecha_inicio_pago_cuotas
+            
+            for i in range(1, numero_cuotas_original + 1):
+                fecha_vencimiento = fecha_inicio + timedelta(days=30 * (i - 1))
+                
+                cuota = CuotaPlanPago(
+                    plan_pago_venta=self,
+                    numero_cuota=i,
+                    fecha_vencimiento=fecha_vencimiento,
+                    monto_programado=monto_cuota_original,
+                    monto_pagado=Decimal('0.00'),
+                    estado_cuota='pendiente',
+                    fecha_pago_efectivo=None
+                )
+                
+                if es_proyecto_dolares:
+                    cuota.monto_programado_dolares = monto_cuota_original
+                
+                cuota.save()
+                print(f"    Cuota N°{i} recreada: monto={monto_cuota_original}, vencimiento={fecha_vencimiento}")
+            
+            # Actualizar el plan
+            self.numero_cuotas = numero_cuotas_original
+            self.ultima_modificacion = timezone.now()
+            self.save(update_fields=['ultima_modificacion', 'numero_cuotas', 'monto_cuota_regular_original'])
+            
+            print(f"  Plan restaurado a estado inicial: {numero_cuotas_original} cuotas de {monto_cuota_original}")
+            print(f"[PlanPagoVenta ID {self.id_plan_pago}] <<< FIN recalcular_cuotas_pendientes (RESTAURADO)")
+            return
+        
+        # Si hay pagos, continuar con la lógica normal de recálculo
+        if es_proyecto_dolares:
+            # Para proyectos en dólares, calcular el monto financiado en dólares
+            precio_dolares = self.venta.precio_dolares or Decimal('0.00')
+            cuota_inicial_dolares = Decimal('0.00')
+            
+            # Si hay cuota inicial, convertirla de soles a dólares usando el tipo de cambio
+            if self.venta.cuota_inicial_requerida and self.venta.cuota_inicial_requerida > Decimal('0.00'):
+                if self.venta.tipo_cambio and self.venta.tipo_cambio > Decimal('0.00'):
+                    cuota_inicial_dolares = (self.venta.cuota_inicial_requerida / self.venta.tipo_cambio).quantize(Decimal('0.01'))
+            
+            monto_original_a_financiar_por_plan = precio_dolares - cuota_inicial_dolares
+            print(f"  [DÓLARES] Monto original a financiar (precio_dolares - cuota_inicial_dolares): {monto_original_a_financiar_por_plan}")
+            
+            # Calcular monto total pagado en dólares
+            monto_total_pagado_en_dolares = sum(p.monto_pago_dolares or Decimal('0.00') for p in self.venta.registros_pago.all())
+            print(f"  [DÓLARES] Monto total pagado en dólares: {monto_total_pagado_en_dolares}")
+            
+            saldo_capital_a_redistribuir = monto_original_a_financiar_por_plan - monto_total_pagado_en_dolares
+            print(f"  [DÓLARES] Saldo de capital del plan a redistribuir: {saldo_capital_a_redistribuir}")
+        else:
+            # Para proyectos en soles, usar la lógica original
+            monto_original_a_financiar_por_plan = self.monto_total_credito
+            monto_total_pagado = self.venta.monto_pagado_actual or Decimal('0.00')
+            print(f"  [SOLES] Monto original a financiar (del plan): {monto_original_a_financiar_por_plan}")
+            print(f"  [SOLES] Monto total pagado: {monto_total_pagado}")
+            
+            saldo_capital_a_redistribuir = monto_original_a_financiar_por_plan - monto_total_pagado
+            print(f"  [SOLES] Saldo de capital del plan a redistribuir: {saldo_capital_a_redistribuir}")
+        
         if saldo_capital_a_redistribuir < Decimal('0.00'):
             print(f"  Advertencia: Saldo a redistribuir calculado como {saldo_capital_a_redistribuir}, ajustando a 0.")
             saldo_capital_a_redistribuir = Decimal('0.00')
-        print(f"  Saldo de capital del plan a redistribuir entre cuotas NO pagadas: {saldo_capital_a_redistribuir}")
-        cuotas_a_recalcular_qs = self.cuotas.filter(~models.Q(estado_cuota='pagada')).order_by('numero_cuota')
-        cuotas_a_recalcular_lista = list(cuotas_a_recalcular_qs) 
+        
+        # NUEVA LÓGICA: Eliminar cuotas que ya no son necesarias basándose en el monto total pagado
+        cuotas_a_eliminar = []
+        
+        if es_proyecto_dolares:
+            monto_total_pagado = sum(p.monto_pago_dolares or Decimal('0.00') for p in self.venta.registros_pago.all())
+        else:
+            monto_total_pagado = self.venta.monto_pagado_actual or Decimal('0.00')
+        
+        monto_acumulado_cuotas = Decimal('0.00')
+        
+        for cuota in self.cuotas.all().order_by('numero_cuota'):
+            if es_proyecto_dolares:
+                monto_programado = cuota.monto_programado_dolares or Decimal('0.00')
+            else:
+                monto_programado = cuota.monto_programado
+            
+            # Si el monto total pagado cubre completamente esta cuota, marcarla para eliminar
+            if monto_total_pagado >= (monto_acumulado_cuotas + monto_programado) and monto_programado > Decimal('0.00'):
+                cuotas_a_eliminar.append(cuota)
+                print(f"    Cuota N°{cuota.numero_cuota} marcada para eliminar (cubierta por pagos acumulados)")
+            
+            monto_acumulado_cuotas += monto_programado
+        
+        # Eliminar las cuotas que ya no son necesarias
+        if cuotas_a_eliminar:
+            print(f"  Eliminando {len(cuotas_a_eliminar)} cuotas que ya no son necesarias...")
+            for cuota in cuotas_a_eliminar:
+                cuota.delete()
+            print(f"  {len(cuotas_a_eliminar)} cuotas eliminadas exitosamente.")
+        
+        # Recalcular números de cuota después de eliminar
+        cuotas_restantes = self.cuotas.all().order_by('numero_cuota')
+        for i, cuota in enumerate(cuotas_restantes, 1):
+            if cuota.numero_cuota != i:
+                cuota.numero_cuota = i
+                cuota.save(update_fields=['numero_cuota'])
+                print(f"    Cuota re-numerada: {cuota.numero_cuota} -> {i}")
+        
+        # Actualizar el número total de cuotas en el plan
+        nuevo_numero_cuotas = self.cuotas.count()
+        if self.numero_cuotas != nuevo_numero_cuotas:
+            self.numero_cuotas = nuevo_numero_cuotas
+            print(f"  Número de cuotas actualizado: {self.numero_cuotas} -> {nuevo_numero_cuotas}")
+        
+        # Obtener todas las cuotas restantes para recalcular
+        cuotas_a_recalcular_lista = list(self.cuotas.all().order_by('numero_cuota'))
         num_cuotas_a_recalcular = len(cuotas_a_recalcular_lista)
-        print(f"  Número de cuotas a recalcular (estado NO 'pagada'): {num_cuotas_a_recalcular}")
+        print(f"  Número de cuotas a recalcular: {num_cuotas_a_recalcular}")
+        
         if num_cuotas_a_recalcular > 0:
-            total_ya_pagado_en_estas_cuotas_a_recalcular = Decimal('0.00')
-            for c_debug in cuotas_a_recalcular_lista:
-                total_ya_pagado_en_estas_cuotas_a_recalcular += c_debug.monto_pagado
-                print(f"    Cuota N°{c_debug.numero_cuota} (a recalcular): monto_programado_ANTES={c_debug.monto_programado}, monto_pagado_actual={c_debug.monto_pagado}, estado_actual={c_debug.estado_cuota}")
-            print(f"  Total ya pagado DENTRO de estas cuotas (parciales/pendientes/etc.): {total_ya_pagado_en_estas_cuotas_a_recalcular}")
-            saldo_neto_a_distribuir_en_programados = saldo_capital_a_redistribuir - total_ya_pagado_en_estas_cuotas_a_recalcular
-            if saldo_neto_a_distribuir_en_programados < Decimal('0.00'):
-                print(f"  Advertencia: Saldo neto a distribuir en programados ({saldo_neto_a_distribuir_en_programados}) es negativo. Ajustando a 0.")
-                saldo_neto_a_distribuir_en_programados = Decimal('0.00')
-            print(f"  Saldo NETO a distribuir en NUEVOS montos programados de estas cuotas: {saldo_neto_a_distribuir_en_programados}")
-            nuevo_monto_programado_cuota_bruto = saldo_neto_a_distribuir_en_programados / Decimal(num_cuotas_a_recalcular) if num_cuotas_a_recalcular > 0 else Decimal('0.00')
+            # Calcular el monto por cuota basándose en el saldo restante
+            nuevo_monto_programado_cuota_bruto = saldo_capital_a_redistribuir / Decimal(num_cuotas_a_recalcular) if num_cuotas_a_recalcular > 0 else Decimal('0.00')
             nuevo_monto_programado_cuota_regular = nuevo_monto_programado_cuota_bruto.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
             if nuevo_monto_programado_cuota_regular < Decimal('0.00'): nuevo_monto_programado_cuota_regular = Decimal('0.00')
             print(f"  Nuevo monto PROGRAMADO de cuota regular (recalculado): {nuevo_monto_programado_cuota_regular}")
+            
+            # Actualizar el monto_cuota_regular_original del plan con el nuevo valor recalculado
+            if self.monto_cuota_regular_original != nuevo_monto_programado_cuota_regular:
+                self.monto_cuota_regular_original = nuevo_monto_programado_cuota_regular
+                print(f"  Monto cuota regular original actualizado: {self.monto_cuota_regular_original}")
+            
             monto_acumulado_para_ajuste_final = Decimal('0.00')
             for i, cuota in enumerate(cuotas_a_recalcular_lista):
                 cuota._monto_programado_changed_in_recalc = True 
+                
                 if i < num_cuotas_a_recalcular - 1:
-                    cuota.monto_programado = nuevo_monto_programado_cuota_regular
-                    monto_acumulado_para_ajuste_final += cuota.monto_programado
+                    if es_proyecto_dolares:
+                        cuota.monto_programado_dolares = nuevo_monto_programado_cuota_regular
+                        monto_acumulado_para_ajuste_final += cuota.monto_programado_dolares
+                    else:
+                        cuota.monto_programado = nuevo_monto_programado_cuota_regular
+                        monto_acumulado_para_ajuste_final += cuota.monto_programado
                 else: 
-                    cuota.monto_programado = saldo_neto_a_distribuir_en_programados - monto_acumulado_para_ajuste_final
-                    if cuota.monto_programado < Decimal('0.00'): cuota.monto_programado = Decimal('0.00')
+                    if es_proyecto_dolares:
+                        cuota.monto_programado_dolares = saldo_capital_a_redistribuir - monto_acumulado_para_ajuste_final
+                        if cuota.monto_programado_dolares < Decimal('0.00'): cuota.monto_programado_dolares = Decimal('0.00')
+                    else:
+                        cuota.monto_programado = saldo_capital_a_redistribuir - monto_acumulado_para_ajuste_final
+                        if cuota.monto_programado < Decimal('0.00'): cuota.monto_programado = Decimal('0.00')
+                
+                # Resetear monto_pagado y estado de la cuota
+                cuota.monto_pagado = Decimal('0.00')
+                cuota.fecha_pago_efectivo = None
                 cuota.actualizar_estado(save_instance=False) 
-                print(f"    Cuota N°{cuota.numero_cuota}: NUEVO monto_programado={cuota.monto_programado}, Monto Pagado existente={cuota.monto_pagado}, NUEVO estado={cuota.estado_cuota}")
+                
+                if es_proyecto_dolares:
+                    print(f"    Cuota N°{cuota.numero_cuota}: NUEVO monto_programado_dolares={cuota.monto_programado_dolares}, NUEVO estado={cuota.estado_cuota}")
+                else:
+                    print(f"    Cuota N°{cuota.numero_cuota}: NUEVO monto_programado={cuota.monto_programado}, NUEVO estado={cuota.estado_cuota}")
+            
             if save_cuotas and cuotas_a_recalcular_lista:
-                campos_bulk_update = ['monto_programado', 'estado_cuota', 'fecha_pago_efectivo']
+                if es_proyecto_dolares:
+                    campos_bulk_update = ['monto_programado_dolares', 'monto_pagado', 'estado_cuota', 'fecha_pago_efectivo']
+                else:
+                    campos_bulk_update = ['monto_programado', 'monto_pagado', 'estado_cuota', 'fecha_pago_efectivo']
                 CuotaPlanPago.objects.bulk_update(cuotas_a_recalcular_lista, campos_bulk_update)
-                print(f"  {len(cuotas_a_recalcular_lista)} cuotas actualizadas (monto_programado y estado) con bulk_update.")
+                print(f"  {len(cuotas_a_recalcular_lista)} cuotas actualizadas con bulk_update.")
         elif num_cuotas_a_recalcular == 0 and saldo_capital_a_redistribuir > Decimal('0.00'):
             print(f"  ADVERTENCIA: No hay cuotas no pagadas pero queda saldo de capital {saldo_capital_a_redistribuir} en Plan ID {self.id_plan_pago}.")
+        
         self.ultima_modificacion = timezone.now()
-        self.save(update_fields=['ultima_modificacion']) 
+        self.save(update_fields=['ultima_modificacion', 'numero_cuotas', 'monto_cuota_regular_original']) 
         print(f"  PlanPagoVenta ID {self.id_plan_pago} fecha de modificación actualizada.")
         print(f"[PlanPagoVenta ID {self.id_plan_pago}] <<< FIN recalcular_cuotas_pendientes")
     class Meta: verbose_name = "Plan de Pago de Venta"; verbose_name_plural = "Planes de Pago de Ventas"; ordering = ['-fecha_creacion']
@@ -348,20 +550,47 @@ class CuotaPlanPago(models.Model):
     monto_pagado = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'), verbose_name="Monto Pagado")
     estado_cuota = models.CharField(max_length=25, choices=ESTADO_CUOTA_CHOICES, default='pendiente', verbose_name="Estado de la Cuota")
     fecha_pago_efectivo = models.DateField(null=True, blank=True, verbose_name="Fecha de Último Pago/Pago Completo")
+    monto_programado_dolares = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="Monto Programado de Cuota ($)")
     @property
-    def saldo_cuota(self): return self.monto_programado - self.monto_pagado
+    def saldo_cuota(self):
+        if self.plan_pago_venta and self.plan_pago_venta.venta and (
+            'aucallama' in self.plan_pago_venta.venta.lote.ubicacion_proyecto.lower() or
+            'oasis 2' in self.plan_pago_venta.venta.lote.ubicacion_proyecto.lower()
+        ):
+            return (self.monto_programado_dolares or 0) - sum(
+                p.monto_pago_dolares or 0 for p in self.pagos_que_la_cubren.all()
+            )
+        else:
+            return self.monto_programado - self.monto_pagado
     def actualizar_estado(self, save_instance=True):
         original_estado = self.estado_cuota
         original_fecha_pago = self.fecha_pago_efectivo
         original_monto_pagado_instancia = self.monto_pagado 
         original_monto_programado_instancia = self.monto_programado
-        if self.monto_programado <= Decimal('0.00'): 
+        
+        # Determinar si es proyecto en dólares (Aucallama/Oasis 2)
+        es_proyecto_dolares = (
+            self.plan_pago_venta and self.plan_pago_venta.venta and (
+                'aucallama' in self.plan_pago_venta.venta.lote.ubicacion_proyecto.lower() or
+                'oasis 2' in self.plan_pago_venta.venta.lote.ubicacion_proyecto.lower()
+            )
+        )
+        
+        # Para proyectos en dólares, usar monto_programado_dolares y calcular monto_pagado en dólares
+        if es_proyecto_dolares:
+            monto_programado = self.monto_programado_dolares or Decimal('0.00')
+            monto_pagado = sum(p.monto_pago_dolares or Decimal('0.00') for p in self.pagos_que_la_cubren.all())
+        else:
+            monto_programado = self.monto_programado
+            monto_pagado = self.monto_pagado
+        
+        if monto_programado <= Decimal('0.00'): 
             self.estado_cuota = 'pagada'
             if not self.fecha_pago_efectivo : self.fecha_pago_efectivo = timezone.now().date()
-        elif self.monto_pagado >= self.monto_programado:
+        elif monto_pagado >= monto_programado:
             self.estado_cuota = 'pagada' 
             if not self.fecha_pago_efectivo: self.fecha_pago_efectivo = timezone.now().date()
-        elif self.monto_pagado > Decimal('0.00'):
+        elif monto_pagado > Decimal('0.00'):
             self.estado_cuota = 'parcialmente_pagada'
             self.fecha_pago_efectivo = None
         else: 
@@ -428,6 +657,17 @@ class Presencia(models.Model):
     STATUS_PRESENCIA_REALIZADA = 'realizada'
     STATUS_PRESENCIA_CHOICES = [('agendada', 'Agendada'), (STATUS_PRESENCIA_REALIZADA, 'Realizada'),('reprogramada', 'Reprogramada'), ('cancelada_cliente', 'Cancelada por Cliente'),('no_asistio', 'No Asistió'), ('caida_proceso', 'Caída en Proceso'),]
     RESULTADO_INTERACCION_CHOICES = [('interesado_seguimiento', 'Interesado - Programar Seguimiento'),('interesado_separacion', 'Interesado - Realizó Separación'),('interesado_venta_directa', 'Interesado - Venta Directa'),('no_interesado_objecion', 'No Interesado - Objeción'),('no_interesado_precio', 'No Interesado - Precio'),('no_interesado_otro', 'No Interesado - Otro'),]
+    TIPO_TOUR_CHOICES = [
+        ('tour', 'Tour (Presencia Real)'),
+        ('no_tour', 'No Tour (Cita Confirmada, No Presencia)'),
+    ]
+    tipo_tour = models.CharField(
+        max_length=10,
+        choices=TIPO_TOUR_CHOICES,
+        default='tour',
+        verbose_name="Tipo de Presencia (Tour/No Tour)",
+        help_text="Indica si la cita fue un Tour (presencia real) o No Tour (no califica como presencia)"
+    )
     
     # Cambiar id_presencia de AutoField a CharField
     id_presencia = models.CharField(max_length=50, unique=True, primary_key=True, verbose_name="ID Presencia", editable=False)
@@ -469,7 +709,10 @@ class RegistroPago(models.Model):
     id_pago = models.CharField(max_length=50, unique=True, primary_key=True, verbose_name="ID Pago", editable=False)
     venta = models.ForeignKey(Venta, on_delete=models.CASCADE, related_name='registros_pago', verbose_name="Venta Asociada")
     fecha_pago = models.DateField(default=timezone.now, verbose_name="Fecha del Pago")
-    monto_pago = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Monto del Pago (S/.)")
+    monto_pago = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True, verbose_name="Monto del Pago (S/.)")
+    monto_pago_dolares = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name="Monto del Pago ($)")
+    tipo_cambio_pago = models.DecimalField(max_digits=8, decimal_places=3, null=True, blank=True, verbose_name="Tipo de Cambio del Pago (S/ por $)")
+    monto_pago_soles = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name="Monto del Pago (S/.) calculado")
     metodo_pago = models.CharField(max_length=30, choices=METODO_PAGO_CHOICES, blank=True, null=True, verbose_name="Método de Pago")
     referencia_pago = models.CharField(max_length=100, blank=True, null=True, verbose_name="Referencia (N° Op, Código, etc.)")
     notas_pago = models.TextField(blank=True, null=True, verbose_name="Notas Adicionales del Pago")
@@ -477,9 +720,13 @@ class RegistroPago(models.Model):
     cuota_plan_pago_cubierta = models.ForeignKey(CuotaPlanPago, on_delete=models.SET_NULL, null=True, blank=True, related_name='pagos_que_la_cubren', verbose_name="Cuota del Plan Cubierta (Opcional)")
     
     def save(self, *args, **kwargs):
+        # Asignar un id_pago único si no existe
         if not self.id_pago:
-            # Define un prefijo para RegistroPago, por ejemplo 'RP'
-            self.id_pago = generar_siguiente_id(RegistroPago, 'RP', 6) # Ajusta longitud si es necesario
+            self.id_pago = f"PG-{uuid4().hex[:12].upper()}"
+        # Si es pago en dólares, calcula monto en soles
+        if self.monto_pago_dolares and self.tipo_cambio_pago:
+            self.monto_pago_soles = (self.monto_pago_dolares * self.tipo_cambio_pago).quantize(Decimal('0.01'))
+            self.monto_pago = self.monto_pago_soles
         super().save(*args, **kwargs)
 
     def __str__(self): 
@@ -494,61 +741,99 @@ class RegistroPago(models.Model):
 def aplicar_pagos_a_cuotas_del_plan(plan: PlanPagoVenta, venta_obj: Venta):
     print(f"--- [Helper Function] Iniciando aplicar_pagos_a_cuotas_del_plan para Plan ID {plan.id_plan_pago} de Venta ID {venta_obj.id_venta} ---")
     
-    cuotas_del_plan_qs = plan.cuotas.all().order_by('numero_cuota') # QuerySet para iterar
+    # Determinar si es proyecto en dólares (Aucallama/Oasis 2)
+    es_proyecto_dolares = (
+        'aucallama' in venta_obj.lote.ubicacion_proyecto.lower() or
+        'oasis 2' in venta_obj.lote.ubicacion_proyecto.lower()
+    )
+    print(f"  Proyecto en dólares: {es_proyecto_dolares}")
     
-    # 1. Resetear montos pagados de todas las cuotas del plan y desvincular RegistroPagos
-    for cuota_reset in cuotas_del_plan_qs: # Iterar sobre el queryset
+    cuotas_del_plan_qs = plan.cuotas.all().order_by('numero_cuota')
+
+    # Resetear montos pagados de todas las cuotas del plan y desvincular RegistroPagos
+    for cuota_reset in cuotas_del_plan_qs:
         if cuota_reset.monto_pagado != Decimal('0.00') or cuota_reset.fecha_pago_efectivo is not None or cuota_reset.estado_cuota != 'pendiente':
             cuota_reset.monto_pagado = Decimal('0.00')
             cuota_reset.fecha_pago_efectivo = None
-            cuota_reset.actualizar_estado(save_instance=True) # Esto guardará la cuota si hay cambios
-    
+            cuota_reset.actualizar_estado(save_instance=True)
+
     # Desvincular todos los RegistroPago de esta venta que podrían estar vinculados a cuotas de ESTE plan
     RegistroPago.objects.filter(venta=venta_obj, cuota_plan_pago_cubierta__plan_pago_venta=plan).update(cuota_plan_pago_cubierta=None)
     print(f"    Montos pagados de cuotas del Plan {plan.id_plan_pago} reseteados y pagos desvinculados.")
 
-    # Volver a obtener las cuotas después del reseteo para asegurar que tenemos los valores frescos de monto_pagado = 0
     cuotas_del_plan_actualizadas = list(plan.cuotas.all().order_by('numero_cuota'))
-
-    # 2. Obtener todos los pagos de la venta, ordenados.
     todos_los_pagos_de_la_venta = venta_obj.registros_pago.all().order_by('fecha_pago', 'id_pago')
-    
-    # 3. Iterar sobre cada pago y aplicarlo secuencialmente a las cuotas.
+
     for pago_individual in todos_los_pagos_de_la_venta:
-        monto_restante_del_pago = pago_individual.monto_pago
-        print(f"  Procesando Pago ID {pago_individual.id_pago}, Monto original del pago: {pago_individual.monto_pago}")
+        # Para proyectos en dólares, usar monto_pago_dolares; para otros, usar monto_pago
+        if es_proyecto_dolares:
+            monto_restante_del_pago = pago_individual.monto_pago_dolares or Decimal('0.00')
+            print(f"  Procesando Pago ID {pago_individual.id_pago}, Monto original del pago (USD): {monto_restante_del_pago}")
+        else:
+            monto_restante_del_pago = pago_individual.monto_pago
+            print(f"  Procesando Pago ID {pago_individual.id_pago}, Monto original del pago (S/): {monto_restante_del_pago}")
 
-        pago_vinculado_a_cuota_en_este_pago = False # Flag para vincular el pago a la primera cuota que ayuda a cubrir
+        # Si el pago ya tiene cuota_plan_pago_cubierta asignada, aplícalo SOLO a esa cuota
+        if pago_individual.cuota_plan_pago_cubierta:
+            cuota = pago_individual.cuota_plan_pago_cubierta
+            # Para proyectos en dólares, usar monto_programado_dolares; para otros, usar monto_programado
+            if es_proyecto_dolares:
+                monto_programado_cuota = cuota.monto_programado_dolares or Decimal('0.00')
+                monto_pagado_cuota = sum(p.monto_pago_dolares or Decimal('0.00') for p in cuota.pagos_que_la_cubren.all())
+            else:
+                monto_programado_cuota = cuota.monto_programado
+                monto_pagado_cuota = cuota.monto_pagado
+            
+            pago_aplicado = min(monto_restante_del_pago, monto_programado_cuota - monto_pagado_cuota)
+            if pago_aplicado > Decimal('0.00'):
+                if es_proyecto_dolares:
+                    # Para proyectos en dólares, actualizar monto_pagado basado en dólares
+                    cuota.monto_pagado = monto_pagado_cuota + pago_aplicado
+                else:
+                    cuota.monto_pagado += pago_aplicado
+                cuota.actualizar_estado(save_instance=True)
+                print(f"    Pago ID {pago_individual.id_pago} aplicado SOLO a cuota N°{cuota.numero_cuota} (seleccionada por el usuario). Monto aplicado: {pago_aplicado}")
+            continue  # No aplicar a otras cuotas
 
-        for cuota_iter in cuotas_del_plan_actualizadas: 
+        # Si no tiene cuota específica, aplicar secuencialmente
+        pago_vinculado_a_cuota_en_este_pago = False
+        for cuota_iter in cuotas_del_plan_actualizadas:
             if monto_restante_del_pago <= Decimal('0.00'):
-                break 
+                break
+                
+            # Para proyectos en dólares, usar monto_programado_dolares; para otros, usar monto_programado
+            if es_proyecto_dolares:
+                monto_programado_cuota = cuota_iter.monto_programado_dolares or Decimal('0.00')
+                monto_pagado_cuota = sum(p.monto_pago_dolares or Decimal('0.00') for p in cuota_iter.pagos_que_la_cubren.all())
+            else:
+                monto_programado_cuota = cuota_iter.monto_programado
+                monto_pagado_cuota = cuota_iter.monto_pagado
             
-            saldo_de_esta_cuota = cuota_iter.monto_programado - cuota_iter.monto_pagado
-            if saldo_de_esta_cuota <= Decimal('0.00'): 
-                continue 
-
+            saldo_de_esta_cuota = monto_programado_cuota - monto_pagado_cuota
+            if saldo_de_esta_cuota <= Decimal('0.00'):
+                continue
             pago_aplicado_a_esta_cuota = min(monto_restante_del_pago, saldo_de_esta_cuota)
-            
             if pago_aplicado_a_esta_cuota > Decimal('0.00'):
-                print(f"    Aplicando {pago_aplicado_a_esta_cuota} del pago ID {pago_individual.id_pago} a cuota N°{cuota_iter.numero_cuota}. Saldo previo cuota: {saldo_de_esta_cuota}")
-                cuota_iter.monto_pagado += pago_aplicado_a_esta_cuota
-                
-                if not pago_vinculado_a_cuota_en_este_pago: # Vincular solo una vez por pago
-                     RegistroPago.objects.filter(pk=pago_individual.pk).update(cuota_plan_pago_cubierta=cuota_iter)
-                     pago_individual.cuota_plan_pago_cubierta = cuota_iter # Actualizar instancia en memoria
-                     pago_vinculado_a_cuota_en_este_pago = True
-                     print(f"      Pago ID {pago_individual.id_pago} vinculado a cuota N°{cuota_iter.numero_cuota}")
-                
+                if es_proyecto_dolares:
+                    # Para proyectos en dólares, actualizar monto_pagado basado en dólares
+                    cuota_iter.monto_pagado = monto_pagado_cuota + pago_aplicado_a_esta_cuota
+                else:
+                    cuota_iter.monto_pagado += pago_aplicado_a_esta_cuota
+                    
+                if not pago_vinculado_a_cuota_en_este_pago:
+                    RegistroPago.objects.filter(pk=pago_individual.pk).update(cuota_plan_pago_cubierta=cuota_iter)
+                    pago_individual.cuota_plan_pago_cubierta = cuota_iter
+                    pago_vinculado_a_cuota_en_este_pago = True
+                    print(f"      Pago ID {pago_individual.id_pago} vinculado a cuota N°{cuota_iter.numero_cuota}")
                 monto_restante_del_pago -= pago_aplicado_a_esta_cuota
-                cuota_iter.actualizar_estado(save_instance=True) # Actualizar estado después de cada aplicación parcial
-        
+                cuota_iter.actualizar_estado(save_instance=True)
         if monto_restante_del_pago > Decimal('0.00'):
             print(f"  ADVERTENCIA: Del Pago ID {pago_individual.id_pago}, quedó un excedente de {monto_restante_del_pago} después de aplicar a todas las cuotas disponibles.")
-
-    # (Opcional) Al final, llamar a actualizar_estado para todas las cuotas por si alguna necesita un save final
-    # for cuota_final_iter in cuotas_del_plan_actualizadas: 
-    #     cuota_final_iter.actualizar_estado(save_instance=True)
+    
+    # NUEVA LÓGICA: Llamar a recalcular_cuotas_pendientes para eliminar cuotas completamente pagadas y renumérandolas
+    print(f"  Llamando a recalcular_cuotas_pendientes para eliminar cuotas completamente pagadas y renumérandolas...")
+    plan.recalcular_cuotas_pendientes(save_cuotas=True)
+    
     print(f"--- [Helper Function] FIN aplicar_pagos_a_cuotas_del_plan para Plan ID {plan.id_plan_pago} ---")
 
 
@@ -718,6 +1003,7 @@ def procesar_registro_pago_guardado(sender, instance: RegistroPago, created, **k
         # Si es venta a crédito y tiene plan, reaplicar todos los pagos para asegurar consistencia de cuotas
         if venta_obj.tipo_venta == Venta.TIPO_VENTA_CREDITO and hasattr(venta_obj, 'plan_pago_venta') and venta_obj.plan_pago_venta:
             aplicar_pagos_a_cuotas_del_plan(venta_obj.plan_pago_venta, venta_obj)
+            venta_obj.plan_pago_venta.refresh_from_db()  # <-- Asegura cuotas actualizadas
         
         # Finalmente, re-evaluar el estado de la venta, ya que la aplicación de pagos pudo completarla
         # o cambiar su estado de procesable.
@@ -742,15 +1028,13 @@ def procesar_registro_pago_eliminado(sender, instance: RegistroPago, **kwargs):
         # 2. Si la venta es a crédito y tiene un plan:
         if venta_obj.tipo_venta == Venta.TIPO_VENTA_CREDITO and hasattr(venta_obj, 'plan_pago_venta') and venta_obj.plan_pago_venta:
             plan = venta_obj.plan_pago_venta
-            
             # a. REAPLICAR todos los pagos RESTANTES para reajustar monto_pagado y estados de cuotas.
             print(f"  Re-aplicando pagos restantes a cuotas para Plan ID: {plan.id_plan_pago} de Venta ID {venta_obj.id_venta}")
             aplicar_pagos_a_cuotas_del_plan(plan, venta_obj)
-            
+            plan.refresh_from_db()  # <-- Asegura cuotas actualizadas
             # b. RECALCULAR los montos programados de las cuotas pendientes.
             print(f"  Llamando a recalcular_cuotas_pendientes para Plan ID: {plan.id_plan_pago} para reajustar montos programados.")
             plan.recalcular_cuotas_pendientes(save_cuotas=True)
-        
         # 3. Finalmente, re-evaluar el estado de la venta una vez más.
         venta_obj.refresh_from_db() 
         venta_obj.actualizar_status_y_monto_pagado(save_instance=True)
