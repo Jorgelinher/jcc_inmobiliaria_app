@@ -37,29 +37,43 @@ function LoteForm({ show, onClose, onSubmit, initialData }) {
         observaciones_lote: '',
     });
 
-    const [formData, setFormData] = useState(getInitialFormData());
+    const getProyectoKey = (ubicacionProyecto) => {
+        if (!ubicacionProyecto) return '';
+        const val = ubicacionProyecto.trim().toLowerCase();
+        if (val.includes('aucallama')) return 'aucallama';
+        if (val.includes('oasis 2')) return 'oasis 2';
+        return val;
+    };
+
+    const [formData, setFormData] = useState({
+        ...getInitialFormData(),
+        precio_credito_12_meses_dolares: '',
+        precio_credito_24_meses_dolares: '',
+        precio_credito_36_meses_dolares: '',
+    });
+    const [showDolaresFields, setShowDolaresFields] = useState(false);
+
+    useEffect(() => {
+        setShowDolaresFields(getProyectoKey(formData.ubicacion_proyecto) === 'aucallama' || getProyectoKey(formData.ubicacion_proyecto) === 'oasis 2');
+    }, [formData.ubicacion_proyecto]);
 
     useEffect(() => {
         if (show) {
             if (initialData) {
                 setFormData({
-                    ubicacion_proyecto: initialData.ubicacion_proyecto || '', // Usar '' si es null/undefined
-                    manzana: initialData.manzana || '',
-                    numero_lote: initialData.numero_lote || '',
-                    etapa: initialData.etapa !== null && initialData.etapa !== undefined ? initialData.etapa : '',
-                    area_m2: initialData.area_m2 || '',
-                    precio_lista_soles: initialData.precio_lista_soles || '',
-                    precio_credito_12_meses_soles: initialData.precio_credito_12_meses_soles || '',
-                    precio_credito_24_meses_soles: initialData.precio_credito_24_meses_soles || '',
-                    precio_credito_36_meses_soles: initialData.precio_credito_36_meses_soles || '',
-                    precio_lista_dolares: initialData.precio_lista_dolares || '',
-                    estado_lote: initialData.estado_lote || 'Disponible',
-                    colindancias: initialData.colindancias || '',
-                    partida_registral: initialData.partida_registral || '',
-                    observaciones_lote: initialData.observaciones_lote || '',
+                    ...getInitialFormData(),
+                    ...initialData,
+                    precio_credito_12_meses_dolares: initialData.precio_credito_12_meses_dolares || '',
+                    precio_credito_24_meses_dolares: initialData.precio_credito_24_meses_dolares || '',
+                    precio_credito_36_meses_dolares: initialData.precio_credito_36_meses_dolares || '',
                 });
             } else {
-                setFormData(getInitialFormData());
+                setFormData({
+                    ...getInitialFormData(),
+                    precio_credito_12_meses_dolares: '',
+                    precio_credito_24_meses_dolares: '',
+                    precio_credito_36_meses_dolares: '',
+                });
             }
         }
     }, [initialData, show]);
@@ -76,10 +90,12 @@ function LoteForm({ show, onClose, onSubmit, initialData }) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        // Validación para asegurar que se haya seleccionado un proyecto
         if (!formData.ubicacion_proyecto) {
-            // Podrías manejar esto con un error en el estado del formulario si prefieres
             alert("Por favor, seleccione una ubicación del proyecto.");
+            return;
+        }
+        if (!isProyectoDolares && (formData.precio_lista_soles === '' || formData.precio_lista_soles === null)) {
+            alert("Por favor, ingrese el precio contado en soles.");
             return;
         }
         const dataToSubmit = {
@@ -90,10 +106,15 @@ function LoteForm({ show, onClose, onSubmit, initialData }) {
             precio_credito_24_meses_soles: formData.precio_credito_24_meses_soles === '' ? null : parseFloat(formData.precio_credito_24_meses_soles),
             precio_credito_36_meses_soles: formData.precio_credito_36_meses_soles === '' ? null : parseFloat(formData.precio_credito_36_meses_soles),
             precio_lista_dolares: formData.precio_lista_dolares === '' ? null : parseFloat(formData.precio_lista_dolares),
+            precio_credito_12_meses_dolares: formData.precio_credito_12_meses_dolares === '' ? null : parseFloat(formData.precio_credito_12_meses_dolares),
+            precio_credito_24_meses_dolares: formData.precio_credito_24_meses_dolares === '' ? null : parseFloat(formData.precio_credito_24_meses_dolares),
+            precio_credito_36_meses_dolares: formData.precio_credito_36_meses_dolares === '' ? null : parseFloat(formData.precio_credito_36_meses_dolares),
             etapa: formData.etapa === '' ? null : parseInt(formData.etapa, 10),
         };
         onSubmit(dataToSubmit);
     };
+
+    const isProyectoDolares = getProyectoKey(formData.ubicacion_proyecto) === 'aucallama' || getProyectoKey(formData.ubicacion_proyecto) === 'oasis 2';
 
     return (
         <div className={styles.modalOverlay}>
@@ -146,7 +167,7 @@ function LoteForm({ show, onClose, onSubmit, initialData }) {
                     <div className={styles.formRow}>
                         <div className={styles.formGroup}>
                             <label htmlFor="precio_lista_soles">Precio Contado <span className={styles.required}>*</span></label>
-                            <input type="number" id="precio_lista_soles" name="precio_lista_soles" value={formData.precio_lista_soles} onChange={handleChange} step="0.01" required placeholder="Ej: 50000.00"/>
+                            <input type="number" id="precio_lista_soles" name="precio_lista_soles" value={formData.precio_lista_soles} onChange={handleChange} step="0.01" required={!isProyectoDolares} placeholder="Ej: 50000.00"/>
                         </div>
                     </div>
                     
@@ -165,11 +186,34 @@ function LoteForm({ show, onClose, onSubmit, initialData }) {
                         </div>
                     </div>
                     
+                    {showDolaresFields && (
+                        <>
+                            <hr className={styles.formSeparator}/>
+                            <h3 className={styles.subHeader}>Precios en Dólares ($)</h3>
+                            <div className={styles.formRow}>
+                                <div className={styles.formGroup}>
+                                    <label htmlFor="precio_lista_dolares">Precio Contado ($)</label>
+                                    <input type="number" id="precio_lista_dolares" name="precio_lista_dolares" value={formData.precio_lista_dolares} onChange={handleChange} step="0.01" placeholder="Ej: 13500.00"/>
+                                </div>
+                            </div>
+                            <div className={styles.formRow}>
+                                <div className={styles.formGroup}>
+                                    <label htmlFor="precio_credito_12_meses_dolares">Precio Crédito 12 Meses ($)</label>
+                                    <input type="number" id="precio_credito_12_meses_dolares" name="precio_credito_12_meses_dolares" value={formData.precio_credito_12_meses_dolares} onChange={handleChange} step="0.01" placeholder="Ej: 15000.00" />
+                                </div>
+                                <div className={styles.formGroup}>
+                                    <label htmlFor="precio_credito_24_meses_dolares">Precio Crédito 24 Meses ($)</label>
+                                    <input type="number" id="precio_credito_24_meses_dolares" name="precio_credito_24_meses_dolares" value={formData.precio_credito_24_meses_dolares} onChange={handleChange} step="0.01" placeholder="Ej: 16000.00" />
+                                </div>
+                                <div className={styles.formGroup}>
+                                    <label htmlFor="precio_credito_36_meses_dolares">Precio Crédito 36 Meses ($)</label>
+                                    <input type="number" id="precio_credito_36_meses_dolares" name="precio_credito_36_meses_dolares" value={formData.precio_credito_36_meses_dolares} onChange={handleChange} step="0.01" placeholder="Ej: 17000.00" />
+                                </div>
+                            </div>
+                        </>
+                    )}
+
                     <div className={styles.formRow}>
-                        <div className={styles.formGroup}>
-                            <label htmlFor="precio_lista_dolares">Precio Contado ($) (Opcional)</label>
-                            <input type="number" id="precio_lista_dolares" name="precio_lista_dolares" value={formData.precio_lista_dolares} onChange={handleChange} step="0.01" placeholder="Ej: 13500.00"/>
-                        </div>
                         <div className={styles.formGroup}>
                             <label htmlFor="estado_lote">Estado del Lote <span className={styles.required}>*</span></label>
                             <select id="estado_lote" name="estado_lote" value={formData.estado_lote} onChange={handleChange} required>

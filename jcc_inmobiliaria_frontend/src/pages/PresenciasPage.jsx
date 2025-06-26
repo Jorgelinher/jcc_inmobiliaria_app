@@ -23,6 +23,12 @@ const displayDateTime = (dateTimeStr) => {
 };
 // --- FIN: Funciones de Formato ---
 
+const TIPO_TOUR_CHOICES = [
+  { value: '', label: 'Tour y No Tour' },
+  { value: 'tour', label: 'Solo Tour' },
+  { value: 'no_tour', label: 'Solo No Tour' },
+];
+
 function PresenciasPage() {
     const [presencias, setPresencias] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -40,6 +46,7 @@ function PresenciasPage() {
         status_presencia: '',
         resultado_interaccion: '',
         asesor_closer_nombre: '', // O el asesor más relevante para filtrar
+        tipo_tour: '',
     });
 
     const fetchPresencias = useCallback(async (currentFilters) => {
@@ -91,6 +98,7 @@ function PresenciasPage() {
             fecha_presencia_after: '', fecha_presencia_before: '', cliente_nombre: '',
             proyecto_interes: '', modalidad: '', status_presencia: '',
             resultado_interaccion: '', asesor_closer_nombre: '',
+            tipo_tour: '',
         });
     };
 
@@ -190,6 +198,9 @@ function PresenciasPage() {
                     <option value="caida_proceso">Caída en Proceso</option>
                 </select>
                 <input type="text" name="asesor_closer_nombre" placeholder="Asesor Closer..." value={filters.asesor_closer_nombre} onChange={handleFilterChange} className={styles.filterInput}/>
+                <select name="tipo_tour" value={filters.tipo_tour} onChange={handleFilterChange} className={styles.filterSelect}>
+                    {TIPO_TOUR_CHOICES.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                </select>
                 <button onClick={resetFilters} className={styles.resetButton}>Limpiar Filtros</button>
             </div>
 

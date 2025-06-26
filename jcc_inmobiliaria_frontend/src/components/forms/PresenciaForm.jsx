@@ -28,6 +28,10 @@ const RESULTADO_INTERACCION_CHOICES = [
     { value: 'no_interesado_precio', label: 'No Interesado - Precio' },
     { value: 'no_interesado_otro', label: 'No Interesado - Otro' },
 ];
+const TIPO_TOUR_CHOICES = [
+    { value: 'tour', label: 'Tour (Presencia Real)' },
+    { value: 'no_tour', label: 'No Tour (Cita Confirmada, No Presencia)' },
+];
 
 function PresenciaForm({ show, onClose, onSubmit, initialData }) {
     const getInitialFormState = useCallback(() => ({
@@ -46,6 +50,7 @@ function PresenciaForm({ show, onClose, onSubmit, initialData }) {
         resultado_interaccion: '',
         venta_asociada: '', 
         observaciones: '',
+        tipo_tour: 'tour',
     }), []);
 
     const [formData, setFormData] = useState(getInitialFormState());
@@ -121,6 +126,7 @@ function PresenciaForm({ show, onClose, onSubmit, initialData }) {
                     asesor_liner: initialData.asesor_liner?.id_asesor || initialData.asesor_liner || '',
                     asesor_closer: initialData.asesor_closer?.id_asesor || initialData.asesor_closer || '',
                     venta_asociada: initialData.venta_asociada?.id_venta || initialData.venta_asociada || '',
+                    tipo_tour: initialData.tipo_tour || 'tour',
                     // Los campos como medio_captacion, modalidad, status_presencia, etc., ya se toman de initialData si existen
                 });
 
@@ -317,6 +323,7 @@ function PresenciaForm({ show, onClose, onSubmit, initialData }) {
             resultado_interaccion: formData.resultado_interaccion || null,
             venta_asociada: ventaAsociadaId || null,
             observaciones: formData.observaciones,
+            tipo_tour: formData.tipo_tour,
         };
         // No es necesario enviar lote_interes_display_text
         
@@ -438,6 +445,12 @@ function PresenciaForm({ show, onClose, onSubmit, initialData }) {
                                         {STATUS_PRESENCIA_CHOICES.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                                     </select>
                                 </div>
+                            </div>
+                            <div className={formBaseStyles.formGroup}>
+                                <label htmlFor="tipo_tour">Tipo de Presencia <span className={formBaseStyles.required}>*</span></label>
+                                <select id="tipo_tour" name="tipo_tour" value={formData.tipo_tour} onChange={handleChange} required>
+                                    {TIPO_TOUR_CHOICES.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                                </select>
                             </div>
                             <div className={formBaseStyles.formGroup}>
                                 <label htmlFor="resultado_interaccion">Resultado de la Interacción</label>

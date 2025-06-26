@@ -138,18 +138,20 @@
 
 .table {
   width: 100%;
-  min-width: 1100px; 
+  min-width: 800px; /* Reducido de 1100px para ser más responsive */
   border-collapse: collapse;
+  table-layout: auto; /* Permite que las columnas se ajusten al contenido */
 }
 
 .table th,
 .table td {
-  padding: var(--spacing-sm, 12px) var(--spacing-md, 16px);
-  text-align: left;
+  padding: var(--spacing-sm, 8px) var(--spacing-sm, 12px); /* Reducido padding para más compacto */
+  text-align: center; /* Centrar horizontalmente el texto */
+  vertical-align: middle; /* Centrar verticalmente el contenido */
   border-bottom: 1px solid var(--color-borde-general, #E9ECEF);
   font-family: var(--fuente-principal, 'Inter', sans-serif);
-  font-size: var(--font-size-sm, 14px);
-  line-height: 1.5; 
+  font-size: var(--font-size-sm, 13px); /* Reducido de 14px */
+  line-height: 1.4; /* Reducido de 1.5 */
 }
 
 .table th { /* Encabezado de Tabla */
@@ -157,7 +159,8 @@
   color: var(--color-primario-texto, #FFFFFF); /* Texto Blanco */
   font-family: var(--fuente-principal, 'Inter', sans-serif); /* Inter Medium */
   font-weight: 500; /* Medium */
-  white-space: nowrap;
+  white-space: normal; /* Permitir saltos de línea en encabezados */
+  word-break: break-word; /* Romper palabras largas */
   position: sticky;
   top: 0;
   z-index: 1; 
@@ -165,6 +168,8 @@
 
 .table td { 
   color: var(--color-texto-principal, #343A40); 
+  white-space: normal; /* Permitir saltos de línea */
+  word-break: break-word; /* Romper palabras largas */
 }
 .table td a { 
   color: var(--color-texto-enlace, #2A4A6B); 
@@ -194,13 +199,21 @@
 .textAlignRight { text-align: right !important; }
 
 /* Botones de Acción en Tabla Rediseñados */
-.actionButtons { 
-  display: flex; 
-  gap: var(--spacing-sm, 8px); 
-  align-items: center; 
-  justify-content: flex-start; 
+.actionButtons {
+  display: flex;
+  gap: var(--spacing-sm, 6px);
+  align-items: center;
+  justify-content: center; /* Centrar horizontalmente los botones */
+  flex-wrap: wrap;
+  height: 100%;
 }
-.actionButtons > * { /* Estilo base para todos los botones de acción */
+.actionButtons > * {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px; /* Altura uniforme para todos los botones */
+  min-width: 70px;
+  margin: 2px 0;
   padding: 6px 12px; 
   font-size: 13px; 
   font-family: var(--fuente-principal, 'Inter', sans-serif);
@@ -209,9 +222,6 @@
   cursor: pointer; 
   border: 1px solid; 
   text-decoration: none; 
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
   white-space: nowrap;
   line-height: 1.4;
@@ -255,6 +265,7 @@
     background-color: var(--color-fondo-contenedor, #FFFFFF);
     color: var(--color-acento-error, #DC3545); /* Rojo Carmesí */
     border-color: var(--color-acento-error, #DC3545);
+    min-width: 90px;
 }
 .deleteButton:hover {
     background-color: var(--color-acento-error, #DC3545);
@@ -263,15 +274,15 @@
 
 
 /* Clases específicas para anchos de columna (ajusta según necesidad) */
-.colId { min-width: 90px; width: 7%; }
-.colFecha { min-width: 100px; width: 9%; }
-.colLote { min-width: 150px; width: 11%; white-space: normal; word-break: break-word; }
-.colCliente { min-width: 180px; width: 17%; white-space: normal; word-break: break-word; }
-.colVendedor { min-width: 150px; width: 11%; white-space: normal; word-break: break-word; }
-.colMonto { min-width: 120px; width: 10%; }
-.colTipo { min-width: 90px; width: 7%; }
-.colStatus { min-width: 110px; width: 9%; }
-.colAcciones { min-width: 340px; width: auto; text-align: left;} /* Aumentado para más botones */
+.colId { min-width: 70px; width: 6%; } /* Reducido de 90px */
+.colFecha { min-width: 80px; width: 7%; } /* Reducido de 100px */
+.colLote { min-width: 120px; width: 10%; white-space: normal; word-break: break-word; } /* Reducido de 150px */
+.colCliente { min-width: 140px; width: 12%; white-space: normal; word-break: break-word; } /* Reducido de 180px */
+.colVendedor { min-width: 120px; width: 10%; white-space: normal; word-break: break-word; } /* Reducido de 150px */
+.colMonto { min-width: 100px; width: 8%; text-align: center !important; } /* Reducido de 120px */
+.colTipo { min-width: 70px; width: 6%; text-align: center !important; } /* Reducido de 90px */
+.colStatus { min-width: 90px; width: 7%; text-align: center !important; } /* Reducido de 110px */
+.colAcciones { min-width: 280px; width: auto; text-align: left; text-align: center !important; } /* Reducido de 340px */
 
 /* Badges de Estado (usar los de DetailPage.module.css si son globales) */
 .statusBadge {
@@ -291,3 +302,64 @@
 .statusBadgeprocesable { background-color: var(--color-acento-informacion-fondo); color: #084298; border-color: var(--color-acento-informacion-borde); }
 .statusBadgecompletada { background-color: var(--color-acento-exito-fondo); color: #155724; border-color: var(--color-acento-exito-borde); }
 .statusBadgeanulado { background-color: var(--color-acento-error-fondo); color: #58151C; border-color: var(--color-acento-error-borde); }
+
+/* Media queries para responsividad */
+@media (max-width: 1200px) {
+  .table {
+    min-width: 700px; /* Aún más compacto en pantallas medianas */
+  }
+  
+  .table th,
+  .table td {
+    padding: 6px 8px; /* Padding aún más reducido */
+    font-size: 12px; /* Fuente más pequeña */
+  }
+  
+  .actionButtons {
+    gap: 4px; /* Botones más juntos */
+  }
+  
+  .actionButtons > * {
+    padding: 4px 8px; /* Botones más compactos */
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 992px) {
+  .table {
+    min-width: 600px; /* Muy compacto en pantallas pequeñas */
+  }
+  
+  .colId { min-width: 60px; }
+  .colFecha { min-width: 70px; }
+  .colLote { min-width: 100px; }
+  .colCliente { min-width: 120px; }
+  .colVendedor { min-width: 100px; }
+  .colMonto { min-width: 80px; }
+  .colTipo { min-width: 60px; }
+  .colStatus { min-width: 80px; }
+  .colAcciones { min-width: 240px; }
+}
+
+/* Indicador visual de scroll horizontal */
+.tableResponsiveContainer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 20px;
+  background: linear-gradient(to right, transparent, rgba(255,255,255,0.8));
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.tableResponsiveContainer:hover::after {
+  opacity: 1;
+}
+
+/* Solo mostrar el indicador cuando hay scroll */
+.tableResponsiveContainer:not([data-scrollable="false"])::after {
+  opacity: 1;
+}

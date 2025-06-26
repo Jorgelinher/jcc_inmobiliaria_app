@@ -57,6 +57,8 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
         notas: '',
         porcentaje_comision_vendedor_principal_personalizado: '',
         porcentaje_comision_socio_personalizado: '',
+        precio_dolares: '',
+        tipo_cambio: '',
     }), [clientePredefinidoPresencia]);
 
     const [formData, setFormData] = useState(getInitialFormData());
@@ -73,6 +75,7 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
     const [isClienteModalOpen, setIsClienteModalOpen] = useState(false);
     const [clienteFormError, setClienteFormError] = useState('');
     const [isLoteSelectorModalOpen, setIsLoteSelectorModalOpen] = useState(false);
+    const [showDolaresFields, setShowDolaresFields] = useState(false);
 
     const fetchInitialDropdownData = useCallback(async () => {
         setLoadingRelatedData(true);
@@ -160,21 +163,50 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
 
     useEffect(() => {
         if (selectedLoteDetails) {
+            const proyectoKey = getProyectoKey(selectedLoteDetails.ubicacion_proyecto);
+            const esDolares = proyectoKey === 'aucallama' || proyectoKey === 'oasis 2';
+            setShowDolaresFields(esDolares);
+            let nuevoPrecioDolares = formData.precio_dolares;
             let nuevoValorVenta = '';
-            if (formData.tipo_venta === 'contado') {
+            if (esDolares) {
+                if (formData.tipo_venta === 'contado') {
+                    nuevoPrecioDolares = selectedLoteDetails.precio_lista_dolares || '';
+                } else if (formData.tipo_venta === 'credito') {
+                    const plazo = parseInt(formData.plazo_meses_credito, 10);
+                    if (plazo === 12) nuevoPrecioDolares = selectedLoteDetails.precio_credito_12_meses_dolares || '';
+                    else if (plazo === 24) nuevoPrecioDolares = selectedLoteDetails.precio_credito_24_meses_dolares || '';
+                    else if (plazo === 36) nuevoPrecioDolares = selectedLoteDetails.precio_credito_36_meses_dolares || '';
+                    else nuevoPrecioDolares = '';
+                } else {
+                    nuevoPrecioDolares = '';
+                }
+                if (nuevoPrecioDolares && formData.tipo_cambio) {
+                    const tipoCambio = parseFloat(formData.tipo_cambio);
+                    if (!isNaN(tipoCambio) && tipoCambio > 0) {
+                        nuevoValorVenta = (parseFloat(nuevoPrecioDolares) * tipoCambio).toFixed(2);
+                    } else {
+                        nuevoValorVenta = '';
+                    }
+                } else {
+                    nuevoValorVenta = '';
+                }
+            } else if (formData.tipo_venta === 'contado') {
                 nuevoValorVenta = selectedLoteDetails.precio_lista_soles || '';
             } else if (formData.tipo_venta === 'credito') {
                 const plazo = parseInt(formData.plazo_meses_credito, 10);
                 if (plazo === 12) nuevoValorVenta = selectedLoteDetails.precio_credito_12_meses_soles || '';
                 else if (plazo === 24) nuevoValorVenta = selectedLoteDetails.precio_credito_24_meses_soles || '';
                 else if (plazo === 36) nuevoValorVenta = selectedLoteDetails.precio_credito_36_meses_soles || '';
-                else nuevoValorVenta = ''; 
+                else nuevoValorVenta = '';
+            } else {
+                nuevoValorVenta = '';
             }
-            setFormData(prev => ({ ...prev, valor_lote_venta: nuevoValorVenta }));
+            setFormData(prev => ({ ...prev, valor_lote_venta: nuevoValorVenta, precio_dolares: esDolares ? nuevoPrecioDolares : '' }));
         } else {
-            setFormData(prev => ({ ...prev, valor_lote_venta: '' }));
+            setShowDolaresFields(false);
+            setFormData(prev => ({ ...prev, valor_lote_venta: '', precio_dolares: '' }));
         }
-    }, [selectedLoteDetails, formData.tipo_venta, formData.plazo_meses_credito]);
+    }, [selectedLoteDetails, formData.tipo_venta, formData.plazo_meses_credito, formData.tipo_cambio]);
     
     const fetchDefaultCommissionVPCallback = useCallback(async () => {
         if (formData.vendedor_principal && formData.tipo_venta && asesoresList.length > 0) {
@@ -338,7 +370,14 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
         if (!formData.lote) { setFormError("Debe seleccionar un Lote."); return; }
         if (!formData.cliente) { setFormError("Debe seleccionar o crear un Cliente."); return; }
         if (!formData.vendedor_principal) { setFormError("Debe seleccionar un Vendedor Principal."); return; }
-        
+        if (showDolaresFields) {
+            if (!formData.precio_dolares || parseFloat(formData.precio_dolares) <= 0) {
+                setFormError("Debe ingresar el precio en dólares para este proyecto."); return;
+            }
+            if (!formData.tipo_cambio || parseFloat(formData.tipo_cambio) <= 0) {
+                setFormError("Debe ingresar un tipo de cambio válido para este proyecto."); return;
+            }
+        }
         if (formData.tipo_venta === 'credito' && (!formData.plazo_meses_credito || parseInt(formData.plazo_meses_credito, 10) === 0)) {
             setFormError("Para ventas a crédito, por favor seleccione un plazo válido (12, 24, o 36 meses).");
             return;
@@ -368,11 +407,21 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
             participacion_socio_venta: formData.id_socio_participante ? formData.participacion_socio_venta : 'N/A',
             porcentaje_comision_vendedor_principal_personalizado: formData.porcentaje_comision_vendedor_principal_personalizado ? parseFloat(formData.porcentaje_comision_vendedor_principal_personalizado) : null,
             porcentaje_comision_socio_personalizado: formData.porcentaje_comision_socio_personalizado && formData.id_socio_participante ? parseFloat(formData.porcentaje_comision_socio_personalizado) : null,
+            precio_dolares: showDolaresFields ? parseFloat(formData.precio_dolares) : null,
+            tipo_cambio: showDolaresFields ? parseFloat(formData.tipo_cambio) : null,
         };
         delete dataToSubmit.lote_display_text; // No enviar este campo al backend
         
         console.log("[VentaForm] Data a enviar para Venta:", dataToSubmit);
         onSubmit(dataToSubmit, initialData?.id_venta);
+    };
+
+    const getProyectoKey = (ubicacionProyecto) => {
+        if (!ubicacionProyecto) return '';
+        const val = ubicacionProyecto.trim().toLowerCase();
+        if (val.includes('aucallama')) return 'aucallama';
+        if (val.includes('oasis 2')) return 'oasis 2';
+        return val;
     };
 
     if (!show) return null;
@@ -453,23 +502,63 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
                             </div>
                             
                             <div className={styles.formRow}>
-                                <div className={styles.formGroup}>
-                                    <label htmlFor="valor_lote_venta">Valor de Venta (S/.) <span className={styles.required}>*</span></label>
-                                    <input type="number" id="valor_lote_venta" name="valor_lote_venta" 
-                                           value={formData.valor_lote_venta} 
-                                           readOnly 
-                                           className={styles.readOnlyInput}
-                                           placeholder="Se calculará automáticamente"
-                                    />
-                                </div>
-                                {formData.tipo_venta === 'credito' && (
-                                    <div className={styles.formGroup}>
-                                        <label htmlFor="cuota_inicial_requerida">Cuota Inicial Requerida (S/.) <span className={styles.required}>*</span></label>
-                                        <input type="number" id="cuota_inicial_requerida" name="cuota_inicial_requerida" value={formData.cuota_inicial_requerida} onChange={handleChange} step="0.01" placeholder="Ej: 5000.00" required={formData.tipo_venta === 'credito'}/>
-                                    </div>
+                                {showDolaresFields && (
+                                    <>
+                                        <div className={styles.formGroup}>
+                                            <label htmlFor="precio_dolares">Precio Venta ($) <span className={styles.required}>*</span></label>
+                                            <input
+                                                type="number"
+                                                id="precio_dolares"
+                                                name="precio_dolares"
+                                                value={formData.precio_dolares || ''}
+                                                readOnly
+                                                className={styles.readOnlyInput}
+                                                placeholder="Ej: 13500.00"
+                                            />
+                                        </div>
+                                        <div className={styles.formGroup}>
+                                            <label htmlFor="tipo_cambio">Tipo de Cambio (S/ por $) <span className={styles.required}>*</span></label>
+                                            <input
+                                                type="number"
+                                                id="tipo_cambio"
+                                                name="tipo_cambio"
+                                                value={formData.tipo_cambio || ''}
+                                                onChange={handleChange}
+                                                step="0.001"
+                                                min="0"
+                                                required={showDolaresFields}
+                                                placeholder="Ej: 3.80"
+                                            />
+                                        </div>
+                                        <div className={styles.formGroup}>
+                                            <label>Valor Venta (S/.)</label>
+                                            <input type="number" value={formData.valor_lote_venta || ''} readOnly className={styles.readOnlyInput} />
+                                        </div>
+                                    </>
                                 )}
                             </div>
-                             <div className={styles.formRow}>
+
+                            {!showDolaresFields && (
+                                <div className={styles.formRow}>
+                                    <div className={styles.formGroup}>
+                                        <label htmlFor="valor_lote_venta">Valor de Venta (S/.) <span className={styles.required}>*</span></label>
+                                        <input type="number" id="valor_lote_venta" name="valor_lote_venta" 
+                                               value={formData.valor_lote_venta} 
+                                               readOnly 
+                                               className={styles.readOnlyInput}
+                                               placeholder="Se calculará automáticamente"
+                                        />
+                                    </div>
+                                    {formData.tipo_venta === 'credito' && (
+                                        <div className={styles.formGroup}>
+                                            <label htmlFor="cuota_inicial_requerida">Cuota Inicial Requerida (S/.) <span className={styles.required}>*</span></label>
+                                            <input type="number" id="cuota_inicial_requerida" name="cuota_inicial_requerida" value={formData.cuota_inicial_requerida} onChange={handleChange} step="0.01" placeholder="Ej: 5000.00" required={formData.tipo_venta === 'credito'}/>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                            
+                            <div className={styles.formRow}>
                                 <div className={styles.formGroup}>
                                     <label htmlFor="status_venta">Status de Venta <span className={styles.required}>*</span></label>
                                     <select id="status_venta" name="status_venta" value={formData.status_venta} onChange={handleChange} required>

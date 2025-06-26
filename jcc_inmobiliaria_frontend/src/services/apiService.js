@@ -170,6 +170,11 @@ export const marcarVentaComoFirmada = (ventaId, fechaFirma = null) => {
     return apiClient.post(`/gestion/ventas/${ventaId}/marcar_firma_contrato/`, payload);
 };
 
+export const revertirFirmaContrato = (ventaId) => {
+    console.log(`[apiService] POST revertirFirmaContrato para Venta ID: ${ventaId}`);
+    return apiClient.post(`/gestion/ventas/${ventaId}/revertir_firma_contrato/`, {});
+};
+
 // --- Dashboard y Comisiones ---
 export const getDashboardDataFromApi = (filters = {}) => {
     const activeFilters = Object.entries(filters).filter(([_, value]) => value !== '' && value !== null).reduce((obj, [key, value]) => { obj[key] = value; return obj; }, {});

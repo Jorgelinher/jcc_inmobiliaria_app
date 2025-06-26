@@ -18,6 +18,18 @@ const displayCurrency = (value) => {
     });
 };
 
+const displayCurrencyUSD = (value) => {
+    if (value === null || value === undefined || isNaN(Number(value))) {
+        return '-';
+    }
+    return Number(value).toLocaleString('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+};
+
 function LotesPage() {
     const [lotes, setLotes] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -25,13 +37,19 @@ function LotesPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingLote, setEditingLote] = useState(null);
 
+    // Estado de paginación
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(20);
+    const [totalPages, setTotalPages] = useState(0);
+    const [totalCount, setTotalCount] = useState(0);
+
     const [filters, setFilters] = useState({
         q: '', 
         estado_lote: '', // Valor inicial vacío para "Todos los Estados"
         etapa: '' 
     });
 
-    const fetchLotes = useCallback(async (currentFilters) => {
+    const fetchLotes = useCallback(async (currentFilters, page = 1, size = pageSize) => {
         setLoading(true);
         setError(null);
         try {
@@ -42,11 +60,20 @@ function LotesPage() {
                     return obj;
                 }, {});
             
+            // Agregar parámetros de paginación
+            activeFilters.page = page;
+            activeFilters.page_size = size;
+            
             const queryParams = new URLSearchParams(activeFilters).toString();
             console.log("[LotesPage] Fetching lotes con queryParams:", queryParams);
             const response = await apiService.getLotes(queryParams);
             console.log("[LotesPage] Lotes response:", response.data);
-            setLotes(response.data.results || response.data || []);
+            
+            // Extraer datos paginados
+            setLotes(response.data.results || []);
+            setTotalCount(response.data.count || 0);
+            setTotalPages(Math.ceil((response.data.count || 0) / size));
+            setCurrentPage(page);
         } catch (err) {
             let errorMessage = "Error al cargar los lotes.";
             if (err.response) {
@@ -61,11 +88,11 @@ function LotesPage() {
         } finally {
             setLoading(false);
         }
-    }, []); 
+    }, []); // Remover pageSize de las dependencias para evitar ciclos
 
     useEffect(() => {
-        fetchLotes(filters);
-    }, [filters, fetchLotes]); 
+        fetchLotes(filters, 1, pageSize);
+    }, [filters, fetchLotes]); // Remover pageSize del useEffect para evitar llamadas duplicadas
 
     const handleFilterChange = (e) => {
         const { name, value } = e.target;
@@ -77,6 +104,20 @@ function LotesPage() {
     
     const resetFilters = () => {
         setFilters({ q: '', estado_lote: '', etapa: '' });
+    };
+
+    // Funciones de paginación
+    const handlePageChange = (newPage) => {
+        if (newPage >= 1 && newPage <= totalPages) {
+            fetchLotes(filters, newPage, pageSize);
+        }
+    };
+
+    const handlePageSizeChange = (newPageSize) => {
+        setPageSize(newPageSize);
+        setCurrentPage(1); // Reset a la primera página cuando cambia el tamaño
+        // Llamar directamente a fetchLotes con el nuevo tamaño
+        fetchLotes(filters, 1, newPageSize);
     };
 
     const handleOpenModalForCreate = () => { setEditingLote(null); setIsModalOpen(true); };
@@ -104,7 +145,7 @@ function LotesPage() {
                 alert('Lote creado con éxito!');
             }
             handleCloseModal();
-            fetchLotes(filters); 
+            fetchLotes(filters, currentPage, pageSize); 
         } catch (err) {
             let submitErrorMessage = "Error al guardar el lote.";
             if (err.response && err.response.data) {
@@ -129,7 +170,7 @@ function LotesPage() {
                 setLoading(true);
                 await apiService.deleteLote(loteId);
                 alert('Lote eliminado con éxito!');
-                fetchLotes(filters); 
+                fetchLotes(filters, currentPage, pageSize); 
             } catch (err) { 
                 alert(`Error al eliminar el lote: ${err.response?.data?.detail || err.message || 'Error desconocido.'}`);
              } finally {
@@ -142,6 +183,40 @@ function LotesPage() {
     const showInitialLoading = loading && lotes.length === 0 && !Object.values(filters).some(f => f !== '');
     const showFilteringMessage = loading && (lotes.length > 0 || Object.values(filters).some(f => f !== ''));
 
+    // Generar array de páginas para mostrar en la paginación
+    const getPageNumbers = () => {
+        const pages = [];
+        const maxVisiblePages = 5;
+        
+        if (totalPages <= maxVisiblePages) {
+            for (let i = 1; i <= totalPages; i++) {
+                pages.push(i);
+            }
+        } else {
+            if (currentPage <= 3) {
+                for (let i = 1; i <= 4; i++) {
+                    pages.push(i);
+                }
+                pages.push('...');
+                pages.push(totalPages);
+            } else if (currentPage >= totalPages - 2) {
+                pages.push(1);
+                pages.push('...');
+                for (let i = totalPages - 3; i <= totalPages; i++) {
+                    pages.push(i);
+                }
+            } else {
+                pages.push(1);
+                pages.push('...');
+                for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+                    pages.push(i);
+                }
+                pages.push('...');
+                pages.push(totalPages);
+            }
+        }
+        return pages;
+    };
 
     return (
         <div className={styles.pageContainer}>
@@ -193,47 +268,118 @@ function LotesPage() {
             )}
 
             {lotes.length > 0 && (
-                // Usar tableResponsiveContainer para consistencia con VentasPage
-                <div className={styles.tableResponsiveContainer}> 
-                    <table className={styles.table}>
-                        <thead>
-                            <tr>
-                                <th>ID Lote</th>
-                                <th>Proyecto</th>
-                                <th>Manzana</th>
-                                <th>N° Lote</th>
-                                <th>Etapa</th>
-                                <th>Estado</th>
-                                <th className={styles.textAlignRight}>Área (m²)</th>
-                                <th className={styles.textAlignRight}>Precio Cont. (S/.)</th>
-                                <th style={{minWidth: '180px'}}>Acciones</th> {/* Ajustar ancho de acciones */}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {lotes.map(lote => (
-                                <tr key={lote.id_lote}>
-                                    <td data-label="ID Lote">{lote.id_lote}</td>
-                                    <td data-label="Proyecto">{lote.ubicacion_proyecto}</td>
-                                    <td data-label="Manzana">{lote.manzana || '-'}</td>
-                                    <td data-label="N° Lote">{lote.numero_lote || '-'}</td>
-                                    <td data-label="Etapa">{lote.etapa !== null ? lote.etapa : '-'}</td>
-                                    <td data-label="Estado">
-                                        <span className={`${styles.statusBadge} ${styles['statusBadge' + lote.estado_lote?.toLowerCase()]}`}>
-                                            {lote.estado_lote}
-                                        </span>
-                                    </td>
-                                    <td data-label="Área (m²)" className={styles.textAlignRight}>{parseFloat(lote.area_m2).toFixed(2)}</td>
-                                    <td data-label="Precio (S/.)" className={styles.textAlignRight}>{displayCurrency(lote.precio_lista_soles)}</td>
-                                    <td data-label="Acciones" className={styles.actionButtons}>
-                                        <Link to={`/lotes/${lote.id_lote}`} className={`${styles.button} ${styles.viewButton}`}>Ver</Link> 
-                                        <button onClick={() => handleOpenModalForEdit(lote)} className={`${styles.button} ${styles.editButton}`}>Editar</button>
-                                        <button onClick={() => handleDeleteLote(lote.id_lote)} className={`${styles.button} ${styles.deleteButton}`}>Eliminar</button>
-                                    </td>
+                <>
+                    {/* Información de paginación */}
+                    <div className={styles.paginationInfo}>
+                        <span>
+                            Mostrando {((currentPage - 1) * pageSize) + 1} a {Math.min(currentPage * pageSize, totalCount)} de {totalCount} lotes
+                        </span>
+                        <div className={styles.pageSizeSelector}>
+                            <label htmlFor="pageSize">Lotes por página:</label>
+                            <select 
+                                id="pageSize"
+                                value={pageSize} 
+                                onChange={(e) => handlePageSizeChange(parseInt(e.target.value))}
+                                className={styles.pageSizeSelect}
+                            >
+                                <option value={10}>10</option>
+                                <option value={20}>20</option>
+                                <option value={50}>50</option>
+                                <option value={100}>100</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Tabla de lotes */}
+                    <div className={styles.tableResponsiveContainer}>
+                        <table className={styles.table}>
+                            <thead>
+                                <tr>
+                                    <th>ID Lote</th>
+                                    <th>Proyecto</th>
+                                    <th>Manzana</th>
+                                    <th>N° Lote</th>
+                                    <th>Etapa</th>
+                                    <th>Estado</th>
+                                    <th className={styles.textAlignRight}>Área (m²)</th>
+                                    <th className={styles.textAlignRight}>Precio Cont. (S/.)</th>
+                                    <th className={styles.textAlignRight}>Precio Cont. ($)</th>
+                                    <th style={{minWidth: '180px'}}>Acciones</th>
                                 </tr>
+                            </thead>
+                            <tbody>
+                                {lotes.map(lote => (
+                                    <tr key={lote.id_lote}>
+                                        <td data-label="ID Lote">{lote.id_lote}</td>
+                                        <td data-label="Proyecto">{lote.ubicacion_proyecto}</td>
+                                        <td data-label="Manzana">{lote.manzana || '-'}</td>
+                                        <td data-label="N° Lote">{lote.numero_lote || '-'}</td>
+                                        <td data-label="Etapa">{lote.etapa !== null ? lote.etapa : '-'}</td>
+                                        <td data-label="Estado">
+                                            <span className={`${styles.statusBadge} ${styles['statusBadge' + lote.estado_lote?.toLowerCase()]}`}>
+                                                {lote.estado_lote}
+                                            </span>
+                                        </td>
+                                        <td data-label="Área (m²)" className={styles.textAlignRight}>{parseFloat(lote.area_m2).toFixed(2)}</td>
+                                        <td data-label="Precio (S/.)" className={styles.textAlignRight}>{displayCurrency(lote.precio_lista_soles)}</td>
+                                        <td data-label="Precio ($)" className={styles.textAlignRight}>{displayCurrencyUSD(lote.precio_lista_dolares)}</td>
+                                        <td data-label="Acciones" className={styles.actionButtons}>
+                                            <Link to={`/lotes/${lote.id_lote}`} className={`${styles.button} ${styles.viewButton}`}>Ver</Link>
+                                            <button onClick={() => handleOpenModalForEdit(lote)} className={`${styles.button} ${styles.editButton}`}>Editar</button>
+                                            <button onClick={() => handleDeleteLote(lote.id_lote)} className={`${styles.button} ${styles.deleteButton}`}>Eliminar</button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Controles de paginación */}
+                    {totalPages > 1 && (
+                        <div className={styles.paginationControls}>
+                            <button 
+                                onClick={() => handlePageChange(1)} 
+                                disabled={currentPage === 1}
+                                className={styles.paginationButton}
+                            >
+                                « Primera
+                            </button>
+                            <button 
+                                onClick={() => handlePageChange(currentPage - 1)} 
+                                disabled={currentPage === 1}
+                                className={styles.paginationButton}
+                            >
+                                ‹ Anterior
+                            </button>
+                            
+                            {getPageNumbers().map((page, index) => (
+                                <button
+                                    key={index}
+                                    onClick={() => typeof page === 'number' ? handlePageChange(page) : null}
+                                    disabled={page === '...'}
+                                    className={`${styles.paginationButton} ${page === currentPage ? styles.activePage : ''} ${page === '...' ? styles.ellipsis : ''}`}
+                                >
+                                    {page}
+                                </button>
                             ))}
-                        </tbody>
-                    </table>
-                </div>
+                            
+                            <button 
+                                onClick={() => handlePageChange(currentPage + 1)} 
+                                disabled={currentPage === totalPages}
+                                className={styles.paginationButton}
+                            >
+                                Siguiente ›
+                            </button>
+                            <button 
+                                onClick={() => handlePageChange(totalPages)} 
+                                disabled={currentPage === totalPages}
+                                className={styles.paginationButton}
+                            >
+                                Última »
+                            </button>
+                        </div>
+                    )}
+                </>
             )}
             {isModalOpen && ( /* Renderizar el modal LoteForm cuando isModalOpen es true */
                 <LoteForm 
@@ -246,4 +392,5 @@ function LotesPage() {
         </div>
     );
 }
+
 export default LotesPage;

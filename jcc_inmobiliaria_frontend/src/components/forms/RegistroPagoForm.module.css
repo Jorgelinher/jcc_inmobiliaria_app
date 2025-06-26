@@ -25,3 +25,75 @@
     color: var(--texto-principal);
     font-weight: 600; /* Asegurar que el strong sea visible */
 }
+
+.modalContentOptimized {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.infoHeaderBox {
+  margin-bottom: 18px;
+}
+
+.cuotaInfoBox {
+  margin-top: 4px;
+  margin-bottom: 8px;
+  font-size: 1.05rem;
+  color: #2a2a2a;
+}
+
+.formModern {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.formRowModern {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  margin-bottom: 0.5rem;
+}
+
+.formGroupModern {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.formLabelModern {
+  font-weight: 500;
+  margin-bottom: 4px;
+  color: #223;
+  font-size: 0.98rem;
+}
+
+.formInputModern {
+  padding: 7px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 1rem;
+  background: #fafbfc;
+  color: #222;
+  transition: border 0.2s;
+}
+.formInputModern:focus {
+  border-color: #4db0b5;
+  outline: none;
+}
+
+.montoSolesBoxModern {
+  font-weight: 600;
+  color: #1a6e7a;
+  margin-top: 4px;
+  font-size: 1.08rem;
+}
+
+.formActionsRowModern {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 10px;
+}

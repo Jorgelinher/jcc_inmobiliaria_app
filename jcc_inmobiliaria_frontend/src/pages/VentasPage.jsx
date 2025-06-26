@@ -185,10 +185,29 @@ function VentasPage() {
         navigate(`/ventas/${ventaId}?accion=registrarPago`);
     };
 
-    // formatShortDate y formatCurrencyShort ya estaban definidos, pero usaremos los más consistentes
-    // const formatShortDate = (dateStr) => dateStr ? new Date(dateStr).toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric'}) : '-';
-    // const formatCurrencyShort = (value) => (value !== null && value !== undefined) ? `S/. ${Number(value).toLocaleString('es-PE', {minimumFractionDigits:0, maximumFractionDigits:0})}` : '-';
+    // Función para detectar si la tabla necesita scroll horizontal
+    const checkTableScroll = () => {
+        const tableContainer = document.querySelector(`.${styles.tableResponsiveContainer}`);
+        if (tableContainer) {
+            const hasHorizontalScroll = tableContainer.scrollWidth > tableContainer.clientWidth;
+            tableContainer.setAttribute('data-scrollable', hasHorizontalScroll.toString());
+        }
+    };
 
+    // Verificar scroll cuando cambian los datos o el tamaño de ventana
+    useEffect(() => {
+        checkTableScroll();
+        window.addEventListener('resize', checkTableScroll);
+        return () => window.removeEventListener('resize', checkTableScroll);
+    }, [ventas]); // Se ejecuta cuando cambian las ventas
+
+    const getProyectoKey = (ubicacionProyecto) => {
+        if (!ubicacionProyecto) return '';
+        const val = ubicacionProyecto.trim().toLowerCase();
+        if (val.includes('aucallama')) return 'aucallama';
+        if (val.includes('oasis 2')) return 'oasis 2';
+        return val;
+    };
 
     return (
         <div className={styles.pageContainer}>
@@ -220,56 +239,66 @@ function VentasPage() {
                 <div className={styles.tableResponsiveContainer}>
                     <table className={styles.table}>
                         <thead>
-                            <tr>{/* SIN ESPACIOS NI TEXTO EXTRA AQUÍ */}
+                            <tr>
                                 <th className={styles.colId}>ID Venta</th>
                                 <th className={styles.colFecha}>Fecha</th>
                                 <th className={styles.colLote}>Lote</th>
                                 <th className={styles.colCliente}>Cliente</th>
                                 <th className={styles.colVendedor}>Vendedor</th>
                                 <th className={`${styles.colMonto} ${styles.textAlignRight}`}>Valor Total</th>
+                                <th className={`${styles.colMonto} ${styles.textAlignRight}`}>Valor ($)</th>
+                                <th className={`${styles.colMonto} ${styles.textAlignRight}`}>T.C.</th>
                                 <th className={`${styles.colMonto} ${styles.textAlignRight}`}>Pagado</th>
                                 <th className={`${styles.colMonto} ${styles.textAlignRight}`}>Saldo</th>
                                 <th className={styles.colTipo}>Tipo</th>
                                 <th className={styles.colStatus}>Status</th>
                                 <th className={styles.colAcciones}>Acciones</th>
-                            </tr>{/* SIN ESPACIOS NI TEXTO EXTRA AQUÍ */}
+                            </tr>
                         </thead>
                         <tbody>
-                            {ventas.map(venta => (
-                                // Corrección: No debe haber espacios ni comentarios entre <tr> y <td>
-                                <tr key={venta.id_venta}>
-                                    <td>{venta.id_venta}</td>
-                                    <td>{displayDate(venta.fecha_venta)}</td>
-                                    <td>
-                                        {/* Asumimos que venta.lote es el ID y venta.lote_info es el texto a mostrar */}
-                                        {venta.lote ? 
-                                            <Link to={`/lotes/${venta.lote}`}>{venta.lote_info || venta.lote}</Link> 
-                                            : '-'}
-                                    </td>
-                                    <td>
-                                        {/* Usar cliente_detalle si está disponible (viene del serializer) */}
-                                        {venta.cliente_detalle ? 
-                                            <Link to={`/clientes/${venta.cliente_detalle.id_cliente}`}>{venta.cliente_detalle.nombres_completos_razon_social}</Link> 
-                                            : (venta.cliente_info || venta.cliente || '-')}
-                                    </td>
-                                    <td>{venta.vendedor_principal_nombre || venta.vendedor_principal?.nombre_asesor || '-'}</td>
-                                    <td className={styles.textAlignRight}>{displayCurrency(venta.valor_lote_venta)}</td>
-                                    <td className={styles.textAlignRight}>{displayCurrency(venta.monto_pagado_actual)}</td>
-                                    <td className={styles.textAlignRight}>{displayCurrency(venta.saldo_pendiente)}</td>
-                                    <td>{venta.tipo_venta}</td>
-                                    <td>
-                                        <span className={`${styles.statusBadge} ${styles['statusBadge' + venta.status_venta?.replace(/\s+/g, '')]}`}>
-                                            {venta.status_venta_display || venta.status_venta}
-                                        </span>
-                                    </td>
-                                    <td className={styles.actionButtons}>
-                                        <Link to={`/ventas/${venta.id_venta}`} className={styles.viewButton}>Ver</Link>
-                                        <button onClick={() => handleOpenModalForEdit(venta)} className={styles.editButton}>Editar</button>
-                                        <button onClick={() => handleRegistrarPago(venta.id_venta)} className={styles.payButton}>Registrar Pago</button>
-                                        <button onClick={() => handleDeleteVenta(venta.id_venta)} className={styles.deleteButton}>Eliminar</button>
-                                    </td>
-                                </tr>
-                            ))}
+                            {ventas.map(venta => {
+                                let proyectoKey = '';
+                                if (venta.lote_info) {
+                                    proyectoKey = getProyectoKey(venta.lote_info);
+                                } else if (venta.lote && typeof venta.lote === 'object' && venta.lote.ubicacion_proyecto) {
+                                    proyectoKey = getProyectoKey(venta.lote.ubicacion_proyecto);
+                                }
+                                const mostrarDolares = proyectoKey === 'aucallama' || proyectoKey === 'oasis 2';
+                                return (
+                                    <tr key={venta.id_venta}>
+                                        <td>{venta.id_venta}</td>
+                                        <td>{displayDate(venta.fecha_venta)}</td>
+                                        <td>
+                                            {venta.lote ? 
+                                                <Link to={`/lotes/${venta.lote}`}>{venta.lote_info || venta.lote}</Link> 
+                                                : '-'}
+                                        </td>
+                                        <td>
+                                            {venta.cliente_detalle ? 
+                                                <Link to={`/clientes/${venta.cliente_detalle.id_cliente}`}>{venta.cliente_detalle.nombres_completos_razon_social}</Link> 
+                                                : (venta.cliente_info || venta.cliente || '-')}
+                                        </td>
+                                        <td>{venta.vendedor_principal_nombre || venta.vendedor_principal?.nombre_asesor || '-'}</td>
+                                        <td className={styles.textAlignRight}>{displayCurrency(venta.valor_lote_venta)}</td>
+                                        <td className={styles.textAlignRight}>{mostrarDolares && venta.precio_dolares ? `$${Number(venta.precio_dolares).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}` : '-'}</td>
+                                        <td className={styles.textAlignRight}>{mostrarDolares && venta.tipo_cambio ? Number(venta.tipo_cambio).toFixed(3) : '-'}</td>
+                                        <td className={styles.textAlignRight}>{displayCurrency(venta.monto_pagado_actual)}</td>
+                                        <td className={styles.textAlignRight}>{displayCurrency(venta.saldo_pendiente)}</td>
+                                        <td>{venta.tipo_venta}</td>
+                                        <td>
+                                            <span className={`${styles.statusBadge} ${styles['statusBadge' + venta.status_venta?.replace(/\s+/g, '')]}`}>
+                                                {venta.status_venta_display || venta.status_venta}
+                                            </span>
+                                        </td>
+                                        <td className={styles.actionButtons}>
+                                            <Link to={`/ventas/${venta.id_venta}`} className={styles.viewButton}>Ver</Link>
+                                            <button onClick={() => handleOpenModalForEdit(venta)} className={styles.editButton}>Editar</button>
+                                            <button onClick={() => handleRegistrarPago(venta.id_venta)} className={styles.payButton}>Registrar Pago</button>
+                                            <button onClick={() => handleDeleteVenta(venta.id_venta)} className={styles.deleteButton}>Eliminar</button>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>

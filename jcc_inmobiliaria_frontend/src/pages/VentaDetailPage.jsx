@@ -1,13 +1,30 @@
+// ============================================================================
+// PROTECCIÓN CRÍTICA - NO ELIMINAR NI MODIFICAR SIN AUTORIZACIÓN
+// ============================================================================
+// 
+// Este archivo contiene funcionalidad CRÍTICA para el manejo de ventas en dólares
+// (Aucallama/Oasis 2) y soles. Los siguientes elementos NO DEBEN ser eliminados
+// ni modificados sin autorización explícita:
+//
+// 1. Lógica de detección de proyectos en dólares (esDolares)
+// 2. Cálculos y visualización de montos en dólares vs soles
+// 3. Campos monto_total_credito_dolares y saldo_total_dolares en cabecera
+// 4. Eliminación condicional de columna "Saldo" para proyectos en dólares
+// 5. Manejo de pagos en dólares con tipo de cambio
+// 6. Refresco automático tras operaciones de pago
+// 7. Cualquier hook o función relacionada con la lógica de monedas
+//
+// ÚLTIMA ACTUALIZACIÓN: 26/Jun/2025 - Sistema robusto para Aucallama/Oasis 2
+// ============================================================================
+
 // src/pages/VentaDetailPage.jsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import * as apiService from '../services/apiService';
 import RegistroPagoForm from '../components/forms/RegistroPagoForm';
 import styles from './DetailPage.module.css';
 import tableStyles from './VentasPage.module.css'; // Asumiendo que aquí están tus estilos de tabla
 import { Decimal } from 'decimal.js'; // Importar Decimal.js para cálculos precisos
-
-
 
 // Definición de PLAN_PAGO_CHOICES para mostrar el label del plazo
 const PLAN_PAGO_CHOICES_MAP = {
@@ -23,6 +40,14 @@ const TIPO_VENTA_CHOICES_FRONTEND = [
     { value: 'credito', label: 'Crédito' },
 ];
 
+// Mover aquí la función getProyectoKey para que esté disponible antes de los hooks
+const getProyectoKey = (ubicacionProyecto) => {
+    if (!ubicacionProyecto) return '';
+    const val = ubicacionProyecto.trim().toLowerCase();
+    if (val.includes('aucallama')) return 'aucallama';
+    if (val.includes('oasis 2')) return 'oasis 2';
+    return val;
+};
 
 function VentaDetailPage() {
     const { idVenta } = useParams();
@@ -38,6 +63,12 @@ function VentaDetailPage() {
     const [montoSugeridoParaPago, setMontoSugeridoParaPago] = useState(null);
     const [isConfirmingFirma, setIsConfirmingFirma] = useState(false); // Estado para feedback del botón de firma
 
+    // Mover aquí la declaración de esDolares
+    const esDolares = useMemo(() => {
+        if (!venta || !venta.lote_info) return false;
+        const proyectoKey = getProyectoKey(venta.lote_info);
+        return proyectoKey === 'aucallama' || proyectoKey === 'oasis 2';
+    }, [venta]);
 
     const fetchVentaDetalle = useCallback(async () => {
         if (!idVenta) {
@@ -112,18 +143,42 @@ function VentaDetailPage() {
             // DRF usualmente devuelve el objeto creado y un status 201.
             // Axios envuelve esto en un objeto response que tiene 'data' y 'status'.
             if (response && response.status === 201 && response.data) {
-                alert('Pago registrado con éxito! ID: ' + response.data.id_pago); // Asumiendo que el API devuelve el pago creado con su ID
+                alert('Pago registrado con éxito! ID: ' + response.data.id_pago + '\n\nEl sistema está recalculando automáticamente las cuotas...'); // Asumiendo que el API devuelve el pago creado con su ID
                 console.log("[VentaDetailPage] Llamando a handleClosePagoModal después de éxito."); // DEBUG
                 handleClosePagoModal();
                 console.log("[VentaDetailPage] Llamando a fetchVentaDetalle después de cerrar modal."); // DEBUG
-                fetchVentaDetalle(); 
+                
+                // Mostrar indicador de carga mientras se procesa
+                setLoading(true);
+                
+                // Aumentar el delay para asegurar que el backend haya procesado completamente los signals y recálculos
+                setTimeout(async () => {
+                    try {
+                        await fetchVentaDetalle();
+                        console.log("[VentaDetailPage] Datos actualizados después del pago.");
+                    } catch (error) {
+                        console.error("[VentaDetailPage] Error al refrescar datos:", error);
+                        alert("El pago se registró correctamente, pero hubo un problema al actualizar la vista. Por favor, recarga la página.");
+                    } finally {
+                        setLoading(false);
+                    }
+                }, 2000); // Aumentado a 2 segundos para dar más tiempo al backend
             } else {
                 // Esto podría pasar si el API devuelve 200 OK pero no el contenido esperado, o un status inesperado.
                 console.warn("[VentaDetailPage] Respuesta de createRegistroPago no fue 201 o no contiene data esperada:", response);
                 alert('El pago podría haberse registrado, pero la respuesta del servidor no fue la esperada. Por favor, verifique.');
                 // Igualmente cerrar el modal y recargar para que el usuario vea el estado actual
                 handleClosePagoModal();
-                fetchVentaDetalle();
+                setLoading(true);
+                setTimeout(async () => {
+                    try {
+                        await fetchVentaDetalle();
+                    } catch (error) {
+                        console.error("[VentaDetailPage] Error al refrescar datos:", error);
+                    } finally {
+                        setLoading(false);
+                    }
+                }, 2000);
             }
         } catch (err) {
             console.error("[VentaDetailPage] Error en catch de handleSubmitPago:", err.response?.data || err.message || err); // DEBUG
@@ -141,10 +196,24 @@ function VentaDetailPage() {
     const handleDeletePago = async (pagoId) => {
         if (window.confirm(`¿Está seguro de que quiere eliminar este pago (ID: ${pagoId})? Esta acción actualizará los saldos.`)) {
             try {
+                setLoading(true);
                 await apiService.deleteRegistroPago(pagoId);
-                alert('Pago eliminado con éxito!');
-                fetchVentaDetalle();
+                alert('Pago eliminado con éxito!\n\nEl sistema está recalculando automáticamente las cuotas...');
+                
+                // Aumentar el delay para asegurar que el backend haya procesado completamente los signals y recálculos
+                setTimeout(async () => {
+                    try {
+                        await fetchVentaDetalle();
+                        console.log("[VentaDetailPage] Datos actualizados después de eliminar pago.");
+                    } catch (error) {
+                        console.error("[VentaDetailPage] Error al refrescar datos:", error);
+                        alert("El pago se eliminó correctamente, pero hubo un problema al actualizar la vista. Por favor, recarga la página.");
+                    } finally {
+                        setLoading(false);
+                    }
+                }, 2000);
             } catch (err) {
+                setLoading(false);
                 alert(`Error al eliminar el pago: ${err.message}`);
             }
         }
@@ -162,7 +231,14 @@ function VentaDetailPage() {
         } else if (venta.plan_pago_detalle && venta.plan_pago_detalle.cuotas) {
             venta.plan_pago_detalle.cuotas.forEach(cuota => {
                 // Sumar solo el saldo pendiente de las cuotas que no estén completamente pagadas
-                const saldoCuota = Decimal(cuota.monto_programado).minus(Decimal(cuota.monto_pagado));
+                let saldoCuota;
+                if (esDolares && cuota.saldo_cuota_dolares != null) {
+                    saldoCuota = Decimal(cuota.saldo_cuota_dolares);
+                } else if (cuota.saldo_cuota_display && cuota.saldo_cuota_display.soles != null) {
+                    saldoCuota = Decimal(cuota.saldo_cuota_display.soles);
+                } else {
+                    saldoCuota = Decimal(cuota.monto_programado).minus(Decimal(cuota.monto_pagado));
+                }
                 if (saldoCuota.greaterThan(0)) {
                     saldoTotalDeudaDecimal = saldoTotalDeudaDecimal.plus(saldoCuota);
                 }
@@ -177,7 +253,11 @@ function VentaDetailPage() {
             return;
         }
     
-        if (window.confirm(`El saldo total pendiente es ${displayCurrency(saldoTotalDeudaDecimal.toFixed(2))}. ¿Desea registrar un pago por este monto?`)) {
+        const saldoDisplay = esDolares 
+            ? `$${saldoTotalDeudaDecimal.toFixed(2)}`
+            : displayCurrency(saldoTotalDeudaDecimal.toFixed(2));
+            
+        if (window.confirm(`El saldo total pendiente es ${saldoDisplay}. ¿Desea registrar un pago por este monto?`)) {
             handleOpenPagoModal(null, saldoTotalDeudaDecimal.toFixed(2)); 
         }
     };
@@ -204,10 +284,31 @@ function VentaDetailPage() {
             const response = await apiService.marcarVentaComoFirmada(venta.id_venta, fechaFirma);
             alert('Contrato marcado como firmado exitosamente.');
             setVenta(response.data); // Actualizar la data de la venta con la respuesta del API
-            fetchVentaDetalle(); // Opcional: O simplemente actualizar estado local
+            await fetchVentaDetalle(); // Opcional: O simplemente actualizar estado local
         } catch (err) {
             console.error("Error al marcar contrato como firmado:", err.response?.data || err.message);
             setError(err.response?.data?.error || err.response?.data?.detail || err.message || "Error al marcar la firma.");
+        } finally {
+            setIsConfirmingFirma(false);
+        }
+    };
+
+    const handleRevertirFirmaContrato = async () => {
+        if (!venta) return;
+
+        const confirmar = window.confirm("¿Está seguro de que desea revertir la firma del contrato? Esta acción cambiará el estado del lote de 'Vendido' a 'Reservado' si la venta está 'Procesable'.");
+        if (!confirmar) return;
+
+        setIsConfirmingFirma(true);
+        setError(null);
+        try {
+            const response = await apiService.revertirFirmaContrato(venta.id_venta);
+            alert('Firma del contrato revertida exitosamente.');
+            setVenta(response.data);
+            await fetchVentaDetalle();
+        } catch (err) {
+            console.error("Error al revertir firma del contrato:", err.response?.data || err.message);
+            setError(err.response?.data?.error || err.response?.data?.detail || err.message || "Error al revertir la firma.");
         } finally {
             setIsConfirmingFirma(false);
         }
@@ -234,7 +335,14 @@ function VentaDetailPage() {
         saldoTotalCalculadoParaBoton = Decimal(venta.saldo_pendiente || 0);
     } else if (venta.plan_pago_detalle && venta.plan_pago_detalle.cuotas) {
         venta.plan_pago_detalle.cuotas.forEach(cuota => {
-            const saldoCuota = Decimal(cuota.monto_programado).minus(Decimal(cuota.monto_pagado));
+            let saldoCuota;
+            if (esDolares && cuota.saldo_cuota_dolares != null) {
+                saldoCuota = Decimal(cuota.saldo_cuota_dolares);
+            } else if (cuota.saldo_cuota_display && cuota.saldo_cuota_display.soles != null) {
+                saldoCuota = Decimal(cuota.saldo_cuota_display.soles);
+            } else {
+                saldoCuota = Decimal(cuota.monto_programado).minus(Decimal(cuota.monto_pagado));
+            }
             if (saldoCuota.greaterThan(0)) {
                 saldoTotalCalculadoParaBoton = saldoTotalCalculadoParaBoton.plus(saldoCuota);
             }
@@ -243,6 +351,25 @@ function VentaDetailPage() {
         saldoTotalCalculadoParaBoton = Decimal(venta.saldo_pendiente || 0);
     }
 
+    // NUEVA FUNCIÓN para mostrar monto en dólares o soles según el proyecto
+    const displayMontoCuota = (cuota, mostrarDolares) => {
+        if (mostrarDolares && cuota.monto_programado_display && cuota.monto_programado_display.dolares != null) {
+            return `$${Number(cuota.monto_programado_display.dolares).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
+        }
+        if (cuota.monto_programado_display && cuota.monto_programado_display.soles != null) {
+            return displayCurrency(cuota.monto_programado_display.soles);
+        }
+        return '-';
+    };
+    const displaySaldoCuota = (cuota, mostrarDolares) => {
+        if (mostrarDolares && cuota.saldo_cuota_display && cuota.saldo_cuota_display.dolares != null) {
+            return `$${Number(cuota.saldo_cuota_display.dolares).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
+        }
+        if (cuota.saldo_cuota_display && cuota.saldo_cuota_display.soles != null) {
+            return displayCurrency(cuota.saldo_cuota_display.soles);
+        }
+        return '-';
+    };
 
     return (
         <div className={styles.pageContainer}>
@@ -258,14 +385,24 @@ function VentaDetailPage() {
                 Pagar Saldo Total ({displayCurrency(saldoTotalCalculadoParaBoton.toFixed(2))})
             </button>
         )}
-        {/* Botón para Marcar Firma (si lo tienes, aplica estilos similares) */}
+        {/* Botón para Marcar Firma de Contrato */}
         {venta.status_venta === 'procesable' && !venta.cliente_firmo_contrato && (
             <button
                 onClick={handleMarcarFirmaContrato}
-                className={`${styles.detailButton} ${styles.detailButtonAccent} ${styles.signButton}`} // O .detailButtonPrimary
+                className={`${styles.detailButton} ${styles.detailButtonAccent} ${styles.signButton}`}
                 disabled={isConfirmingFirma}
             >
                 {isConfirmingFirma ? 'Marcando...' : 'Marcar Contrato Firmado'}
+            </button>
+        )}
+        {/* Botón para Revertir Firma de Contrato */}
+        {venta.status_venta === 'procesable' && venta.cliente_firmo_contrato && (
+            <button
+                onClick={handleRevertirFirmaContrato}
+                className={`${styles.detailButton} ${styles.detailButtonWarning} ${styles.revertButton}`}
+                disabled={isConfirmingFirma}
+            >
+                {isConfirmingFirma ? 'Revirtiendo...' : 'Revertir Firma de Contrato'}
             </button>
         )}
         <button 
@@ -290,6 +427,23 @@ function VentaDetailPage() {
                         <div className={styles.detailItem}><strong>Plazo Crédito:</strong> {getPlazoLabel(venta.plazo_meses_credito)}</div>
                     )}
                     <div className={styles.detailItem}><strong>Valor Total (S/.):</strong> {displayCurrency(venta.valor_lote_venta)}</div>
+                    {/* NUEVO: Mostrar valor en dólares y tipo de cambio si aplica */}
+                    {(() => {
+                        let proyectoKey = '';
+                        if (venta.lote_info) {
+                            proyectoKey = getProyectoKey(venta.lote_info);
+                        } else if (venta.lote && typeof venta.lote === 'object' && venta.lote.ubicacion_proyecto) {
+                            proyectoKey = getProyectoKey(venta.lote.ubicacion_proyecto);
+                        }
+                        const mostrarDolares = proyectoKey === 'aucallama' || proyectoKey === 'oasis 2';
+                        if (mostrarDolares) {
+                            return <>
+                                <div className={styles.detailItem}><strong>Valor Venta ($):</strong> {venta.precio_dolares ? `$${Number(venta.precio_dolares).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}` : '-'}</div>
+                                <div className={styles.detailItem}><strong>Tipo de Cambio:</strong> {venta.tipo_cambio ? Number(venta.tipo_cambio).toFixed(3) : '-'}</div>
+                            </>;
+                        }
+                        return null;
+                    })()}
                     {venta.tipo_venta === 'credito' && (
                          <div className={styles.detailItem}><strong>Cuota Inicial Req. (S/.):</strong> {displayCurrency(venta.cuota_inicial_requerida)}</div>
                     )}
@@ -350,7 +504,7 @@ function VentaDetailPage() {
                                     <tr key={pago.id_pago}>
                                         <td>{pago.id_pago}</td>
                                         <td>{displayDate(pago.fecha_pago)}</td>
-                                        <td className={tableStyles.textAlignRight}>{displayCurrency(pago.monto_pago)}</td>
+                                        <td className={tableStyles.textAlignRight}>{esDolares && pago.monto_pago_dolares != null ? `$${Number(pago.monto_pago_dolares).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}` : displayCurrency(pago.monto_pago)}</td>
                                         <td>{displayValue(pago.metodo_pago)}</td>
                                         <td>{displayValue(pago.referencia_pago)}</td>
                                         <td>{pago.cuota_info ? `N° ${pago.cuota_info.numero_cuota}` : (pago.cuota_plan_pago_cubierta ? `ID Cuota: ${pago.cuota_plan_pago_cubierta}`: '-')}</td>
@@ -377,25 +531,36 @@ function VentaDetailPage() {
             {venta.plan_pago_detalle && venta.plan_pago_detalle.cuotas && venta.plan_pago_detalle.cuotas.length > 0 && (
                 <div className={styles.sectionContainer}>
                     <h2 className={styles.sectionTitle}>Plan de Pagos a Crédito (Cronograma)</h2>
-                    <div className={styles.detailGrid} style={{gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', marginBottom:'15px'}}>
-                        <div className={styles.detailItem}><strong>Monto Financiado:</strong> {displayCurrency(venta.plan_pago_detalle.monto_total_credito)}</div>
+                    <div className={styles.detailGrid} style={{gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', marginBottom:'15px'}}>
+                        <div className={styles.detailItem}><strong>Monto Financiado:</strong> {esDolares && venta.plan_pago_detalle.monto_total_credito_dolares != null ? `$${Number(venta.plan_pago_detalle.monto_total_credito_dolares).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}` : displayCurrency(venta.plan_pago_detalle.monto_total_credito)}</div>
                         <div className={styles.detailItem}><strong>N° Cuotas:</strong> {displayValue(venta.plan_pago_detalle.numero_cuotas)}</div>
-                        <div className={styles.detailItem}><strong>Cuota Regular:</strong> {displayCurrency(venta.plan_pago_detalle.monto_cuota_regular)}</div>
+                        <div className={styles.detailItem}><strong>Cuota Regular:</strong> {
+                            esDolares
+                                ? (venta.plan_pago_detalle.monto_cuota_regular_display && venta.plan_pago_detalle.monto_cuota_regular_display.dolares != null
+                                    ? `$${Number(venta.plan_pago_detalle.monto_cuota_regular_display.dolares).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}`
+                                    : '-')
+                                : (venta.plan_pago_detalle.monto_cuota_regular_display && venta.plan_pago_detalle.monto_cuota_regular_display.soles != null
+                                    ? displayCurrency(venta.plan_pago_detalle.monto_cuota_regular_display.soles)
+                                    : '-')
+                        }</div>
                         <div className={styles.detailItem}><strong>Inicio Pagos:</strong> {displayDate(venta.plan_pago_detalle.fecha_inicio_pago_cuotas)}</div>
+                        <div className={styles.detailItem}><strong>Saldo:</strong> {esDolares && venta.plan_pago_detalle.saldo_total_dolares != null ? `$${Number(venta.plan_pago_detalle.saldo_total_dolares).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}` : (() => { let saldoTotal = 0; if (venta.plan_pago_detalle && venta.plan_pago_detalle.cuotas) { saldoTotal = venta.plan_pago_detalle.cuotas.reduce((acc, c) => acc + (c.saldo_cuota_display && c.saldo_cuota_display.soles ? Number(c.saldo_cuota_display.soles) : 0), 0); return displayCurrency(saldoTotal); } return '-'; })()}</div>
                     </div>
                     
                     <div className={styles.tableResponsiveWrapper}>
                          <table className={`${tableStyles.table} ${styles.dataTableFix}`} style={{width: '100%'}}>
                             <thead>
                                 <tr>
-                                    <th style={{width:'5%'}}>N°</th>
-                                    <th style={{width:'12%'}}>Vencimiento</th>
-                                    <th style={{width:'15%'}} className={tableStyles.textAlignRight}>Prog. (S/.)</th>
-                                    <th style={{width:'15%'}} className={tableStyles.textAlignRight}>Pagado (S/.)</th>
-                                    <th style={{width:'15%'}} className={tableStyles.textAlignRight}>Saldo (S/.)</th>
-                                    <th style={{width:'15%'}}>Estado</th>
+                                    <th style={{width:'4%'}}>N°</th>
+                                    <th style={{width:'10%'}}>Vencimiento</th>
+                                    <th style={{width:'13%'}} className={tableStyles.textAlignRight}>{esDolares ? 'Prog. ($)' : 'Prog. (S/.)'}</th>
+                                    <th style={{width:'13%'}} className={tableStyles.textAlignRight}>{esDolares ? 'Pagado ($)' : 'Pagado (S/.)'}</th>
+                                    <th style={{width:'13%'}} className={tableStyles.textAlignRight}>Pagado (S/.)</th>
+                                    <th style={{width:'10%'}} className={tableStyles.textAlignRight}>Tipo de Cambio</th>
+                                    {!esDolares && <th style={{width:'13%'}} className={tableStyles.textAlignRight}>Saldo (S/.)</th>}
+                                    <th style={{width:'13%'}}>Estado</th>
                                     <th style={{width:'13%'}}>Fec. Pago Efect.</th>
-                                    <th style={{width:'10%', textAlign: 'center'}}>Acciones</th>
+                                    <th style={{width:'11%', textAlign: 'center'}}>Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -403,9 +568,11 @@ function VentaDetailPage() {
                                     <tr key={cuota.id_cuota} className={cuota.estado_cuota === 'pagada' ? styles.rowPagada : ((cuota.estado_cuota === 'atrasada' || cuota.estado_cuota === 'vencida_no_pagada') ? styles.rowAtrasada : '')}>
                                         <td>{cuota.numero_cuota}</td>
                                         <td>{displayDate(cuota.fecha_vencimiento)}</td>
-                                        <td className={tableStyles.textAlignRight}>{displayCurrency(cuota.monto_programado)}</td>
-                                        <td className={tableStyles.textAlignRight}>{displayCurrency(cuota.monto_pagado)}</td>
-                                        <td className={tableStyles.textAlignRight}>{displayCurrency(cuota.saldo_cuota)}</td>
+                                        <td className={tableStyles.textAlignRight}>{esDolares && cuota.monto_programado_display?.dolares != null ? `$${Number(cuota.monto_programado_display.dolares).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}` : displayCurrency(cuota.monto_programado)}</td>
+                                        <td className={tableStyles.textAlignRight}>{esDolares && cuota.monto_pagado_dolares != null ? `$${Number(cuota.monto_pagado_dolares).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}` : displayCurrency(cuota.monto_pagado)}</td>
+                                        <td className={tableStyles.textAlignRight}>{cuota.monto_pagado_soles != null ? displayCurrency(cuota.monto_pagado_soles) : '-'}</td>
+                                        <td className={tableStyles.textAlignRight}>{cuota.tipo_cambio_pago != null ? Number(cuota.tipo_cambio_pago).toFixed(3) : '-'}</td>
+                                        {!esDolares && <td className={tableStyles.textAlignRight}>{cuota.saldo_cuota_display && cuota.saldo_cuota_display.soles != null ? displayCurrency(cuota.saldo_cuota_display.soles) : '-'}</td>}
                                         <td><span className={`${styles.statusBadge} ${styles['statusBadgeCuota' + cuota.estado_cuota?.replace(/\s+/g, '').replace(/_/g, '')]}`}>{displayValue(cuota.estado_cuota_display)}</span></td>
                                         <td>{displayDate(cuota.fecha_pago_efectivo)}</td>
                                         <td className={tableStyles.actionButtons} style={{justifyContent: 'center'}}>
@@ -447,9 +614,10 @@ function VentaDetailPage() {
                 onClose={handleClosePagoModal}
                 onSubmit={handleSubmitPago}
                 ventaId={idVenta}
-                initialData={null} // 'editingPago' no se usa para crear, solo para editar un pago existente
-                cuotaTarget={cuotaParaPago} 
+                initialData={null}
+                cuotaTarget={cuotaParaPago}
                 montoSugerido={montoSugeridoParaPago}
+                esDolares={esDolares}
             />
         </div>
     );

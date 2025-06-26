@@ -123,12 +123,13 @@
 
 .table th,
 .table td {
-  padding: var(--spacing-sm, 12px) var(--spacing-md, 16px);
-  text-align: left;
-  border-bottom: 1px solid var(--color-borde-general, #E9ECEF);
-  font-family: var(--fuente-principal, 'Inter', sans-serif);
-  font-size: var(--font-size-sm, 14px);
-  line-height: 1.5; 
+  text-align: center;
+  vertical-align: middle;
+  padding: 8px 12px;
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .table th { /* Encabezado de Tabla */
@@ -170,61 +171,97 @@
   border-bottom: none; 
 }
 
-.textAlignRight { text-align: right !important; }
-
-/* Botones de Acción en Tabla */
-.actionButtons { 
-  display: flex; 
-  gap: var(--spacing-sm, 8px); 
-  align-items: center; 
-  justify-content: flex-start; 
+.colAcciones, .textAlignRight {
+  text-align: center !important;
 }
-.actionButtons > * { 
-  padding: 6px 10px; 
-  font-size: 13px; 
-  font-family: var(--fuente-principal, 'Inter', sans-serif);
-  font-weight: 500; 
-  border-radius: var(--border-radius-sm, 4px); 
-  cursor: pointer; 
-  border: 1px solid; 
-  text-decoration: none; 
-  display: inline-flex;
+
+.actionButtons {
+  display: flex;
+  gap: 6px;
   align-items: center;
   justify-content: center;
-  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  flex-wrap: wrap;
+  height: 100%;
+}
+
+.actionButtons > * {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  min-width: 70px;
+  margin: 2px 0;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-family: var(--fuente-principal, 'Inter', sans-serif);
+  font-weight: 500;
+  border-radius: var(--border-radius-md, 6px);
+  cursor: pointer;
+  border: 1px solid;
+  text-decoration: none;
+  background: var(--color-fondo-contenedor, #FFFFFF);
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
   white-space: nowrap;
   line-height: 1.4;
-}
-.actionButtons > *:hover {
-  opacity: 0.9;
+  box-sizing: border-box;
 }
 
 .viewButton {
-    background-color: var(--color-fondo-contenedor, #FFFFFF);
-    color: var(--color-secundario, #4DB0B5);
-    border-color: var(--color-secundario, #4DB0B5);
+  color: var(--color-secundario, #4DB0B5);
+  border-color: var(--color-secundario, #4DB0B5);
 }
 .viewButton:hover {
-    background-color: var(--color-secundario, #4DB0B5);
-    color: var(--color-secundario-texto, #FFFFFF);
+  background-color: var(--color-secundario, #4DB0B5);
+  color: var(--color-secundario-texto, #FFFFFF);
 }
 
 .editButton {
-    background-color: var(--color-fondo-contenedor, #FFFFFF);
-    color: var(--color-acento-advertencia, #FFC107);
-    border-color: var(--color-acento-advertencia, #FFC107);
+  color: var(--color-acento-advertencia, #FFC107);
+  border-color: var(--color-acento-advertencia, #FFC107);
 }
 .editButton:hover {
-    background-color: var(--color-acento-advertencia, #FFC107);
-    color: var(--color-acento-advertencia-texto, #212529);
+  background-color: var(--color-acento-advertencia, #FFC107);
+  color: var(--color-acento-advertencia-texto, #212529);
+}
+
+.payButton {
+  color: #28a745;
+  border-color: #28a745;
+}
+.payButton:hover {
+  background-color: #28a745;
+  color: #fff;
 }
 
 .deleteButton {
-    background-color: var(--color-fondo-contenedor, #FFFFFF);
-    color: var(--color-acento-error, #DC3545);
-    border-color: var(--color-acento-error, #DC3545);
+  color: var(--color-acento-error, #DC3545);
+  border-color: var(--color-acento-error, #DC3545);
 }
 .deleteButton:hover {
-    background-color: var(--color-acento-error, #DC3545);
-    color: var(--color-acento-error-texto, #FFFFFF);
+  background-color: var(--color-acento-error, #DC3545);
+  color: var(--color-acento-error-texto, #FFFFFF);
+}
+
+@media (max-width: 1200px) {
+  .table { min-width: 700px; }
+  .table th, .table td { padding: 6px 8px; font-size: 12px; }
+  .actionButtons { gap: 4px; }
+  .actionButtons > * { padding: 4px 8px; font-size: 11px; }
+}
+@media (max-width: 992px) {
+  .table { min-width: 600px; }
+}
+.tableResponsiveContainer::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0;
+  width: 20px;
+  background: linear-gradient(to right, transparent, rgba(255,255,255,0.8));
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.tableResponsiveContainer:hover::after,
+.tableResponsiveContainer:not([data-scrollable="false"]):after {
+  opacity: 1;
 }

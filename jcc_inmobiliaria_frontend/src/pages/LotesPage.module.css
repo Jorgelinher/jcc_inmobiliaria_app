@@ -142,12 +142,13 @@
   
   .table th,
   .table td {
-    padding: var(--spacing-sm, 12px) var(--spacing-md, 16px);
-    text-align: left;
-    border-bottom: 1px solid var(--color-borde-general, #E9ECEF);
-    font-family: var(--fuente-principal, 'Inter', sans-serif);
-    font-size: var(--font-size-sm, 14px);
-    line-height: 1.5; 
+    text-align: center;
+    vertical-align: middle;
+    padding: 8px 12px;
+    font-size: 13px;
+    line-height: 1.4;
+    white-space: normal;
+    word-break: break-word;
   }
   
   .table th { /* Encabezado de Tabla */
@@ -189,63 +190,226 @@
     border-bottom: none; 
   }
   
-  .textAlignRight { text-align: right !important; }
+  .colAcciones, .textAlignRight {
+    text-align: center !important;
+  }
   
   /* Botones de Acción en Tabla */
-  .actionButtons { 
-    display: flex; 
-    gap: var(--spacing-sm, 8px); 
-    align-items: center; 
-    justify-content: flex-start; 
+  .actionButtons {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    height: 100%;
   }
-  .actionButtons > * { 
-    padding: 6px 10px; 
-    font-size: 13px; 
-    font-family: var(--fuente-principal, 'Inter', sans-serif);
-    font-weight: 500; 
-    border-radius: var(--border-radius-sm, 4px); 
-    cursor: pointer; 
-    border: 1px solid; 
-    text-decoration: none; 
-    display: inline-flex;
+  .actionButtons > * {
+    display: flex;
     align-items: center;
     justify-content: center;
-    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    height: 32px;
+    min-width: 70px;
+    margin: 2px 0;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-family: var(--fuente-principal, 'Inter', sans-serif);
+    font-weight: 500;
+    border-radius: var(--border-radius-md, 6px);
+    cursor: pointer;
+    border: 1px solid;
+    text-decoration: none;
+    background: var(--color-fondo-contenedor, #FFFFFF);
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
     white-space: nowrap;
     line-height: 1.4;
+    box-sizing: border-box;
   }
   .actionButtons > *:hover {
     opacity: 0.9;
   }
   
   .viewButton {
-      background-color: var(--color-fondo-contenedor, #FFFFFF);
-      color: var(--color-secundario, #4DB0B5);
-      border-color: var(--color-secundario, #4DB0B5);
+    color: var(--color-secundario, #4DB0B5);
+    border-color: var(--color-secundario, #4DB0B5);
   }
   .viewButton:hover {
-      background-color: var(--color-secundario, #4DB0B5);
-      color: var(--color-secundario-texto, #FFFFFF);
+    background-color: var(--color-secundario, #4DB0B5);
+    color: var(--color-secundario-texto, #FFFFFF);
   }
   
   .editButton {
-      background-color: var(--color-fondo-contenedor, #FFFFFF);
-      color: var(--color-acento-advertencia, #FFC107);
-      border-color: var(--color-acento-advertencia, #FFC107);
+    color: var(--color-acento-advertencia, #FFC107);
+    border-color: var(--color-acento-advertencia, #FFC107);
   }
   .editButton:hover {
-      background-color: var(--color-acento-advertencia, #FFC107);
-      color: var(--color-acento-advertencia-texto, #212529);
+    background-color: var(--color-acento-advertencia, #FFC107);
+    color: var(--color-acento-advertencia-texto, #212529);
+  }
+  
+  .payButton {
+    color: #28a745;
+    border-color: #28a745;
+  }
+  .payButton:hover {
+    background-color: #28a745;
+    color: #fff;
   }
   
   .deleteButton {
-      background-color: var(--color-fondo-contenedor, #FFFFFF);
-      color: var(--color-acento-error, #DC3545);
-      border-color: var(--color-acento-error, #DC3545);
+    color: var(--color-acento-error, #DC3545);
+    border-color: var(--color-acento-error, #DC3545);
   }
   .deleteButton:hover {
-      background-color: var(--color-acento-error, #DC3545);
-      color: var(--color-acento-error-texto, #FFFFFF);
+    background-color: var(--color-acento-error, #DC3545);
+    color: var(--color-acento-error-texto, #FFFFFF);
   }
   
-  /* Estilos específicos para LotesPage si los necesitas más allá de los generales */
+  /* --- Responsive --- */
+  @media (max-width: 1200px) {
+    .table { min-width: 700px; }
+    .table th, .table td { padding: 6px 8px; font-size: 12px; }
+    .actionButtons { gap: 4px; }
+    .actionButtons > * { padding: 4px 8px; font-size: 11px; }
+  }
+  @media (max-width: 992px) {
+    .table { min-width: 600px; }
+  }
+  .tableResponsiveContainer::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 30px;
+    background: linear-gradient(to right, transparent, rgba(255,255,255,0.8));
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  .tableResponsiveContainer:hover::after,
+  .tableResponsiveContainer:focus-within::after {
+    opacity: 1;
+  }
+  
+  /* --- Estilos de Paginación --- */
+  .paginationInfo {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: var(--spacing-md, 16px) 0;
+    padding: var(--spacing-sm, 12px) var(--spacing-md, 16px);
+    background-color: var(--color-fondo-contenedor, #FFFFFF);
+    border: 1px solid var(--color-borde-general, #E9ECEF);
+    border-radius: var(--border-radius-md, 6px);
+    font-family: var(--fuente-principal, 'Inter', sans-serif);
+    font-size: var(--font-size-sm, 14px);
+    color: var(--color-texto-secundario, #6C757D);
+  }
+  
+  .pageSizeSelector {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm, 8px);
+  }
+  
+  .pageSizeSelector label {
+    font-weight: 500;
+    color: var(--color-texto-principal, #343A40);
+  }
+  
+  .pageSizeSelect {
+    font-family: var(--fuente-principal, 'Inter', sans-serif);
+    font-size: var(--font-size-sm, 14px);
+    color: var(--color-texto-principal, #343A40);
+    background-color: var(--color-fondo-input, #FFFFFF);
+    border: 1px solid var(--color-borde-input, #CED4DA);
+    border-radius: var(--border-radius-sm, 4px);
+    padding: 4px 8px;
+    cursor: pointer;
+    transition: border-color 0.2s ease;
+  }
+  
+  .pageSizeSelect:focus {
+    border-color: var(--color-borde-input-focus, #2A4A6B);
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(42, 74, 107, 0.25);
+  }
+  
+  .paginationControls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: var(--spacing-xs, 4px);
+    margin-top: var(--spacing-md, 16px);
+    padding: var(--spacing-md, 16px);
+    background-color: var(--color-fondo-contenedor, #FFFFFF);
+    border: 1px solid var(--color-borde-general, #E9ECEF);
+    border-radius: var(--border-radius-md, 6px);
+  }
+  
+  .paginationButton {
+    font-family: var(--fuente-principal, 'Inter', sans-serif);
+    font-size: var(--font-size-sm, 14px);
+    font-weight: 500;
+    padding: 8px 12px;
+    background-color: var(--color-fondo-input, #FFFFFF);
+    color: var(--color-texto-principal, #343A40);
+    border: 1px solid var(--color-borde-input, #CED4DA);
+    border-radius: var(--border-radius-sm, 4px);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 40px;
+    text-align: center;
+  }
+  
+  .paginationButton:hover:not(:disabled) {
+    background-color: var(--color-primario, #2A4A6B);
+    color: var(--color-primario-texto, #FFFFFF);
+    border-color: var(--color-primario, #2A4A6B);
+  }
+  
+  .paginationButton:disabled {
+    background-color: var(--color-fondo-app, #F8F9FA);
+    color: var(--color-texto-placeholders, #6C757D);
+    border-color: var(--color-borde-general, #E9ECEF);
+    cursor: not-allowed;
+  }
+  
+  .paginationButton.activePage {
+    background-color: var(--color-primario, #2A4A6B);
+    color: var(--color-primario-texto, #FFFFFF);
+    border-color: var(--color-primario, #2A4A6B);
+  }
+  
+  .paginationButton.ellipsis {
+    background-color: transparent;
+    border: none;
+    cursor: default;
+    min-width: 20px;
+  }
+  
+  .paginationButton.ellipsis:hover {
+    background-color: transparent;
+    color: var(--color-texto-placeholders, #6C757D);
+    border: none;
+  }
+  
+  /* Responsive para paginación */
+  @media (max-width: 768px) {
+    .paginationInfo {
+      flex-direction: column;
+      gap: var(--spacing-sm, 8px);
+      text-align: center;
+    }
+    
+    .paginationControls {
+      flex-wrap: wrap;
+      gap: var(--spacing-xs, 2px);
+    }
+    
+    .paginationButton {
+      padding: 6px 8px;
+      font-size: 12px;
+      min-width: 35px;
+    }
+  }

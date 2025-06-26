@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { searchClientes, getClientesSinPresencia, getClientesParaVentas } from '../../services/apiService';
+import { searchClientes, getClientesSinPresencia, getClientesParaVentas, getClienteById } from '../../services/apiService';
 import styles from './ClienteSearch.module.css';
 
 const ClienteSearch = ({ 
@@ -22,12 +22,28 @@ const ClienteSearch = ({
 
     // Cargar cliente seleccionado si hay un value inicial
     useEffect(() => {
-        if (value && !selectedCliente) {
-            // Aquí podrías hacer una llamada para obtener los datos del cliente
-            // Por ahora asumimos que el value es el ID del cliente
-            setSelectedCliente({ id_cliente: value, display_text: `Cliente ID: ${value}` });
+        if (value && (!selectedCliente || selectedCliente.id_cliente !== value)) {
+            // Si el value es un ID y no tenemos el objeto, buscarlo en la API
+            (async () => {
+                try {
+                    const res = await getClienteById(value);
+                    const cliente = res.data;
+                    setSelectedCliente({
+                        id_cliente: cliente.id_cliente,
+                        display_text: cliente.nombres_completos_razon_social + (cliente.telefono_principal ? ` (${cliente.telefono_principal})` : ''),
+                        ...cliente
+                    });
+                    setSearchTerm(cliente.nombres_completos_razon_social + (cliente.telefono_principal ? ` (${cliente.telefono_principal})` : ''));
+                } catch (err) {
+                    setSelectedCliente({ id_cliente: value, display_text: `Cliente ID: ${value}` });
+                    setSearchTerm(`Cliente ID: ${value}`);
+                }
+            })();
+        } else if (!value) {
+            setSelectedCliente(null);
+            setSearchTerm('');
         }
-    }, [value, selectedCliente]);
+    }, [value]);
 
     // Cerrar dropdown cuando se hace clic fuera
     useEffect(() => {
