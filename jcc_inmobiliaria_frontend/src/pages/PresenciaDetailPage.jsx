@@ -161,7 +161,7 @@ function PresenciaDetailPage() {
 
                     <div className={styles.detailItemFull} style={{marginTop: 'var(--spacing-sm)'}}><strong>Resultado:</strong></div>
                     <div className={styles.detailItemSub}><strong>Modalidad:</strong> <span>{displayValue(presencia.modalidad_display || presencia.modalidad)}</span></div>
-                    <div className={styles.detailItemSub}><strong>Estado Cita:</strong> 
+                    <div className={styles.detailItemSub}><strong>Estado Presencia:</strong> 
                         <span className={`${styles.statusBadge} ${styles['statusBadge' + presencia.status_presencia?.toLowerCase().replace(/\s+/g, '').replace(/_/g, '')] || ''}`}>
                             {displayValue(presencia.status_presencia_display || presencia.status_presencia)}
                         </span>

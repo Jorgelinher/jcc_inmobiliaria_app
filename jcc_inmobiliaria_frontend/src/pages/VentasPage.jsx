@@ -49,13 +49,19 @@ function VentasPage() {
     const navigate = useNavigate();
     const location = useLocation(); // Para leer el estado de navegación
 
+    // Estados de paginación
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(20);
+    const [totalCount, setTotalCount] = useState(0);
+    const [totalPages, setTotalPages] = useState(0);
+
     const initialFilters = {
         fecha_venta_after: '', fecha_venta_before: '', lote_id: '',
         cliente_q: '', vendedor_q: '', tipo_venta: '', status_venta: ''
     };
     const [filters, setFilters] = useState(initialFilters);
 
-    const fetchVentas = useCallback(async (currentFilters) => {
+    const fetchVentas = useCallback(async (currentFilters, page = 1, size = pageSize) => {
         setLoading(true);
         setError(null);
         try {
@@ -63,9 +69,23 @@ function VentasPage() {
                 .filter(([_, value]) => value !== '' && value !== null)
                 .reduce((obj, [key, value]) => { obj[key] = value; return obj; }, {});
             
+            // Agregar parámetros de paginación
+            activeFilters.page = page;
+            activeFilters.page_size = size;
+            
             const queryParams = new URLSearchParams(activeFilters).toString();
             const response = await apiService.getVentas(queryParams);
-            setVentas(response.data.results || response.data || []);
+            
+            // Manejar respuesta paginada
+            if (response.data.results) {
+                setVentas(response.data.results);
+                setTotalCount(response.data.count || 0);
+                setTotalPages(Math.ceil((response.data.count || 0) / size));
+            } else {
+                setVentas(response.data || []);
+                setTotalCount(response.data?.length || 0);
+                setTotalPages(1);
+            }
         } catch (err) {
             let errorMessage = "Error al cargar las ventas.";
             if (err.response) { errorMessage += ` (Status: ${err.response.status}) Detalle: ${JSON.stringify(err.response.data)}`; } 
@@ -74,11 +94,11 @@ function VentasPage() {
             setError(errorMessage);
             setVentas([]);
         } finally { setLoading(false); }
-    }, []);
+    }, [pageSize]);
 
     useEffect(() => {
-        fetchVentas(filters);
-    }, [filters, fetchVentas]);
+        fetchVentas(filters, currentPage, pageSize);
+    }, [filters, currentPage, pageSize, fetchVentas]);
 
     // Efecto para abrir el modal de edición si se navega con estado
     useEffect(() => {
@@ -100,9 +120,22 @@ function VentasPage() {
     const handleFilterChange = (e) => {
         const { name, value } = e.target;
         setFilters(prevFilters => ({ ...prevFilters, [name]: value }));
+        setCurrentPage(1); // Reset a primera página al filtrar
     };
 
-    const resetFilters = () => { setFilters(initialFilters); };
+    const resetFilters = () => { 
+        setFilters(initialFilters); 
+        setCurrentPage(1); // Reset a primera página
+    };
+
+    const handlePageChange = (newPage) => {
+        setCurrentPage(newPage);
+    };
+
+    const handlePageSizeChange = (newSize) => {
+        setPageSize(newSize);
+        setCurrentPage(1); // Reset a primera página al cambiar tamaño
+    };
 
     const handleOpenModalForCreate = () => { setEditingVenta(null); setIsModalOpen(true); };
     
@@ -140,7 +173,7 @@ function VentasPage() {
                 alert('Venta registrada con éxito!');
             }
             handleCloseModal();
-            await fetchVentas(filters); // Actualizar la lista de ventas
+            await fetchVentas(filters, currentPage, pageSize); // Actualizar la lista de ventas
 
             // Opcional: navegar al detalle de la venta recién creada/actualizada
             if (response.data && response.data.id_venta) {
@@ -172,7 +205,7 @@ function VentasPage() {
                 setLoading(true);
                 await apiService.deleteVenta(ventaId);
                 alert('Venta eliminada con éxito!');
-                fetchVentas(filters); 
+                fetchVentas(filters, currentPage, pageSize);
             } catch (err) { 
                 alert(`Error al eliminar la venta: ${err.message || 'Error desconocido.'}`);
             } finally {
@@ -209,6 +242,41 @@ function VentasPage() {
         return val;
     };
 
+    // Generar array de páginas para mostrar en la paginación
+    const getPageNumbers = () => {
+        const pages = [];
+        const maxVisiblePages = 5;
+        
+        if (totalPages <= maxVisiblePages) {
+            for (let i = 1; i <= totalPages; i++) {
+                pages.push(i);
+            }
+        } else {
+            if (currentPage <= 3) {
+                for (let i = 1; i <= 4; i++) {
+                    pages.push(i);
+                }
+                pages.push('...');
+                pages.push(totalPages);
+            } else if (currentPage >= totalPages - 2) {
+                pages.push(1);
+                pages.push('...');
+                for (let i = totalPages - 3; i <= totalPages; i++) {
+                    pages.push(i);
+                }
+            } else {
+                pages.push(1);
+                pages.push('...');
+                for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+                    pages.push(i);
+                }
+                pages.push('...');
+                pages.push(totalPages);
+            }
+        }
+        return pages;
+    };
+
     return (
         <div className={styles.pageContainer}>
             <h1 className={styles.title}>Listado de Ventas</h1>
@@ -220,7 +288,7 @@ function VentasPage() {
                 <input type="text" name="cliente_q" placeholder="Buscar Cliente..." value={filters.cliente_q} onChange={handleFilterChange} className={styles.filterInput}/>
                 <input type="text" name="vendedor_q" placeholder="Buscar Vendedor..." value={filters.vendedor_q} onChange={handleFilterChange} className={styles.filterInput}/>
                 <select name="tipo_venta" value={filters.tipo_venta} onChange={handleFilterChange} className={styles.filterSelect}><option value="">Todo Tipo Venta</option><option value="credito">Crédito</option><option value="contado">Contado</option></select>
-                <select name="status_venta" value={filters.status_venta} onChange={handleFilterChange} className={styles.filterSelect}><option value="">Todos los Status</option><option value="separacion">Separación</option><option value="procesable">Procesable</option><option value="completada">Completada</option><option value="anulado">Anulado</option></select>
+                <select name="status_venta" value={filters.status_venta} onChange={handleFilterChange} className={styles.filterSelect}><option value="">Todos los Status de Venta</option><option value="separacion">Separación</option><option value="procesable">Procesable</option><option value="completada">Completada</option><option value="anulado">Anulado</option></select>
                 <button onClick={resetFilters} className={styles.resetButton}>Limpiar Filtros</button>
             </div>
 
@@ -236,73 +304,144 @@ function VentasPage() {
             )}
 
             {ventas.length > 0 && (
-                <div className={styles.tableResponsiveContainer}>
-                    <table className={styles.table}>
-                        <thead>
-                            <tr>
-                                <th className={styles.colId}>ID Venta</th>
-                                <th className={styles.colFecha}>Fecha</th>
-                                <th className={styles.colLote}>Lote</th>
-                                <th className={styles.colCliente}>Cliente</th>
-                                <th className={styles.colVendedor}>Vendedor</th>
-                                <th className={`${styles.colMonto} ${styles.textAlignRight}`}>Valor Total</th>
-                                <th className={`${styles.colMonto} ${styles.textAlignRight}`}>Valor ($)</th>
-                                <th className={`${styles.colMonto} ${styles.textAlignRight}`}>T.C.</th>
-                                <th className={`${styles.colMonto} ${styles.textAlignRight}`}>Pagado</th>
-                                <th className={`${styles.colMonto} ${styles.textAlignRight}`}>Saldo</th>
-                                <th className={styles.colTipo}>Tipo</th>
-                                <th className={styles.colStatus}>Status</th>
-                                <th className={styles.colAcciones}>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {ventas.map(venta => {
-                                let proyectoKey = '';
-                                if (venta.lote_info) {
-                                    proyectoKey = getProyectoKey(venta.lote_info);
-                                } else if (venta.lote && typeof venta.lote === 'object' && venta.lote.ubicacion_proyecto) {
-                                    proyectoKey = getProyectoKey(venta.lote.ubicacion_proyecto);
-                                }
-                                const mostrarDolares = proyectoKey === 'aucallama' || proyectoKey === 'oasis 2';
-                                return (
-                                    <tr key={venta.id_venta}>
-                                        <td>{venta.id_venta}</td>
-                                        <td>{displayDate(venta.fecha_venta)}</td>
-                                        <td>
-                                            {venta.lote ? 
-                                                <Link to={`/lotes/${venta.lote}`}>{venta.lote_info || venta.lote}</Link> 
-                                                : '-'}
-                                        </td>
-                                        <td>
-                                            {venta.cliente_detalle ? 
-                                                <Link to={`/clientes/${venta.cliente_detalle.id_cliente}`}>{venta.cliente_detalle.nombres_completos_razon_social}</Link> 
-                                                : (venta.cliente_info || venta.cliente || '-')}
-                                        </td>
-                                        <td>{venta.vendedor_principal_nombre || venta.vendedor_principal?.nombre_asesor || '-'}</td>
-                                        <td className={styles.textAlignRight}>{displayCurrency(venta.valor_lote_venta)}</td>
-                                        <td className={styles.textAlignRight}>{mostrarDolares && venta.precio_dolares ? `$${Number(venta.precio_dolares).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}` : '-'}</td>
-                                        <td className={styles.textAlignRight}>{mostrarDolares && venta.tipo_cambio ? Number(venta.tipo_cambio).toFixed(3) : '-'}</td>
-                                        <td className={styles.textAlignRight}>{displayCurrency(venta.monto_pagado_actual)}</td>
-                                        <td className={styles.textAlignRight}>{displayCurrency(venta.saldo_pendiente)}</td>
-                                        <td>{venta.tipo_venta}</td>
-                                        <td>
-                                            <span className={`${styles.statusBadge} ${styles['statusBadge' + venta.status_venta?.replace(/\s+/g, '')]}`}>
-                                                {venta.status_venta_display || venta.status_venta}
-                                            </span>
-                                        </td>
-                                        <td className={styles.actionButtons}>
-                                            <Link to={`/ventas/${venta.id_venta}`} className={styles.viewButton}>Ver</Link>
-                                            <button onClick={() => handleOpenModalForEdit(venta)} className={styles.editButton}>Editar</button>
-                                            <button onClick={() => handleRegistrarPago(venta.id_venta)} className={styles.payButton}>Registrar Pago</button>
-                                            <button onClick={() => handleDeleteVenta(venta.id_venta)} className={styles.deleteButton}>Eliminar</button>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
+                <>
+                    {/* Información de paginación */}
+                    <div className={styles.paginationInfo}>
+                        <span>
+                            Mostrando {((currentPage - 1) * pageSize) + 1} a {Math.min(currentPage * pageSize, totalCount)} de {totalCount} ventas
+                        </span>
+                        <div className={styles.pageSizeSelector}>
+                            <label htmlFor="pageSize">Ventas por página:</label>
+                            <select 
+                                id="pageSize"
+                                value={pageSize} 
+                                onChange={(e) => handlePageSizeChange(parseInt(e.target.value))}
+                                className={styles.pageSizeSelect}
+                            >
+                                <option value={10}>10</option>
+                                <option value={20}>20</option>
+                                <option value={50}>50</option>
+                                <option value={100}>100</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Tabla de ventas */}
+                    <div className={styles.tableResponsiveContainer}>
+                        <table className={styles.table}>
+                            <thead>
+                                <tr>
+                                    <th className={styles.colId}>ID Venta</th>
+                                    <th className={styles.colFecha}>Fecha</th>
+                                    <th className={styles.colLote}>Lote</th>
+                                    <th className={styles.colCliente}>Cliente</th>
+                                    <th className={styles.colVendedor}>Vendedor</th>
+                                    <th className={`${styles.colMonto} ${styles.textAlignRight}`}>Valor Total</th>
+                                    <th className={`${styles.colMonto} ${styles.textAlignRight}`}>Valor ($)</th>
+                                    <th className={`${styles.colMonto} ${styles.textAlignRight}`}>T.C.</th>
+                                    <th className={`${styles.colMonto} ${styles.textAlignRight}`}>Pagado</th>
+                                    <th className={`${styles.colMonto} ${styles.textAlignRight}`}>Saldo</th>
+                                    <th className={styles.colTipo}>Tipo</th>
+                                    <th className={styles.colStatus}>Status Venta</th>
+                                    <th className={styles.colAcciones}>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {ventas.map(venta => {
+                                    let proyectoKey = '';
+                                    if (venta.lote_info) {
+                                        proyectoKey = getProyectoKey(venta.lote_info);
+                                    } else if (venta.lote && typeof venta.lote === 'object' && venta.lote.ubicacion_proyecto) {
+                                        proyectoKey = getProyectoKey(venta.lote.ubicacion_proyecto);
+                                    }
+                                    const mostrarDolares = proyectoKey === 'aucallama' || proyectoKey === 'oasis 2';
+                                    return (
+                                        <tr key={venta.id_venta}>
+                                            <td>{venta.id_venta}</td>
+                                            <td>{displayDate(venta.fecha_venta)}</td>
+                                            <td>
+                                                {venta.lote ? 
+                                                    <Link to={`/lotes/${venta.lote}`}>{venta.lote_info || venta.lote}</Link> 
+                                                    : '-'}
+                                            </td>
+                                            <td>
+                                                {venta.cliente_detalle ? 
+                                                    <Link to={`/clientes/${venta.cliente_detalle.id_cliente}`}>{venta.cliente_detalle.nombres_completos_razon_social}</Link> 
+                                                    : (venta.cliente_info || venta.cliente || '-')}
+                                            </td>
+                                            <td>{venta.vendedor_principal_nombre || venta.vendedor_principal?.nombre_asesor || '-'}</td>
+                                            <td className={styles.textAlignRight}>{displayCurrency(venta.valor_lote_venta)}</td>
+                                            <td className={styles.textAlignRight}>{mostrarDolares && venta.precio_dolares ? `$${Number(venta.precio_dolares).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}` : '-'}</td>
+                                            <td className={styles.textAlignRight}>{mostrarDolares && venta.tipo_cambio ? Number(venta.tipo_cambio).toFixed(3) : '-'}</td>
+                                            <td className={styles.textAlignRight}>{displayCurrency(venta.monto_pagado_actual)}</td>
+                                            <td className={styles.textAlignRight}>{displayCurrency(venta.saldo_pendiente)}</td>
+                                            <td>{venta.tipo_venta}</td>
+                                            <td>
+                                                <span className={`${styles.statusBadge} ${styles['statusBadge' + venta.status_venta?.replace(/\s+/g, '')]}`}>
+                                                    {venta.status_venta_display || venta.status_venta}
+                                                </span>
+                                            </td>
+                                            <td className={styles.actionButtons}>
+                                                <Link to={`/ventas/${venta.id_venta}`} className={styles.viewButton}>Ver</Link>
+                                                <button onClick={() => handleOpenModalForEdit(venta)} className={styles.editButton}>Editar</button>
+                                                <button onClick={() => handleRegistrarPago(venta.id_venta)} className={styles.payButton}>Registrar Pago</button>
+                                                <button onClick={() => handleDeleteVenta(venta.id_venta)} className={styles.deleteButton}>Eliminar</button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Controles de paginación */}
+                    {totalPages > 1 && (
+                        <div className={styles.paginationControls}>
+                            <button 
+                                onClick={() => handlePageChange(1)} 
+                                disabled={currentPage === 1}
+                                className={styles.paginationButton}
+                            >
+                                « Primera
+                            </button>
+                            <button 
+                                onClick={() => handlePageChange(currentPage - 1)} 
+                                disabled={currentPage === 1}
+                                className={styles.paginationButton}
+                            >
+                                ‹ Anterior
+                            </button>
+                            
+                            {getPageNumbers().map((page, index) => (
+                                <button
+                                    key={index}
+                                    onClick={() => typeof page === 'number' ? handlePageChange(page) : null}
+                                    disabled={page === '...'}
+                                    className={`${styles.paginationButton} ${page === currentPage ? styles.activePage : ''} ${page === '...' ? styles.ellipsis : ''}`}
+                                >
+                                    {page}
+                                </button>
+                            ))}
+                            
+                            <button 
+                                onClick={() => handlePageChange(currentPage + 1)} 
+                                disabled={currentPage === totalPages}
+                                className={styles.paginationButton}
+                            >
+                                Siguiente ›
+                            </button>
+                            <button 
+                                onClick={() => handlePageChange(totalPages)} 
+                                disabled={currentPage === totalPages}
+                                className={styles.paginationButton}
+                            >
+                                Última »
+                            </button>
+                        </div>
+                    )}
+                </>
             )}
+
             {isModalOpen && (
                 <VentaForm 
                     show={isModalOpen} 

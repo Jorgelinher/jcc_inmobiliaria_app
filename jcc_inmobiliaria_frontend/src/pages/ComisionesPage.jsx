@@ -140,54 +140,17 @@ function ComisionesPage() {
                         <div key={asesorData.asesor_id} className={styles.asesorCard}>
                             <h3>{asesorData.nombre_asesor} ({asesorData.tipo_asesor})</h3>
                             <p><strong>Periodo:</strong> {asesorData.periodo}</p>
-                            
-                            <div className={styles.sectionBlock}>
-                                <h4>Metas</h4>
-                                {asesorData.metas.aviso && <p className={styles.warningMessage}>{asesorData.metas.aviso}</p>}
-                                {Object.entries(asesorData.metas).map(([key, meta]) => {
-                                    if (key === 'aviso' || typeof meta !== 'object' || meta === null || meta.meta === undefined) return null;
-                                    // Calcular progreso, asegurando que no sea NaN o Infinity
-                                    let progress = 0;
-                                    if (meta.meta > 0) {
-                                        progress = (parseFloat(meta.logrado) / parseFloat(meta.meta)) * 100;
-                                    } else if (parseFloat(meta.logrado) > 0) {
-                                        progress = 100; // Si la meta es 0 pero hay logrado, se considera 100%
-                                    }
-                                    progress = Math.min(Math.max(progress, 0), 100); // Limitar entre 0 y 100
-
-                                    return (
-                                        <div key={key} className={styles.metaItem}>
-                                            <strong>{key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}: </strong> 
-                                            Meta: {meta.meta}, Logrado: {meta.logrado} 
-                                            <div className={styles.progressBarContainer}>
-                                                <div 
-                                                    className={`${styles.progressBar} ${progress >= 100 ? styles.completed : ''}`} 
-                                                    style={{ width: `${progress}%` }}
-                                                >
-                                                    {parseFloat(meta.porcentaje || 0).toFixed(0)}%
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-
                             <div className={styles.sectionBlock}>
                                 <h4>Comisiones</h4>
-                                <p><strong>Comisión Directa Total:</strong> {formatCurrency(asesorData.comisiones.comision_directa_total_soles)}</p>
-                                <p><strong>Comisión Residual Total:</strong> {formatCurrency(asesorData.comisiones.comision_residual_total_soles)}</p>
-                                <p><strong>Comisión Total Calculada:</strong> {formatCurrency(asesorData.comisiones.comision_total_calculada_soles)}</p>
-                                
-                                {asesorData.comisiones.detalle_comisiones_ventas && asesorData.comisiones.detalle_comisiones_ventas.length > 0 && (
+                                <p><strong>Comisión Total:</strong> {formatCurrency(asesorData.comision_total)}</p>
+                                {asesorData.detalle && asesorData.detalle.length > 0 && (
                                     <>
                                         <h5>Detalle Ventas Comisionadas:</h5>
                                         <ul className={styles.detalleVentas}>
-                                            {asesorData.comisiones.detalle_comisiones_ventas.map((venta, index) => ( // Añadir index para key si es necesario
-                                                <li key={`${venta.venta_id}-${venta.tipo_comision_aplicada || 'directa'}-${index}`}>
-                                                    ID Venta: {venta.venta_id}, Lote: {venta.lote_id || 'N/A'}, Valor: {formatCurrency(venta.valor_venta_soles)}, 
-                                                    Comisión: {formatCurrency(venta.comision_calculada_soles)}
-                                                    <span className={styles.comisionDetailMeta}> (Tasa: {parseFloat(venta.porcentaje_aplicado || 0).toFixed(2)}%)</span>
-                                                    {venta.nota_comision && <span className={styles.comisionDetailNote}> ({venta.nota_comision})</span>}
+                                            {asesorData.detalle.map((venta, index) => (
+                                                <li key={`${venta.venta_id}-${venta.rol}-${index}`}>
+                                                    ID Venta: {venta.venta_id}, Fecha: {venta.fecha_venta}, Rol: {venta.rol}, %: {venta.porcentaje} - Comisión: {formatCurrency(venta.monto)}
+                                                    {venta.notas && <span className={styles.comisionDetailNote}> ({venta.notas})</span>}
                                                 </li>
                                             ))}
                                         </ul>

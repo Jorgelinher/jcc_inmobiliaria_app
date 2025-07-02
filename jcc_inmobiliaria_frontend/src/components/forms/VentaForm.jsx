@@ -6,6 +6,7 @@ import customStyles from './VentaForm.module.css'; // Estilos específicos para 
 import ClienteForm from './ClienteForm';
 import LoteSelector from '../ui/LoteSelector'; // Asegúrate que la ruta sea correcta
 import ClienteSearch from '../ui/ClienteSearch';
+import AsesorAutocomplete from '../ui/AsesorAutocomplete';
 
 const TIPO_VENTA_CHOICES = [
     { value: 'contado', label: 'Contado' },
@@ -38,7 +39,7 @@ const PARTICIPACION_SOCIO_CHOICES_OPTIONS = [
     { value: 'no participa', label: 'No Participa' },
 ];
 
-function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia = false, clientePredefinidoPresencia = null }) {
+function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia = false, clientePredefinidoPresencia = null, asesoresInvolucradosPresencia = [] }) {
     const getInitialFormData = useCallback(() => ({
         fecha_venta: new Date().toISOString().split('T')[0],
         lote: '', // ID del lote
@@ -76,6 +77,9 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
     const [clienteFormError, setClienteFormError] = useState('');
     const [isLoteSelectorModalOpen, setIsLoteSelectorModalOpen] = useState(false);
     const [showDolaresFields, setShowDolaresFields] = useState(false);
+    const [comisionesAsesores, setComisionesAsesores] = useState([]);
+    const [submitStatus, setSubmitStatus] = useState(''); // '', 'success', 'error'
+    const [submitMessage, setSubmitMessage] = useState('');
 
     const fetchInitialDropdownData = useCallback(async () => {
         setLoadingRelatedData(true);
@@ -86,6 +90,7 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
             ]);
             setClientesList(clientesRes.data.results || clientesRes.data || []);
             setAsesoresList(asesoresRes.data.results || asesoresRes.data || []);
+            console.log("Asesores recibidos:", asesoresRes.data.results || asesoresRes.data || []);
         } catch (error) {
             console.error("Error cargando datos para selects (clientes/asesores):", error);
             setFormError("Error cargando datos necesarios para el formulario.");
@@ -263,6 +268,10 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
         } else { setTipoVendedorPrincipal(null); }
     }, [formData.vendedor_principal, asesoresList]);
 
+    const handleComisionAsesorChange = (idx, field, value) => {
+        setComisionesAsesores(prev => prev.map((c, i) => i === idx ? { ...c, [field]: value } : c));
+    };
+
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
         setFormError('');
@@ -364,12 +373,13 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
         }
     };
     
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setFormError('');
+        setSubmitStatus('');
+        setSubmitMessage('');
         if (!formData.lote) { setFormError("Debe seleccionar un Lote."); return; }
         if (!formData.cliente) { setFormError("Debe seleccionar o crear un Cliente."); return; }
-        if (!formData.vendedor_principal) { setFormError("Debe seleccionar un Vendedor Principal."); return; }
         if (showDolaresFields) {
             if (!formData.precio_dolares || parseFloat(formData.precio_dolares) <= 0) {
                 setFormError("Debe ingresar el precio en dólares para este proyecto."); return;
@@ -386,34 +396,63 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
             setFormError("El valor de venta del lote no es válido o no se ha calculado. Verifique el lote y el plan de pagos seleccionado.");
             return;
         }
-        
-        const valPorcentajeVP = parseFloat(formData.porcentaje_comision_vendedor_principal_personalizado);
-        if (formData.porcentaje_comision_vendedor_principal_personalizado && (isNaN(valPorcentajeVP) || valPorcentajeVP < 0 || valPorcentajeVP > 100)) {
-            setFormError("El porcentaje de comisión del Vendedor Principal debe ser un número entre 0 y 100.");
-            return;
+        // Si hay asesores, valida sus campos, pero no bloquees si la lista está vacía
+        if (comisionesAsesores.length > 0) {
+            for (const c of comisionesAsesores) {
+                if (!c.asesor || !c.rol || c.porcentaje_comision === '' || isNaN(parseFloat(c.porcentaje_comision))) {
+                    setFormError('Complete todos los campos de asesores y comisiones.');
+                    return;
+                }
+            }
         }
-        const valPorcentajeSocio = parseFloat(formData.porcentaje_comision_socio_personalizado);
-        if (formData.porcentaje_comision_socio_personalizado && (isNaN(valPorcentajeSocio) || valPorcentajeSocio < 0 || valPorcentajeSocio > 100)) {
-            setFormError("El porcentaje de comisión del Socio Participante debe ser un número entre 0 y 100.");
-            return;
-        }
-
         const dataToSubmit = {
-            ...formData,
+            fecha_venta: formData.fecha_venta,
+            lote: formData.lote,
+            cliente: formData.cliente,
             valor_lote_venta: parseFloat(formData.valor_lote_venta),
-            cuota_inicial_requerida: parseFloat(formData.cuota_inicial_requerida) || 0,
+            tipo_venta: formData.tipo_venta,
             plazo_meses_credito: formData.tipo_venta === 'contado' ? 0 : parseInt(formData.plazo_meses_credito, 10),
-            id_socio_participante: formData.id_socio_participante || null,
-            participacion_socio_venta: formData.id_socio_participante ? formData.participacion_socio_venta : 'N/A',
-            porcentaje_comision_vendedor_principal_personalizado: formData.porcentaje_comision_vendedor_principal_personalizado ? parseFloat(formData.porcentaje_comision_vendedor_principal_personalizado) : null,
-            porcentaje_comision_socio_personalizado: formData.porcentaje_comision_socio_personalizado && formData.id_socio_participante ? parseFloat(formData.porcentaje_comision_socio_personalizado) : null,
+            cuota_inicial_requerida: parseFloat(formData.cuota_inicial_requerida) || 0,
+            status_venta: formData.status_venta,
+            modalidad_presentacion: formData.modalidad_presentacion,
+            notas: formData.notas,
             precio_dolares: showDolaresFields ? parseFloat(formData.precio_dolares) : null,
             tipo_cambio: showDolaresFields ? parseFloat(formData.tipo_cambio) : null,
+            comisiones_asesores: comisionesAsesores.length > 0 ? comisionesAsesores.map(c => ({
+                asesor: c.asesor,
+                rol: c.rol,
+                porcentaje_comision: parseFloat(c.porcentaje_comision),
+                notas: c.notas || '',
+            })) : [],
         };
-        delete dataToSubmit.lote_display_text; // No enviar este campo al backend
-        
-        console.log("[VentaForm] Data a enviar para Venta:", dataToSubmit);
-        onSubmit(dataToSubmit, initialData?.id_venta);
+        delete dataToSubmit.lote_display_text;
+        console.log('[VentaForm] Intentando guardar venta. Data:', dataToSubmit);
+        setSubmitStatus('');
+        setSubmitMessage('');
+        try {
+            await onSubmit(dataToSubmit, initialData?.id_venta);
+            setSubmitStatus('success');
+            setSubmitMessage('Venta guardada exitosamente.');
+            console.log('[VentaForm] Venta guardada exitosamente.');
+            setTimeout(() => {
+                setSubmitStatus('');
+                setSubmitMessage('');
+            }, 2000);
+        } catch (err) {
+            setSubmitStatus('error');
+            let msg = 'Error al guardar la venta.';
+            if (err?.response?.data) {
+                if (typeof err.response.data === 'string') msg = err.response.data;
+                else if (err.response.data.detail) msg = err.response.data.detail;
+                else if (err.response.data.error) msg = err.response.data.error;
+                else if (typeof err.response.data === 'object') msg = Object.entries(err.response.data).map(([k,v]) => `${k}: ${Array.isArray(v)?v.join(', '):v}`).join('; ');
+            } else if (err.message) {
+                msg = err.message;
+            }
+            setSubmitMessage(msg);
+            setFormError(msg);
+            console.error('[VentaForm] Error al guardar venta:', err);
+        }
     };
 
     const getProyectoKey = (ubicacionProyecto) => {
@@ -424,6 +463,18 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
         return val;
     };
 
+    useEffect(() => {
+        if (
+            show &&
+            initialData &&
+            initialData.comisiones_asesores &&
+            initialData.comisiones_asesores.length > 0 &&
+            comisionesAsesores.length === 0
+        ) {
+            setComisionesAsesores(initialData.comisiones_asesores);
+        }
+    }, [show, initialData, comisionesAsesores.length]);
+
     if (!show) return null;
 
     return (
@@ -433,6 +484,8 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
                     <h2>{isModalForPresencia ? 'Registrar Venta para Presencia' : (initialData?.id_venta ? 'Editar Venta' : 'Registrar Nueva Venta')}</h2>
                     {loadingRelatedData && <p className={styles.loadingText}>Cargando datos...</p>}
                     {formError && <p className={styles.errorMessageForm}>{formError}</p>}
+                    {submitStatus === 'success' && <div className={styles.successMessageForm}>{submitMessage}</div>}
+                    {submitStatus === 'error' && <div className={styles.errorMessageForm}>{submitMessage}</div>}
 
                     {!loadingRelatedData && (
                         <form onSubmit={handleSubmit}>
@@ -572,80 +625,47 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
                             <hr className={styles.formSeparator}/>
                             <h3 className={styles.subHeader}>Asesores y Comisiones</h3>
                             
-                            <div className={styles.formRow}>
-                                <div className={styles.formGroup} style={{flex: 2}}>
-                                    <label htmlFor="vendedor_principal">Vendedor Principal <span className={styles.required}>*</span></label>
-                                    <select id="vendedor_principal" name="vendedor_principal" value={formData.vendedor_principal} onChange={handleChange} required>
-                                        <option value="">Seleccione Vendedor</option>
-                                        {asesoresList.map(a => <option key={a.id_asesor} value={a.id_asesor}>{a.nombre_asesor} ({a.tipo_asesor_actual})</option>)}
-                                    </select>
-                                </div>
-                                <div className={styles.formGroup} style={{flex: 1.5}}>
-                                    <label htmlFor="participacion_junior_venta">Participación Junior</label>
-                                    <select 
-                                        id="participacion_junior_venta" 
-                                        name="participacion_junior_venta" 
-                                        value={formData.participacion_junior_venta} 
-                                        onChange={handleChange}
-                                        disabled={tipoVendedorPrincipal === 'Socio'}
-                                    >
-                                        {PARTICIPACION_JUNIOR_CHOICES_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                                    </select>
-                                </div>
-                                <div className={styles.formGroup} style={{flex: 1}}>
-                                    <label htmlFor="porcentaje_comision_vendedor_principal_personalizado">Comisión VP (%)</label>
-                                    <input 
-                                        type="number" 
-                                        id="porcentaje_comision_vendedor_principal_personalizado" 
-                                        name="porcentaje_comision_vendedor_principal_personalizado" 
-                                        value={formData.porcentaje_comision_vendedor_principal_personalizado} 
-                                        onChange={handleChange} 
-                                        step="0.01" min="0" max="100"
-                                        placeholder={loadingCommissionVP ? "Cargando..." : (defaultCommissionVP !== null ? `${defaultCommissionVP}% (Def.)` : "Tabla")}
-                                        disabled={!formData.vendedor_principal}
-                                    />
-                                    {defaultCommissionVP !== null && formData.porcentaje_comision_vendedor_principal_personalizado === '' && <small className={styles.helpText}>Predeterminado: {defaultCommissionVP}%</small>}
-                                </div>
+                            <div className={styles.formGroup}>
+                                <label>Asesores Involucrados y Comisiones</label>
+                                {comisionesAsesores.map((c, idx, arr) => (
+                                    <div key={idx} className={styles.formRow} style={{alignItems: 'center'}}>
+                                        <div className={styles.formGroup} style={{flex: 2}}>
+                                            <AsesorAutocomplete
+                                                value={c.asesor || ''}
+                                                onChange={val => handleComisionAsesorChange(idx, 'asesor', val)}
+                                                placeholder="Buscar asesor..."
+                                                name={`asesor_${idx}`}
+                                            />
+                                        </div>
+                                        <div className={styles.formGroup} style={{flex: 1.5}}>
+                                            <select value={c.rol || ''} onChange={e => handleComisionAsesorChange(idx, 'rol', e.target.value)}>
+                                                <option value="">Rol</option>
+                                                <option value="captacion_opc">Captación OPC/Redes</option>
+                                                <option value="call">Call (Agendó)</option>
+                                                <option value="liner">Liner (Presentación)</option>
+                                                <option value="closer">Closer (Cierre)</option>
+                                                <option value="otro">Otro</option>
+                                            </select>
+                                        </div>
+                                        <div className={styles.formGroup} style={{flex: 1}}>
+                                            <input type="number" min="0" max="100" step="0.01" value={c.porcentaje_comision} onChange={e => handleComisionAsesorChange(idx, 'porcentaje_comision', e.target.value)} placeholder="% Comisión" />
+                                        </div>
+                                        <div className={styles.formGroup} style={{flex: 2}}>
+                                            <input type="text" value={c.notas || ''} onChange={e => handleComisionAsesorChange(idx, 'notas', e.target.value)} placeholder="Notas" />
+                                        </div>
+                                        {arr.length > 1 && (
+                                            <button type="button" onClick={() => setComisionesAsesores(prev => prev.filter((_, i) => i !== idx))} className={`${styles.button} ${styles.buttonSecondary} ${styles.buttonDeleteAsesor}`} title="Eliminar asesor">✕</button>
+                                        )}
+                                    </div>
+                                ))}
+                                <button type="button" onClick={() => setComisionesAsesores(prev => ([...prev, { asesor: '', rol: '', porcentaje_comision: '', notas: '' }]))} className={`${styles.button} ${styles.buttonSecondary}`}>Agregar Asesor</button>
+                                {comisionesAsesores.length === 0 && (
+                                    <div className={styles.helpText} style={{marginTop: 8}}>
+                                        Puedes agregar asesores si corresponde, o dejar vacío para ventas sin asesores.
+                                    </div>
+                                )}
                             </div>
-                            
-                            <div className={styles.formRow}>
-                                <div className={styles.formGroup} style={{flex: 2}}>
-                                    <label htmlFor="id_socio_participante">Socio Participante (Opcional)</label>
-                                    <select id="id_socio_participante" name="id_socio_participante" value={formData.id_socio_participante} onChange={handleChange}>
-                                        <option value="">Ninguno</option>
-                                        {asesoresList.filter(a => a.tipo_asesor_actual === 'Socio' && a.id_asesor !== formData.vendedor_principal).map(a => (
-                                            <option key={a.id_asesor} value={a.id_asesor}>{a.nombre_asesor}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className={styles.formGroup} style={{flex: 1.5}}>
-                                    <label htmlFor="participacion_socio_venta">Participación Socio</label>
-                                    <select 
-                                        id="participacion_socio_venta" 
-                                        name="participacion_socio_venta" 
-                                        value={formData.participacion_socio_venta} 
-                                        onChange={handleChange}
-                                        disabled={!formData.id_socio_participante && tipoVendedorPrincipal !== 'Socio'}
-                                    >
-                                        {PARTICIPACION_SOCIO_CHOICES_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                                    </select>
-                                </div>
-                                <div className={styles.formGroup} style={{flex: 1}}>
-                                    <label htmlFor="porcentaje_comision_socio_personalizado">Comisión Socio (%)</label>
-                                    <input 
-                                        type="number" 
-                                        id="porcentaje_comision_socio_personalizado" 
-                                        name="porcentaje_comision_socio_personalizado" 
-                                        value={formData.porcentaje_comision_socio_personalizado} 
-                                        onChange={handleChange} 
-                                        step="0.01" min="0" max="100"
-                                        placeholder={loadingCommissionSocio ? "Cargando..." : (defaultCommissionSocio !== null ? `${defaultCommissionSocio}% (Def.)` : "Tabla")}
-                                        disabled={!formData.id_socio_participante}
-                                    />
-                                     {defaultCommissionSocio !== null && formData.porcentaje_comision_socio_personalizado === '' && <small className={styles.helpText}>Predeterminado: {defaultCommissionSocio}%</small>}
-                                </div>
-                            </div>
-                            <hr className={styles.formSeparator}/>
+
                             <div className={styles.formGroup}>
                                 <label htmlFor="modalidad_presentacion">Modalidad Presentación</label>
                                 <input type="text" id="modalidad_presentacion" name="modalidad_presentacion" value={formData.modalidad_presentacion} onChange={handleChange} />

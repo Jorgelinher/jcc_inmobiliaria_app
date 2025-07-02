@@ -111,6 +111,7 @@ export const createLote = (data) => apiClient.post('/gestion/lotes/', data);
 export const updateLote = (id, data) => apiClient.put(`/gestion/lotes/${id}/`, data);
 export const deleteLote = (id) => apiClient.delete(`/gestion/lotes/${id}/`);
 export const getLoteById = (id) => apiClient.get(`/gestion/lotes/${id}/`);
+export const getUbicacionesProyecto = () => apiClient.get('/gestion/lotes/ubicaciones_proyecto/');
 
 // --- CRUD Clientes ---
 export const getClientes = (queryParams = '') => apiClient.get(`/gestion/clientes/${queryParams ? `?${queryParams}` : ''}`);
@@ -142,6 +143,7 @@ export const searchClientes = (query) => {
 
 // --- CRUD Asesores ---
 export const getAsesores = (queryParams = '') => apiClient.get(`/gestion/asesores/${queryParams ? `?${queryParams}` : ''}`);
+export const searchAsesores = (searchTerm) => apiClient.get(`/gestion/asesores/search/?search=${encodeURIComponent(searchTerm)}`);
 export const createAsesor = (data) => apiClient.post('/gestion/asesores/', data);
 export const updateAsesor = (id, data) => apiClient.put(`/gestion/asesores/${id}/`, data);
 export const deleteAsesor = (id) => apiClient.delete(`/gestion/asesores/${id}/`);

@@ -108,9 +108,11 @@
   
 
   
-  .tableResponsiveContainer { /* Mantener consistencia con VentasPage.module.css */
+  .tableResponsiveContainer {
+    position: relative;
     width: 100%;
     overflow-x: auto;
+    margin-bottom: 32px; /* Espaciado igual que en LotesPage */
     background-color: var(--color-fondo-contenedor, #FFFFFF); 
     border-radius: var(--border-radius-lg, 8px);
     box-shadow: var(--sombra-media, 0 4px 12px rgba(0,0,0,0.08));
@@ -269,13 +271,139 @@
   /* Define colores para los status de Presencia aquí */
   .statusBadgeagendada { background-color: var(--color-acento-informacion-fondo); color: #084298; border-color: var(--color-acento-informacion-borde); }
   .statusBadgerealizada { background-color: var(--color-acento-exito-fondo); color: #155724; border-color: var(--color-acento-exito-borde); }
-  .statusBadgereprogramada { background-color: #FFF9C4; color: #F9A825; border-color: #FFF59D; } /* Amarillo claro */
-  .statusBadgecancelada_cliente { background-color: #FFEBEE; color: #C62828; border-color: #FFCDD2; } /* Rojo claro */
-  .statusBadgeno_asistio { background-color: #E0E0E0; color: var(--color-texto-principal); border-color: #BDBDBD; } /* Gris */
-  .statusBadgecaida_proceso { background-color: #FFCDD2; color: #B71C1C; border-color: #EF9A9A; } /* Rojo más oscuro */
+  .statusBadgereprogramada { background-color: var(--color-acento-advertencia-fondo); color: #856404; border-color: var(--color-acento-advertencia-borde); }
+  .statusBadgecancelada_cliente { background-color: var(--color-acento-error-fondo); color: #58151C; border-color: var(--color-acento-error-borde); }
+  .statusBadgeno_asistio { background-color: #E0E0E0; color: var(--color-texto-principal); border-color: #BDBDBD; }
+  .statusBadgecaida_proceso { background-color: var(--color-acento-error-fondo); color: #58151C; border-color: var(--color-acento-error-borde); }
 
   @media (max-width: 1200px) {
     .table { min-width: 700px; }
     .table th, .table td { padding: 6px 8px; font-size: 12px; }
     .actionButtons { gap: 4px; }
+  }
+
+  /* --- Estilos de Paginación --- */
+  .paginationContainer {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md, 16px);
+    margin-top: var(--spacing-lg, 24px);
+    padding: var(--spacing-md, 16px);
+    background-color: var(--color-fondo-contenedor, #FFFFFF);
+    border: 1px solid var(--color-borde-general, #E9ECEF);
+    border-radius: var(--border-radius-lg, 8px);
+    box-shadow: var(--sombra-ligera);
+  }
+
+  .paginationInfo {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: var(--spacing-md, 16px) 0;
+    padding: var(--spacing-sm, 12px) var(--spacing-md, 16px);
+    background-color: var(--color-fondo-contenedor, #FFFFFF);
+    border: 1px solid var(--color-borde-general, #E9ECEF);
+    border-radius: var(--border-radius-md, 6px);
+    font-family: var(--fuente-principal, 'Inter', sans-serif);
+    font-size: var(--font-size-sm, 14px);
+    color: var(--color-texto-secundario, #6C757D);
+  }
+
+  .pageSizeSelector {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm, 8px);
+  }
+
+  .pageSizeSelector label {
+    font-family: var(--fuente-principal, 'Inter', sans-serif);
+    font-size: var(--font-size-sm, 14px);
+    color: var(--color-texto-principal, #343A40);
+    font-weight: 500;
+  }
+
+  .pageSizeSelect {
+    font-family: var(--fuente-principal, 'Inter', sans-serif);
+    font-size: var(--font-size-sm, 14px);
+    color: var(--color-texto-principal, #343A40);
+    background-color: var(--color-fondo-input, #FFFFFF);
+    border: 1px solid var(--color-borde-input, #CED4DA);
+    border-radius: var(--border-radius-md, 6px);
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .pageSizeSelect:focus {
+    border-color: var(--color-borde-input-focus, #2A4A6B);
+    box-shadow: 0 0 0 0.2rem rgba(42, 74, 107, 0.25);
+    outline: none;
+  }
+
+  .paginationControls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm, 8px);
+    flex-wrap: wrap;
+  }
+
+  .paginationButton {
+    font-family: var(--fuente-principal, 'Inter', sans-serif);
+    font-size: var(--font-size-sm, 14px);
+    font-weight: 500;
+    padding: 8px 16px;
+    background-color: var(--color-fondo-input, #FFFFFF);
+    color: var(--color-texto-principal, #343A40);
+    border: 1px solid var(--color-borde-input, #CED4DA);
+    border-radius: var(--border-radius-md, 6px);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 80px;
+  }
+
+  .paginationButton:hover:not(:disabled) {
+    background-color: var(--color-primario, #2A4A6B);
+    color: var(--color-primario-texto, #FFFFFF);
+    border-color: var(--color-primario, #2A4A6B);
+  }
+
+  .paginationButton:disabled {
+    background-color: var(--color-fondo-app, #F8F9FA);
+    color: var(--color-texto-secundario, #6C757D);
+    border-color: var(--color-borde-general, #E9ECEF);
+    cursor: not-allowed;
+  }
+
+  .pageInfo {
+    font-family: var(--fuente-principal, 'Inter', sans-serif);
+    font-size: var(--font-size-sm, 14px);
+    color: var(--color-texto-principal, #343A40);
+    font-weight: 500;
+    padding: 8px 16px;
+    background-color: var(--color-fondo-app, #F8F9FA);
+    border: 1px solid var(--color-borde-general, #E9ECEF);
+    border-radius: var(--border-radius-md, 6px);
+    min-width: 120px;
+    text-align: center;
+  }
+
+  .paginationButton.activePage {
+    background-color: var(--color-primario, #2A4A6B);
+    color: var(--color-primario-texto, #FFFFFF);
+    border-color: var(--color-primario, #2A4A6B);
+  }
+  
+  .paginationButton.ellipsis {
+    background-color: transparent;
+    border: none;
+    cursor: default;
+    min-width: 20px;
+  }
+  
+  .paginationButton.ellipsis:hover {
+    background-color: transparent;
+    color: var(--color-texto-placeholders, #6C757D);
+    border: none;
   }

@@ -29,7 +29,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from .models import (
     Lote, Cliente, Asesor, Venta, ActividadDiaria,
     DefinicionMetaComision, TablaComisionDirecta, RegistroPago,
-    Presencia, PlanPagoVenta, CuotaPlanPago
+    Presencia, PlanPagoVenta, CuotaPlanPago, ComisionVentaAsesor
 )
 
 from rest_framework.views import APIView
@@ -41,7 +41,7 @@ from .serializers import (
     LoteSerializer, ClienteSerializer, AsesorSerializer, VentaSerializer, ActividadDiariaSerializer,
     RegistroPagoSerializer, PresenciaSerializer, TablaComisionDirectaSerializer,
     ClienteCreateSerializer,
-    PlanPagoVentaSerializer, CuotaPlanPagoSerializer
+    PlanPagoVentaSerializer, CuotaPlanPagoSerializer, ComisionVentaAsesorSerializer
 )
 from .filters import (
     LoteFilter, ClienteFilter, AsesorFilter, VentaFilter, ActividadDiariaFilter,
@@ -71,7 +71,7 @@ class LoginView(APIView):
         if user is not None:
             django_login(request, user)
             return Response({'success': True, 'user': {'id': user.id, 'username': user.username, 'email': user.email}})
-        return Response({'success': False, 'error': 'Credenciales inválidas.'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'success': False, 'error': 'Credenciales inválidas.'}, status=status.HTTP_401_UNAUTHORIZED)
 
 class LogoutView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -93,6 +93,16 @@ class LoteViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend]
     filterset_class = LoteFilter
     pagination_class = CustomPageNumberPagination
+
+    @action(detail=False, methods=['get'], url_path='ubicaciones_proyecto')
+    def ubicaciones_proyecto(self, request):
+        """
+        Devuelve la lista única de ubicaciones de proyecto (para el filtro de lotes).
+        """
+        ubicaciones = Lote.objects.values_list('ubicacion_proyecto', flat=True).distinct().order_by('ubicacion_proyecto')
+        return Response({
+            'ubicaciones_proyecto': list(ubicaciones)
+        })
 
 class ClienteViewSet(viewsets.ModelViewSet):
     queryset = Cliente.objects.all().order_by('nombres_completos_razon_social')
@@ -246,6 +256,49 @@ class AsesorViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_class = AsesorFilter
+    pagination_class = CustomPageNumberPagination
+
+    @action(detail=False, methods=['get'])
+    def search(self, request):
+        """
+        Búsqueda de asesores para autocompletado sin paginación.
+        Permite buscar por nombre, ID o tipo de asesor.
+        """
+        try:
+            search = request.query_params.get('search', '')
+            if not search or len(search) < 2:
+                return Response({'results': [], 'count': 0})
+            
+            # Buscar en nombre, ID y tipo de asesor
+            asesores = Asesor.objects.filter(
+                Q(nombre_asesor__icontains=search) |
+                Q(id_asesor__icontains=search) |
+                Q(tipo_asesor_actual__icontains=search)
+            ).order_by('nombre_asesor')
+            
+            # Limitar a 50 resultados para evitar sobrecarga
+            asesores = asesores[:50]
+            
+            # Serializar con formato para autocompletado
+            data = []
+            for asesor in asesores:
+                data.append({
+                    'id_asesor': asesor.id_asesor,
+                    'nombre_asesor': asesor.nombre_asesor,
+                    'tipo_asesor_actual': asesor.tipo_asesor_actual,
+                    'display_text': f"{asesor.nombre_asesor} ({asesor.id_asesor}) - {asesor.tipo_asesor_actual}"
+                })
+            
+            return Response({
+                'results': data,
+                'count': len(data)
+            })
+            
+        except Exception as e:
+            return Response(
+                {'error': f'Error en búsqueda de asesores: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class ActividadDiariaViewSet(viewsets.ModelViewSet):
     queryset = ActividadDiaria.objects.all().order_by('-fecha_actividad', 'asesor')
@@ -274,6 +327,7 @@ class VentaViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_class = VentaFilter
+    pagination_class = CustomPageNumberPagination
     
     def _crear_o_actualizar_plan_pago(self, venta_instance):
         # print(f"[VentaViewSet] Iniciando _crear_o_actualizar_plan_pago para Venta ID: {venta_instance.id_venta}") # DEBUG
@@ -439,6 +493,26 @@ class VentaViewSet(viewsets.ModelViewSet):
         
         self._crear_o_actualizar_plan_pago(venta_instance)
         
+        # --- GESTIÓN DE COMISIONES RELACIONALES ---
+        ComisionVentaAsesor.objects.filter(venta=venta_instance).delete()
+        comisiones_asesores = request.data.get('comisiones_asesores', [])
+        for c in comisiones_asesores:
+            if not c.get('asesor') or not c.get('rol') or c.get('porcentaje_comision') in [None, '']:
+                continue
+            try:
+                asesor_obj = Asesor.objects.get(pk=c['asesor'])
+            except Asesor.DoesNotExist:
+                continue
+            monto = venta_instance.valor_lote_venta * (Decimal(str(c['porcentaje_comision'])) / Decimal('100.00'))
+            ComisionVentaAsesor.objects.create(
+                venta=venta_instance,
+                asesor=asesor_obj,
+                rol=c['rol'],
+                porcentaje_comision=Decimal(str(c['porcentaje_comision'])),
+                monto_comision_calculado=monto,
+                notas=c.get('notas', '')
+            )
+        
         venta_instance.refresh_from_db() 
         response_serializer = self.get_serializer(venta_instance) 
         headers = self.get_success_headers(response_serializer.data)
@@ -467,6 +541,26 @@ class VentaViewSet(viewsets.ModelViewSet):
 
         self._crear_o_actualizar_plan_pago(venta_instance)
         
+        # --- GESTIÓN DE COMISIONES RELACIONALES ---
+        ComisionVentaAsesor.objects.filter(venta=venta_instance).delete()
+        comisiones_asesores = request.data.get('comisiones_asesores', [])
+        for c in comisiones_asesores:
+            if not c.get('asesor') or not c.get('rol') or c.get('porcentaje_comision') in [None, '']:
+                continue
+            try:
+                asesor_obj = Asesor.objects.get(pk=c['asesor'])
+            except Asesor.DoesNotExist:
+                continue
+            monto = venta_instance.valor_lote_venta * (Decimal(str(c['porcentaje_comision'])) / Decimal('100.00'))
+            ComisionVentaAsesor.objects.create(
+                venta=venta_instance,
+                asesor=asesor_obj,
+                rol=c['rol'],
+                porcentaje_comision=Decimal(str(c['porcentaje_comision'])),
+                monto_comision_calculado=monto,
+                notas=c.get('notas', '')
+            )
+        
         venta_instance.refresh_from_db()
         response_serializer = self.get_serializer(venta_instance)
         return Response(response_serializer.data)
@@ -478,6 +572,7 @@ class PresenciaViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_class = PresenciaFilter
+    pagination_class = CustomPageNumberPagination
     
     @transaction.atomic
     def create(self, request, *args, **kwargs):
@@ -585,21 +680,21 @@ class GetDashboardDataAPIView(APIView):
 
     def get(self, request, format=None):
         try:
-            # print(f"Dashboard Request Query Params: {request.query_params}") # DEBUG
+            # print(f"Dashboard Request Query Params: {request.GET}") # DEBUG
 
-            raw_start_date = request.query_params.get('startDate')
-            raw_end_date = request.query_params.get('endDate')
+            raw_start_date = request.GET.get('startDate')
+            raw_end_date = request.GET.get('endDate')
             parsed_start_date = parse_date(raw_start_date) if raw_start_date else None
             parsed_end_date = parse_date(raw_end_date) if raw_end_date else None
 
             filters = {
                 'startDate': parsed_start_date,
                 'endDate': parsed_end_date,
-                'asesorId': request.query_params.get('asesorId'),
-                'tipoVenta': request.query_params.get('tipoVenta'),
-                'tipoAsesor': request.query_params.get('tipoAsesor'), 
-                'medio_captacion': request.query_params.get('medio_captacion'),
-                'status_venta': request.query_params.get('status_venta'),
+                'asesorId': request.GET.get('asesorId'),
+                'tipoVenta': request.GET.get('tipoVenta'),
+                'tipoAsesor': request.GET.get('tipoAsesor'), 
+                'medio_captacion': request.GET.get('medio_captacion'),
+                'status_venta': request.GET.get('status_venta'),
             }
 
             if filters['endDate'] is not None:
@@ -610,18 +705,35 @@ class GetDashboardDataAPIView(APIView):
             presencias_filtradas = Presencia.objects.all()
             ventas_filtradas = Venta.objects.all()
 
-            # Aplicar filtros de fecha
+            # --- CORRECCIÓN: APLICAR FILTROS DE FECHA CORRECTAMENTE ---
+            # Para recaudos: usar fecha_pago (fecha_transaccion del CSV)
             if filters.get('startDate'):
                 pagos_filtrados = pagos_filtrados.filter(fecha_pago__gte=filters['startDate'])
-                presencias_filtradas = presencias_filtradas.filter(fecha_hora_presencia__date__gte=filters['startDate'])
-                ventas_filtradas = ventas_filtradas.filter(fecha_venta__gte=filters['startDate'])
             
             if filters.get('endDate'):
                 pagos_filtrados = pagos_filtrados.filter(fecha_pago__lte=filters['endDate'])
-                presencias_filtradas = presencias_filtradas.filter(fecha_hora_presencia__date__lte=filters['endDate'])
+            
+            # Para presencias: usar fecha_hora_presencia y considerar solo TOUR realizadas
+            if filters.get('startDate'):
+                presencias_filtradas = presencias_filtradas.filter(
+                    fecha_hora_presencia__date__gte=filters['startDate'],
+                    tipo_tour='tour',  # Solo presencias TOUR
+                    status_presencia='realizada'  # Solo realizadas
+                )
+            
+            if filters.get('endDate'):
+                presencias_filtradas = presencias_filtradas.filter(
+                    fecha_hora_presencia__date__lte=filters['endDate']
+                )
+            
+            # Para ventas: usar fecha_venta pero considerar la relación con presencias
+            if filters.get('startDate'):
+                ventas_filtradas = ventas_filtradas.filter(fecha_venta__gte=filters['startDate'])
+            
+            if filters.get('endDate'):
                 ventas_filtradas = ventas_filtradas.filter(fecha_venta__lte=filters['endDate'])
             
-            # --- INICIO: APLICAR OTROS FILTROS A LOS QUERYSETS PRINCIPALES ---
+            # --- APLICAR OTROS FILTROS A LOS QUERYSETS PRINCIPALES ---
             if filters.get('asesorId'):
                 ventas_filtradas = ventas_filtradas.filter(vendedor_principal_id=filters['asesorId'])
                 presencias_filtradas = presencias_filtradas.filter(
@@ -644,26 +756,37 @@ class GetDashboardDataAPIView(APIView):
             if filters.get('status_venta'):
                 ventas_filtradas = ventas_filtradas.filter(status_venta=filters['status_venta'])
                 pagos_filtrados = pagos_filtrados.filter(venta__status_venta=filters['status_venta'])
-            # --- FIN: APLICAR OTROS FILTROS ---
 
-            # --- KPIs ---
+            # --- KPIs CORREGIDOS ---
+            # MONTO TOTAL RECAUDADO: suma de todos los recaudos según fecha_pago
             kpi_monto_total_recaudo = pagos_filtrados.aggregate(
                 total=Coalesce(Sum('monto_pago', output_field=DecimalField()), Value(Decimal('0.0')), output_field=DecimalField())
             )['total']
             
-            kpi_n_presencias_realizadas = presencias_filtradas.filter(status_presencia=Presencia.STATUS_PRESENCIA_REALIZADA).count()
+            # NRO PRESENCIAS REALIZADAS: cantidad de presencias "TOUR" realizadas
+            kpi_n_presencias_realizadas = presencias_filtradas.count()
             
-            # Ventas para tasa de conversión: solo las que son "Procesable" o "Completada"
+            # VENTAS PARA TASA DE CONVERSIÓN: solo las que son "Procesable", "Anulado" y "Separación"
             kpi_n_ventas_para_conversion = ventas_filtradas.filter(
-                status_venta__in=[Venta.STATUS_VENTA_PROCESABLE, Venta.STATUS_VENTA_COMPLETADA]
+                status_venta__in=[Venta.STATUS_VENTA_PROCESABLE, Venta.STATUS_VENTA_ANULADO, Venta.STATUS_VENTA_SEPARACION]
             ).count()
             
+            # TASA CONVERSIÓN VENTAS: división entre ventas y presencias TOUR realizadas
             kpi_tasa_conversion = (kpi_n_ventas_para_conversion / kpi_n_presencias_realizadas * 100) if kpi_n_presencias_realizadas > 0 else Decimal('0.0')
             
+            # VENTAS PROCESABLES: cantidad de ventas en status "PROCESABLE"
             kpi_n_ventas_solo_procesables = ventas_filtradas.filter(status_venta=Venta.STATUS_VENTA_PROCESABLE).count()
 
-            kpi_lotes_disponibles = Lote.objects.filter(estado_lote='Disponible').count() # Global
-            kpi_lotes_vendidos = Lote.objects.filter(estado_lote='Vendido').count() # Global
+            # LOTES DISPONIBLES Y VENDIDOS (global, no filtrado)
+            kpi_lotes_disponibles = Lote.objects.filter(estado_lote='Disponible').count()
+            kpi_lotes_vendidos = Lote.objects.filter(estado_lote='Vendido').count()
+
+            # Debug: Imprimir información sobre los filtros aplicados
+            print(f"[Dashboard Debug] Filtros aplicados: {filters}")
+            print(f"[Dashboard Debug] Ventas filtradas: {ventas_filtradas.count()}")
+            print(f"[Dashboard Debug] Presencias TOUR realizadas filtradas: {kpi_n_presencias_realizadas}")
+            print(f"[Dashboard Debug] Pagos filtrados: {pagos_filtrados.count()}")
+            print(f"[Dashboard Debug] KPIs - Recaudo: {kpi_monto_total_recaudo}, Presencias TOUR: {kpi_n_presencias_realizadas}, Ventas: {kpi_n_ventas_para_conversion}")
 
             tarjetas_data = {
                 "montoTotalRecaudo": kpi_monto_total_recaudo,
@@ -673,12 +796,14 @@ class GetDashboardDataAPIView(APIView):
                 "lotesDisponibles": kpi_lotes_disponibles,
                 "lotesVendidos": kpi_lotes_vendidos,
             }
-            # print(f"KPIs calculados: {tarjetas_data}") # DEBUG
 
-            # --- Gráficos ---
-            # 1. Histórico Ventas vs Presencias (SIN FILTROS de dashboard)
-            ventas_historico_q = Venta.objects.annotate(mes=TruncMonth('fecha_venta')).values('mes').annotate(cantidad=Count('id_venta')).order_by('mes')
-            presencias_historico_q = Presencia.objects.annotate(mes=TruncMonth('fecha_hora_presencia__date')).values('mes').annotate(cantidad=Count('id_presencia')).order_by('mes')
+            # --- Gráficos CORREGIDOS ---
+            # 1. Histórico Ventas vs Presencias (CORREGIDO)
+            # Para ventas: usar fecha_venta
+            ventas_historico_q = ventas_filtradas.annotate(mes=TruncMonth('fecha_venta')).values('mes').annotate(cantidad=Count('id_venta')).order_by('mes')
+            
+            # Para presencias: usar fecha_hora_presencia y considerar solo TOUR realizadas
+            presencias_historico_q = presencias_filtradas.annotate(mes=TruncMonth('fecha_hora_presencia__date')).values('mes').annotate(cantidad=Count('id_presencia')).order_by('mes')
             
             historico_combinado = {}
             for v_hist in ventas_historico_q:
@@ -700,10 +825,15 @@ class GetDashboardDataAPIView(APIView):
                 grafico_estado_ventas.append([display_name, item_estado['cantidad']])
             if len(grafico_estado_ventas) == 1: grafico_estado_ventas.append(['Sin datos', 0])
 
-            # 3. Embudo de Ventas - USA presencias_filtradas y ventas_filtradas
-            embudo_nivel1_total_presencias = presencias_filtradas.count()
-            embudo_nivel2_presencias_realizadas = presencias_filtradas.filter(status_presencia='realizada').count()
-            embudo_nivel3_ventas_procesables = ventas_filtradas.filter(status_venta='procesable').count()
+            # 3. Embudo de Ventas - CORREGIDO para usar presencias TOUR realizadas
+            # Nivel 1: Total de presencias TOUR realizadas (ya filtradas)
+            embudo_nivel1_total_presencias = kpi_n_presencias_realizadas
+            
+            # Nivel 2: Presencias TOUR realizadas (mismo valor que nivel 1)
+            embudo_nivel2_presencias_realizadas = kpi_n_presencias_realizadas
+            
+            # Nivel 3: Ventas procesables
+            embudo_nivel3_ventas_procesables = kpi_n_ventas_solo_procesables
 
             grafico_embudo_ventas = [['Etapa', 'Cantidad', {'role': 'tooltip', 'type': 'string', 'p': {'html': True}}]]
             if embudo_nivel1_total_presencias >= 0: 
@@ -712,11 +842,10 @@ class GetDashboardDataAPIView(APIView):
                 perc_ventas_procesables_sobre_realizadas = (embudo_nivel3_ventas_procesables / embudo_nivel2_presencias_realizadas * 100) if embudo_nivel2_presencias_realizadas > 0 else 0
                 
                 grafico_embudo_ventas.extend([
-                    ['Presencias Totales', embudo_nivel1_total_presencias, f"Presencias Totales: {embudo_nivel1_total_presencias} (100%)"],
-                    ['Presencias Realizadas', embudo_nivel2_presencias_realizadas, f"Presencias Realizadas: {embudo_nivel2_presencias_realizadas} ({perc_realizadas:.1f}% de Totales)"],
+                    ['Presencias TOUR Realizadas', embudo_nivel1_total_presencias, f"Presencias TOUR Realizadas: {embudo_nivel1_total_presencias} (100%)"],
+                    ['Presencias TOUR Realizadas', embudo_nivel2_presencias_realizadas, f"Presencias TOUR Realizadas: {embudo_nivel2_presencias_realizadas} ({perc_realizadas:.1f}% de Totales)"],
                     ['Ventas Procesables', embudo_nivel3_ventas_procesables, f"Ventas Procesables: {embudo_nivel3_ventas_procesables} ({perc_ventas_procesables_sobre_realizadas:.1f}% de Realizadas, {perc_ventas_procesables_sobre_total_pres:.1f}% de Totales)"]
                 ])
-            # No añadir explícitamente "Sin datos" para el embudo si los niveles son 0.
 
             # 4. Disponibilidad de Lotes por Proyecto (Tabla Detallada) - NO FILTRADO por dashboard filters
             proyectos_definidos = ["OASIS 1 (HUACHO 1)", "OASIS 2 (AUCALLAMA)", "OASIS 3 (HUACHO 2)"]
@@ -789,7 +918,7 @@ class GetDashboardDataAPIView(APIView):
                 display_name_medio = medio_display_map.get(medio_clave, medio_clave if medio_clave else "Desconocido")
                 grafico_recaudo_medio_captacion.append([display_name_medio, float(item_medio['total_recaudado'])])
             if len(grafico_recaudo_medio_captacion) == 1: grafico_recaudo_medio_captacion.append(['Sin datos', 0.0])
-            # --- FIN LÓGICA DE GRÁFICOS ---
+            # --- FIN LÓGICA DE GRÁFICOS CORREGIDA ---
             
             response_data = {
                 "success": True, 
@@ -799,7 +928,7 @@ class GetDashboardDataAPIView(APIView):
                     "historicoVentasPresencias": grafico_historico_ventas_presencias,
                     "estadoVentas": grafico_estado_ventas,
                     "embudoVentas": grafico_embudo_ventas,
-                    "tablaDisponibilidadLotes": tabla_disponibilidad_lotes_data, # Cambio de clave
+                    "tablaDisponibilidadLotes": tabla_disponibilidad_lotes_data,
                     "rankingAsesores": grafico_ranking_asesores,
                     "recaudoPorMedioCaptacion": grafico_recaudo_medio_captacion,
                 }
@@ -825,7 +954,7 @@ class GetDashboardDataAPIView(APIView):
                     "historicoVentasPresencias": fallback_grafico_historico,
                     "estadoVentas": fallback_grafico_simple,
                     "embudoVentas": fallback_grafico_embudo,
-                    "tablaDisponibilidadLotes": fallback_tabla_disponibilidad, # Cambio de clave
+                    "tablaDisponibilidadLotes": fallback_tabla_disponibilidad,
                     "rankingAsesores": fallback_grafico_ranking,
                     "recaudoPorMedioCaptacion": fallback_grafico_simple,
                 }
@@ -834,136 +963,53 @@ class GetDashboardDataAPIView(APIView):
 
 class GetCommissionSummaryDataAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
-    def _get_mes_en_rol(self, asesor, fecha_calculo):
-        if not asesor.fecha_ingreso: return 0
-        fecha_inicio_rol = asesor.fecha_ingreso
-        if asesor.tipo_asesor_actual == 'Socio' and asesor.fecha_cambio_socio:
-            fecha_inicio_rol = asesor.fecha_cambio_socio
-        if isinstance(fecha_calculo, datetime): fecha_calculo_date = fecha_calculo.date()
-        else: fecha_calculo_date = fecha_calculo
-        diff = relativedelta(fecha_calculo_date, fecha_inicio_rol)
-        meses_en_rol = diff.years * 12 + diff.months + 1
-        return meses_en_rol if meses_en_rol > 0 else 1
-
     def get(self, request, format=None):
         try:
             asesor_id_filter = request.query_params.get('asesor_id')
             mes_filter_str = request.query_params.get('mes'); anio_filter_str = request.query_params.get('anio')
-            if not mes_filter_str or not anio_filter_str: return Response({"success": False, "message": "Los parámetros 'mes' y 'anio' son requeridos."}, status=status.HTTP_400_BAD_REQUEST)
+            if not mes_filter_str or not anio_filter_str:
+                return Response({"success": False, "message": "Los parámetros 'mes' y 'anio' son requeridos."}, status=status.HTTP_400_BAD_REQUEST)
             try:
                 mes = int(mes_filter_str); anio = int(anio_filter_str)
                 fecha_inicio_periodo = date(anio, mes, 1)
                 next_month = mes + 1 if mes < 12 else 1; next_year = anio if mes < 12 else anio + 1
                 fecha_fin_periodo = date(next_year, next_month, 1) - timedelta(days=1)
-            except ValueError: return Response({"success": False, "message": "Formato de 'mes' o 'anio' inválido."}, status=status.HTTP_400_BAD_REQUEST)
+            except ValueError:
+                return Response({"success": False, "message": "Formato de 'mes' o 'anio' inválido."}, status=status.HTTP_400_BAD_REQUEST)
 
-            asesores_a_procesar = Asesor.objects.all()
-            if asesor_id_filter: asesores_a_procesar = asesores_a_procesar.filter(id_asesor=asesor_id_filter)
-            if not asesores_a_procesar.exists(): return Response({"success": True, "summary": [], "message": "No se encontraron asesores con los filtros aplicados."})
+            from .models import ComisionVentaAsesor, Venta
+            comisiones_qs = ComisionVentaAsesor.objects.filter(
+                venta__fecha_venta__gte=fecha_inicio_periodo,
+                venta__fecha_venta__lte=fecha_fin_periodo,
+                venta__status_venta=Venta.STATUS_VENTA_PROCESABLE
+            )
+            if asesor_id_filter:
+                comisiones_qs = comisiones_qs.filter(asesor__id_asesor=asesor_id_filter)
 
-            summary_list = []
-            for asesor in asesores_a_procesar:
-                asesor_summary = {"asesor_id": asesor.id_asesor, "nombre_asesor": asesor.nombre_asesor, "tipo_asesor": asesor.tipo_asesor_actual, "periodo": fecha_inicio_periodo.strftime("%B %Y"), "metas": {},"comisiones": {"comision_directa_total_soles": Decimal('0.00'), "comision_residual_total_soles": Decimal('0.00'), "comision_total_calculada_soles": Decimal('0.00'), "detalle_comisiones_ventas": []}}
-                mes_en_rol_actual = self._get_mes_en_rol(asesor, fecha_fin_periodo)
-                definicion_meta = DefinicionMetaComision.objects.filter(tipo_asesor=asesor.tipo_asesor_actual, mes_en_rol=mes_en_rol_actual).first()
-                if not definicion_meta: asesor_summary["metas"]["aviso"] = f"No se encontró definición de metas para {asesor.tipo_asesor_actual} en el mes {mes_en_rol_actual} de rol."
-                else:
-                    actividades_periodo = ActividadDiaria.objects.filter(asesor=asesor, fecha_actividad__gte=fecha_inicio_periodo, fecha_actividad__lte=fecha_fin_periodo)
-                    ventas_directas_del_periodo = Venta.objects.filter(vendedor_principal=asesor, fecha_venta__gte=fecha_inicio_periodo, fecha_venta__lte=fecha_fin_periodo)
-                    logrado_opc = actividades_periodo.aggregate(total=Coalesce(Sum('datos_captados_opc'), Value(0)))['total']
-                    logrado_presencias = actividades_periodo.aggregate(total=Coalesce(Sum('presencias_generadas'), Value(0)))['total']
-                    logrado_ventas_directas_num = ventas_directas_del_periodo.count()
-                    asesor_summary["metas"]["datos_opc"] = {"meta": definicion_meta.meta_datos_opc, "logrado": logrado_opc, "porcentaje": round((logrado_opc / definicion_meta.meta_datos_opc * 100) if definicion_meta.meta_datos_opc > 0 else 0, 2)}
-                    asesor_summary["metas"]["presencias"] = {"meta": definicion_meta.meta_presencias, "logrado": logrado_presencias, "porcentaje": round((logrado_presencias / definicion_meta.meta_presencias * 100) if definicion_meta.meta_presencias > 0 else 0, 2)}
-                    asesor_summary["metas"]["ventas_directas_numero"] = {"meta": definicion_meta.meta_ventas_directas, "logrado": logrado_ventas_directas_num, "porcentaje": round((logrado_ventas_directas_num / definicion_meta.meta_ventas_directas * 100) if definicion_meta.meta_ventas_directas > 0 else 0, 2)}
+            resumen = {}
+            for com in comisiones_qs.select_related('asesor', 'venta'):
+                aid = com.asesor.id_asesor
+                if aid not in resumen:
+                    resumen[aid] = {
+                        "asesor_id": aid,
+                        "nombre_asesor": com.asesor.nombre_asesor,
+                        "tipo_asesor": com.asesor.tipo_asesor_actual,
+                        "periodo": fecha_inicio_periodo.strftime("%B %Y"),
+                        "comision_total": Decimal('0.00'),
+                        "detalle": []
+                    }
+                resumen[aid]["comision_total"] += com.monto_comision_calculado or Decimal('0.00')
+                resumen[aid]["detalle"].append({
+                    "venta_id": com.venta.id_venta,
+                    "fecha_venta": com.venta.fecha_venta,
+                    "rol": com.rol,
+                    "porcentaje": com.porcentaje_comision,
+                    "monto": com.monto_comision_calculado,
+                    "notas": com.notas,
+                })
 
-                ventas_comisionables_directas = Venta.objects.filter(vendedor_principal=asesor, fecha_venta__gte=fecha_inicio_periodo, fecha_venta__lte=fecha_fin_periodo, status_venta=Venta.STATUS_VENTA_PROCESABLE)
-                for venta in ventas_comisionables_directas:
-                    comision_venta_actual = Decimal('0.00')
-                    porcentaje_aplicado_str = "Tabla"
-
-                    if venta.porcentaje_comision_vendedor_principal_personalizado is not None:
-                        comision_venta_actual = venta.valor_lote_venta * (venta.porcentaje_comision_vendedor_principal_personalizado / Decimal('100.00'))
-                        porcentaje_aplicado_str = f"{venta.porcentaje_comision_vendedor_principal_personalizado}% (Pers.)"
-                    else:
-                        rol_busqueda = None; participacion_busqueda = 'N/A'
-                        if asesor.tipo_asesor_actual == 'Junior':
-                            rol_busqueda = TablaComisionDirecta.ROL_ASESOR_EN_VENTA_JUNIOR_VP
-                            participacion_busqueda = venta.participacion_junior_venta if venta.participacion_junior_venta else 'N/A'
-                        elif asesor.tipo_asesor_actual == 'Socio':
-                            rol_busqueda = TablaComisionDirecta.ROL_ASESOR_EN_VENTA_SOCIO_VP
-                            participacion_busqueda = 'N/A'
-
-                        if rol_busqueda:
-                            tabla_comision_regla = TablaComisionDirecta.objects.filter(
-                                rol_asesor_en_venta=rol_busqueda,
-                                tipo_venta=venta.tipo_venta,
-                                participacion_en_venta_aplicable=participacion_busqueda
-                            ).first()
-                            if tabla_comision_regla:
-                                comision_venta_actual = venta.valor_lote_venta * tabla_comision_regla.porcentaje_comision
-                                porcentaje_aplicado_str = f"{tabla_comision_regla.porcentaje_comision*100:.2f}% (Tabla)"
-
-                    asesor_summary["comisiones"]["comision_directa_total_soles"] += comision_venta_actual
-                    asesor_summary["comisiones"]["detalle_comisiones_ventas"].append({
-                        "venta_id": venta.id_venta,
-                        "fecha_venta": venta.fecha_venta.strftime("%Y-%m-%d"),
-                        "lote_id": venta.lote.id_lote,
-                        "valor_venta_soles": venta.valor_lote_venta,
-                        "tipo_venta": venta.get_tipo_venta_display(),
-                        "comision_calculada_soles": comision_venta_actual,
-                        "porcentaje_aplicado": porcentaje_aplicado_str,
-                        "nota_comision": "Comisión Vendedor Principal"
-                    })
-
-                if asesor.tipo_asesor_actual == 'Socio':
-                    ventas_donde_socio_participa = Venta.objects.filter(
-                        id_socio_participante=asesor,
-                        fecha_venta__gte=fecha_inicio_periodo,
-                        fecha_venta__lte=fecha_fin_periodo,
-                        status_venta=Venta.STATUS_VENTA_PROCESABLE
-                    ).exclude(vendedor_principal=asesor)
-
-                    for venta_participada in ventas_donde_socio_participa:
-                        comision_participacion = Decimal('0.00')
-                        porcentaje_aplicado_str_socio = "Tabla"
-
-                        if venta_participada.porcentaje_comision_socio_personalizado is not None:
-                            comision_participacion = venta_participada.valor_lote_venta * (venta_participada.porcentaje_comision_socio_personalizado / Decimal('100.00'))
-                            porcentaje_aplicado_str_socio = f"{venta_participada.porcentaje_comision_socio_personalizado}% (Pers.)"
-                        else:
-                            participacion_socio_en_venta = venta_participada.participacion_socio_venta if venta_participada.participacion_socio_venta else 'N/A'
-                            regla_participacion = TablaComisionDirecta.objects.filter(
-                                rol_asesor_en_venta=TablaComisionDirecta.ROL_ASESOR_EN_VENTA_SOCIO_PARTICIPANTE,
-                                tipo_venta=venta_participada.tipo_venta,
-                                participacion_en_venta_aplicable=participacion_socio_en_venta
-                            ).first()
-                            if regla_participacion:
-                                comision_participacion = venta_participada.valor_lote_venta * regla_participacion.porcentaje_comision
-                                porcentaje_aplicado_str_socio = f"{regla_participacion.porcentaje_comision*100:.2f}% (Tabla)"
-
-                        asesor_summary["comisiones"]["comision_directa_total_soles"] += comision_participacion
-                        asesor_summary["comisiones"]["detalle_comisiones_ventas"].append({
-                            "venta_id": venta_participada.id_venta,
-                            "fecha_venta": venta_participada.fecha_venta.strftime("%Y-%m-%d"),
-                            "lote_id": venta_participada.lote.id_lote,
-                            "valor_venta_soles": venta_participada.valor_lote_venta,
-                            "tipo_venta": venta_participada.get_tipo_venta_display(),
-                            "comision_calculada_soles": comision_participacion,
-                            "porcentaje_aplicado": porcentaje_aplicado_str_socio,
-                            "nota_comision": "Por participación como socio"
-                        })
-
-                if asesor.tipo_asesor_actual == 'Socio' and definicion_meta and definicion_meta.comision_residual_venta_equipo_porc > 0:
-                    ventas_equipo_procesables = Venta.objects.filter(vendedor_principal__id_referidor=asesor, fecha_venta__gte=fecha_inicio_periodo, fecha_venta__lte=fecha_fin_periodo, status_venta=Venta.STATUS_VENTA_PROCESABLE)
-                    monto_ventas_equipo = ventas_equipo_procesables.aggregate(total=Coalesce(Sum('valor_lote_venta', output_field=DecimalField()), Value(Decimal('0.00')), output_field=DecimalField()))['total']
-                    asesor_summary["comisiones"]["comision_residual_total_soles"] = monto_ventas_equipo * definicion_meta.comision_residual_venta_equipo_porc
-
-                asesor_summary["comisiones"]["comision_total_calculada_soles"] = asesor_summary["comisiones"]["comision_directa_total_soles"] + asesor_summary["comisiones"]["comision_residual_total_soles"]
-                summary_list.append(asesor_summary)
-            return Response({"success": True, "summary": summary_list})
+            return Response({"success": True, "summary": list(resumen.values())})
         except Exception as e:
-            # print(f"Error en GetCommissionSummaryDataAPIView: {str(e)}"); import traceback; traceback.print_exc() # DEBUG
             return Response({"success": False, "message": f"Error al procesar el resumen de comisiones: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class GetDefaultCommissionRateAPIView(APIView):

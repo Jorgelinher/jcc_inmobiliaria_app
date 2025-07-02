@@ -6,7 +6,7 @@ from .models import (
     Lote, Cliente, Asesor, Venta, ActividadDiaria, 
     DefinicionMetaComision, TablaComisionDirecta, ConfigGeneral, LogAuditoriaCambio,
     RegistroPago, Presencia,
-    PlanPagoVenta, CuotaPlanPago
+    PlanPagoVenta, CuotaPlanPago, ComisionVentaAsesor
 )
 
 @admin.register(Lote)
@@ -299,3 +299,9 @@ class PresenciaAdmin(admin.ModelAdmin):
             link = reverse("admin:gestion_inmobiliaria_venta_change", args=[obj.venta_asociada.pk])
             return format_html('<a href="{}">{}</a>', link, obj.venta_asociada.id_venta)
         return "-"
+
+@admin.register(ComisionVentaAsesor)
+class ComisionVentaAsesorAdmin(admin.ModelAdmin):
+    list_display = ('venta', 'asesor', 'rol', 'porcentaje_comision', 'monto_comision_calculado')
+    search_fields = ('venta__id_venta', 'asesor__nombre_asesor', 'rol')
+    list_filter = ('rol',)

@@ -127,8 +127,10 @@
 .marginBottom { margin-bottom: var(--spacing-md, 16px); }
 
 .tableResponsiveContainer {
+  position: relative;
   width: 100%;
   overflow-x: auto;
+  margin-bottom: 32px; /* Espaciado igual que en LotesPage */
   background-color: var(--color-fondo-contenedor, #FFFFFF); 
   border-radius: var(--border-radius-lg, 8px);
   box-shadow: var(--sombra-media, 0 4px 12px rgba(0,0,0,0.08));
@@ -362,4 +364,130 @@
 /* Solo mostrar el indicador cuando hay scroll */
 .tableResponsiveContainer:not([data-scrollable="false"])::after {
   opacity: 1;
+}
+
+/* --- Estilos de Paginación --- */
+.paginationContainer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md, 16px);
+  margin-top: var(--spacing-lg, 24px);
+  padding: var(--spacing-md, 16px);
+  background-color: var(--color-fondo-contenedor, #FFFFFF);
+  border: 1px solid var(--color-borde-general, #E9ECEF);
+  border-radius: var(--border-radius-lg, 8px);
+  box-shadow: var(--sombra-ligera);
+}
+
+.paginationInfo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: var(--spacing-md, 16px) 0;
+  padding: var(--spacing-sm, 12px) var(--spacing-md, 16px);
+  background-color: var(--color-fondo-contenedor, #FFFFFF);
+  border: 1px solid var(--color-borde-general, #E9ECEF);
+  border-radius: var(--border-radius-md, 6px);
+  font-family: var(--fuente-principal, 'Inter', sans-serif);
+  font-size: var(--font-size-sm, 14px);
+  color: var(--color-texto-secundario, #6C757D);
+}
+
+.pageSizeSelector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm, 8px);
+}
+
+.pageSizeSelector label {
+  font-family: var(--fuente-principal, 'Inter', sans-serif);
+  font-size: var(--font-size-sm, 14px);
+  color: var(--color-texto-principal, #343A40);
+  font-weight: 500;
+}
+
+.pageSizeSelect {
+  font-family: var(--fuente-principal, 'Inter', sans-serif);
+  font-size: var(--font-size-sm, 14px);
+  color: var(--color-texto-principal, #343A40);
+  background-color: var(--color-fondo-input, #FFFFFF);
+  border: 1px solid var(--color-borde-input, #CED4DA);
+  border-radius: var(--border-radius-md, 6px);
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pageSizeSelect:focus {
+  border-color: var(--color-borde-input-focus, #2A4A6B);
+  box-shadow: 0 0 0 0.2rem rgba(42, 74, 107, 0.25);
+  outline: none;
+}
+
+.paginationControls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm, 8px);
+  flex-wrap: wrap;
+}
+
+.paginationButton {
+  font-family: var(--fuente-principal, 'Inter', sans-serif);
+  font-size: var(--font-size-sm, 14px);
+  font-weight: 500;
+  padding: 8px 16px;
+  background-color: var(--color-fondo-input, #FFFFFF);
+  color: var(--color-texto-principal, #343A40);
+  border: 1px solid var(--color-borde-input, #CED4DA);
+  border-radius: var(--border-radius-md, 6px);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 80px;
+}
+
+.paginationButton:hover:not(:disabled) {
+  background-color: var(--color-primario, #2A4A6B);
+  color: var(--color-primario-texto, #FFFFFF);
+  border-color: var(--color-primario, #2A4A6B);
+}
+
+.paginationButton:disabled {
+  background-color: var(--color-fondo-app, #F8F9FA);
+  color: var(--color-texto-secundario, #6C757D);
+  border-color: var(--color-borde-general, #E9ECEF);
+  cursor: not-allowed;
+}
+
+.pageInfo {
+  font-family: var(--fuente-principal, 'Inter', sans-serif);
+  font-size: var(--font-size-sm, 14px);
+  color: var(--color-texto-principal, #343A40);
+  font-weight: 500;
+  padding: 8px 16px;
+  background-color: var(--color-fondo-app, #F8F9FA);
+  border: 1px solid var(--color-borde-general, #E9ECEF);
+  border-radius: var(--border-radius-md, 6px);
+  min-width: 120px;
+  text-align: center;
+}
+
+.paginationButton.activePage {
+  background-color: var(--color-primario, #2A4A6B);
+  color: var(--color-primario-texto, #FFFFFF);
+  border-color: var(--color-primario, #2A4A6B);
+}
+
+.paginationButton.ellipsis {
+  background-color: transparent;
+  border: none;
+  cursor: default;
+  min-width: 20px;
+}
+
+.paginationButton.ellipsis:hover {
+  background-color: transparent;
+  color: var(--color-texto-placeholders, #6C757D);
+  border: none;
 }

@@ -7,6 +7,7 @@ import VentaForm from './VentaForm';
 import ClienteForm from './ClienteForm';
 import LoteSelector from '../ui/LoteSelector';
 import ClienteSearch from '../ui/ClienteSearch';
+import AsesorAutocomplete from '../ui/AsesorAutocomplete';
 
 const MEDIO_CAPTACION_CHOICES = [
     { value: 'campo_opc', label: 'Campo OPC' }, { value: 'redes_facebook', label: 'Redes Facebook' },
@@ -400,33 +401,41 @@ function PresenciaForm({ show, onClose, onSubmit, initialData }) {
                                 </div>
                                 <div className={formBaseStyles.formGroup}>
                                     <label htmlFor="asesor_captacion_opc">Asesor Captación (OPC/Redes)</label>
-                                    <select id="asesor_captacion_opc" name="asesor_captacion_opc" value={formData.asesor_captacion_opc} onChange={handleChange}>
-                                        <option value="">Seleccione Asesor</option>
-                                        {asesoresList.map(a => (<option key={a.id_asesor} value={a.id_asesor}>{a.nombre_asesor}</option>))}
-                                    </select>
+                                    <AsesorAutocomplete
+                                        value={formData.asesor_captacion_opc}
+                                        onChange={(value) => setFormData(prev => ({ ...prev, asesor_captacion_opc: value }))}
+                                        placeholder="Buscar asesor captación..."
+                                        name="asesor_captacion_opc"
+                                    />
                                 </div>
                             </div>
                             <div className={formBaseStyles.formRow}>
                                 <div className={formBaseStyles.formGroup}>
                                     <label htmlFor="asesor_call_agenda">Asesor Call (Agendó)</label>
-                                    <select id="asesor_call_agenda" name="asesor_call_agenda" value={formData.asesor_call_agenda} onChange={handleChange}>
-                                        <option value="">Seleccione Asesor</option>
-                                        {asesoresList.map(a => (<option key={a.id_asesor} value={a.id_asesor}>{a.nombre_asesor}</option>))}
-                                    </select>
+                                    <AsesorAutocomplete
+                                        value={formData.asesor_call_agenda}
+                                        onChange={(value) => setFormData(prev => ({ ...prev, asesor_call_agenda: value }))}
+                                        placeholder="Buscar asesor call..."
+                                        name="asesor_call_agenda"
+                                    />
                                 </div>
                                 <div className={formBaseStyles.formGroup}>
                                     <label htmlFor="asesor_liner">Asesor Liner (Presentación)</label>
-                                    <select id="asesor_liner" name="asesor_liner" value={formData.asesor_liner} onChange={handleChange}>
-                                        <option value="">Seleccione Asesor</option>
-                                        {asesoresList.map(a => (<option key={a.id_asesor} value={a.id_asesor}>{a.nombre_asesor}</option>))}
-                                    </select>
+                                    <AsesorAutocomplete
+                                        value={formData.asesor_liner}
+                                        onChange={(value) => setFormData(prev => ({ ...prev, asesor_liner: value }))}
+                                        placeholder="Buscar asesor liner..."
+                                        name="asesor_liner"
+                                    />
                                 </div>
                                 <div className={formBaseStyles.formGroup}>
                                     <label htmlFor="asesor_closer">Asesor Closer (Cierre)</label>
-                                    <select id="asesor_closer" name="asesor_closer" value={formData.asesor_closer} onChange={handleChange}>
-                                        <option value="">Seleccione Asesor</option>
-                                        {asesoresList.map(a => (<option key={a.id_asesor} value={a.id_asesor}>{a.nombre_asesor}</option>))}
-                                    </select>
+                                    <AsesorAutocomplete
+                                        value={formData.asesor_closer}
+                                        onChange={(value) => setFormData(prev => ({ ...prev, asesor_closer: value }))}
+                                        placeholder="Buscar asesor closer..."
+                                        name="asesor_closer"
+                                    />
                                 </div>
                             </div>
 
@@ -515,8 +524,13 @@ function PresenciaForm({ show, onClose, onSubmit, initialData }) {
                     initialData={{ 
                         lote: formData.lote_interes_inicial,
                         lote_info: formData.lote_interes_display_text, // Pasar el display text
-                        vendedor_principal: formData.asesor_closer || formData.asesor_liner || formData.asesor_call_agenda || formData.asesor_captacion_opc || '',
-                    }} 
+                    }}
+                    asesoresInvolucradosPresencia={[
+                        formData.asesor_captacion_opc ? { asesor: formData.asesor_captacion_opc, rol: 'captacion_opc' } : null,
+                        formData.asesor_call_agenda ? { asesor: formData.asesor_call_agenda, rol: 'call' } : null,
+                        formData.asesor_liner ? { asesor: formData.asesor_liner, rol: 'liner' } : null,
+                        formData.asesor_closer ? { asesor: formData.asesor_closer, rol: 'closer' } : null,
+                    ].filter(Boolean)}
                 />
             )}
 

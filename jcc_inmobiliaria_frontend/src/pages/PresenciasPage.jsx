@@ -37,6 +37,12 @@ function PresenciasPage() {
     const [editingPresencia, setEditingPresencia] = useState(null);
     const navigate = useNavigate();
 
+    // Estados de paginación
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(20);
+    const [totalCount, setTotalCount] = useState(0);
+    const [totalPages, setTotalPages] = useState(0);
+
     const [filters, setFilters] = useState({
         fecha_presencia_after: '',
         fecha_presencia_before: '',
@@ -49,19 +55,33 @@ function PresenciasPage() {
         tipo_tour: '',
     });
 
-    const fetchPresencias = useCallback(async (currentFilters) => {
+    const fetchPresencias = useCallback(async (currentFilters, page = 1, size = pageSize) => {
         setLoading(true);
         setError(null);
-        console.log("[PresenciasPage] Fetching presencias con filtros:", currentFilters);
+        console.log("[PresenciasPage] Fetching presencias con filtros:", currentFilters, "página:", page, "tamaño:", size);
         try {
             const activeFilters = Object.entries(currentFilters)
                 .filter(([_, value]) => value !== '' && value !== null)
                 .reduce((obj, [key, value]) => { obj[key] = value; return obj; }, {});
             
+            // Agregar parámetros de paginación
+            activeFilters.page = page;
+            activeFilters.page_size = size;
+            
             const queryParams = new URLSearchParams(activeFilters).toString();
             const response = await apiService.getPresencias(queryParams);
             console.log("[PresenciasPage] API response getPresencias:", response);
-            setPresencias(response.data.results || response.data || []);
+            
+            // Manejar respuesta paginada
+            if (response.data.results) {
+                setPresencias(response.data.results);
+                setTotalCount(response.data.count || 0);
+                setTotalPages(Math.ceil((response.data.count || 0) / size));
+            } else {
+                setPresencias(response.data || []);
+                setTotalCount(response.data?.length || 0);
+                setTotalPages(1);
+            }
         } catch (err) {
             console.error("[PresenciasPage] Error al cargar las presencias:", err.response?.data || err.message || err);
             let errorMessage = "Error al cargar las presencias.";
@@ -82,15 +102,16 @@ function PresenciasPage() {
         } finally { 
             setLoading(false); 
         }
-    }, []);
+    }, [pageSize]);
 
     useEffect(() => {
-        fetchPresencias(filters);
-    }, [filters, fetchPresencias]);
+        fetchPresencias(filters, currentPage, pageSize);
+    }, [filters, currentPage, pageSize, fetchPresencias]);
 
     const handleFilterChange = (e) => {
         const { name, value } = e.target;
         setFilters(prevFilters => ({ ...prevFilters, [name]: value }));
+        setCurrentPage(1); // Reset a primera página al filtrar
     };
     
     const resetFilters = () => {
@@ -100,6 +121,16 @@ function PresenciasPage() {
             resultado_interaccion: '', asesor_closer_nombre: '',
             tipo_tour: '',
         });
+        setCurrentPage(1); // Reset a primera página
+    };
+
+    const handlePageChange = (newPage) => {
+        setCurrentPage(newPage);
+    };
+
+    const handlePageSizeChange = (newSize) => {
+        setPageSize(newSize);
+        setCurrentPage(1); // Reset a primera página al cambiar tamaño
     };
 
     const handleOpenModal = (presencia = null) => { 
@@ -131,7 +162,7 @@ function PresenciasPage() {
             }
             console.log("[PresenciasPage] API response (create/update):", response);
             handleCloseModal();
-            await fetchPresencias(filters);
+            await fetchPresencias(filters, currentPage, pageSize);
 
             if (response.data && response.data.id_presencia) {
                 setTimeout(() => {
@@ -163,7 +194,7 @@ function PresenciasPage() {
             try {
                 await apiService.deletePresencia(presenciaId);
                 alert('Presencia eliminada con éxito!');
-                fetchPresencias(filters); 
+                fetchPresencias(filters, currentPage, pageSize); 
             } catch (err) { 
                 console.error("Error eliminando presencia:", err.response?.data || err.message || err);
                 alert(`Error al eliminar la presencia: ${err.response?.data?.detail || err.message || 'Error desconocido.'}`);
@@ -173,6 +204,41 @@ function PresenciasPage() {
     
     const showInitialLoading = loading && presencias.length === 0 && !Object.values(filters).some(f => f !== '');
     const showFilteringMessage = loading && (presencias.length > 0 || Object.values(filters).some(f => f !== ''));
+
+    // Generar array de páginas para mostrar en la paginación
+    const getPageNumbers = () => {
+        const pages = [];
+        const maxVisiblePages = 5;
+        
+        if (totalPages <= maxVisiblePages) {
+            for (let i = 1; i <= totalPages; i++) {
+                pages.push(i);
+            }
+        } else {
+            if (currentPage <= 3) {
+                for (let i = 1; i <= 4; i++) {
+                    pages.push(i);
+                }
+                pages.push('...');
+                pages.push(totalPages);
+            } else if (currentPage >= totalPages - 2) {
+                pages.push(1);
+                pages.push('...');
+                for (let i = totalPages - 3; i <= totalPages; i++) {
+                    pages.push(i);
+                }
+            } else {
+                pages.push(1);
+                pages.push('...');
+                for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+                    pages.push(i);
+                }
+                pages.push('...');
+                pages.push(totalPages);
+            }
+        }
+        return pages;
+    };
 
     return (
         <div className={styles.pageContainer}>
@@ -189,7 +255,7 @@ function PresenciasPage() {
                     <option value="virtual">Virtual</option>
                 </select>
                 <select name="status_presencia" value={filters.status_presencia} onChange={handleFilterChange} className={styles.filterSelect}>
-                    <option value="">Todo Estado Presencia</option>
+                    <option value="">Todo Estado de Presencia</option>
                     <option value="agendada">Agendada</option>
                     <option value="realizada">Realizada</option>
                     <option value="reprogramada">Reprogramada</option>
@@ -217,53 +283,124 @@ function PresenciasPage() {
             )}
 
             {presencias.length > 0 && (
-                <div className={styles.tableResponsiveContainer}>
-                    <table className={styles.table}>
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Fecha y Hora</th>
-                                <th>Cliente</th>
-                                <th>Proyecto</th>
-                                <th>Asesor Closer</th>
-                                <th>Modalidad</th>
-                                <th>Status</th>
-                                <th>Resultado</th>
-                                <th>Venta ID</th>
-                                <th style={{minWidth: '180px'}}>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {presencias.map(p => (
-                                <tr key={p.id_presencia}>
-                                    <td data-label="ID">{p.id_presencia}</td>
-                                    <td data-label="Fecha y Hora">{displayDateTime(p.fecha_hora_presencia)}</td>
-                                    <td data-label="Cliente">{p.cliente_detalle?.nombres_completos_razon_social || p.cliente_nombre || p.cliente}</td>
-                                    <td data-label="Proyecto">{p.proyecto_interes}</td>
-                                    <td data-label="Asesor Closer">{p.asesor_closer_nombre || (p.asesor_closer ? p.asesor_closer.nombre_asesor : '-')}</td>
-                                    <td data-label="Modalidad">{p.modalidad_display || p.modalidad}</td>
-                                    <td data-label="Status">
-                                        <span className={`${styles.statusBadge} ${styles['statusBadge' + p.status_presencia?.toLowerCase().replace(/\s+/g, '').replace(/_/g, '')]}`}>
-                                            {p.status_presencia_display || p.status_presencia}
-                                        </span>
-                                    </td>
-                                    <td data-label="Resultado">{p.resultado_interaccion_display || p.resultado_interaccion || '-'}</td>
-                                    <td data-label="Venta ID">
-                                        {p.venta_asociada_id_str ? 
-                                            <Link to={`/ventas/${p.venta_asociada_id_str}`}>{p.venta_asociada_id_str}</Link>
-                                            : (p.venta_asociada || '-')}
-                                    </td>
-                                    <td data-label="Acciones" className={styles.actionButtons}>
-                                        <Link to={`/presencias/${p.id_presencia}`} className={`${styles.button} ${styles.viewButton}`}>Ver</Link>
-                                        <button onClick={() => handleOpenModal(p)} className={`${styles.button} ${styles.editButton}`}>Editar</button>
-                                        <button onClick={() => handleDeletePresencia(p.id_presencia)} className={`${styles.button} ${styles.deleteButton}`}>Eliminar</button>
-                                    </td>
+                <>
+                    {/* Información de paginación */}
+                    <div className={styles.paginationInfo}>
+                        <span>
+                            Mostrando {((currentPage - 1) * pageSize) + 1} a {Math.min(currentPage * pageSize, totalCount)} de {totalCount} presencias
+                        </span>
+                        <div className={styles.pageSizeSelector}>
+                            <label htmlFor="pageSize">Presencias por página:</label>
+                            <select 
+                                id="pageSize"
+                                value={pageSize} 
+                                onChange={(e) => handlePageSizeChange(parseInt(e.target.value))}
+                                className={styles.pageSizeSelect}
+                            >
+                                <option value={10}>10</option>
+                                <option value={20}>20</option>
+                                <option value={50}>50</option>
+                                <option value={100}>100</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Tabla de presencias */}
+                    <div className={styles.tableResponsiveContainer}>
+                        <table className={styles.table}>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Fecha y Hora</th>
+                                    <th>Cliente</th>
+                                    <th>Proyecto</th>
+                                    <th>Asesor Closer</th>
+                                    <th>Modalidad</th>
+                                    <th>Estado Presencia</th>
+                                    <th>Resultado</th>
+                                    <th>Venta ID</th>
+                                    <th style={{minWidth: '180px'}}>Acciones</th>
                                 </tr>
+                            </thead>
+                            <tbody>
+                                {presencias.map(p => (
+                                    <tr key={p.id_presencia}>
+                                        <td data-label="ID">{p.id_presencia}</td>
+                                        <td data-label="Fecha y Hora">{displayDateTime(p.fecha_hora_presencia)}</td>
+                                        <td data-label="Cliente">{p.cliente_detalle?.nombres_completos_razon_social || p.cliente_nombre || p.cliente}</td>
+                                        <td data-label="Proyecto">{p.proyecto_interes}</td>
+                                        <td data-label="Asesor Closer">{p.asesor_closer_nombre || (p.asesor_closer ? p.asesor_closer.nombre_asesor : '-')}</td>
+                                        <td data-label="Modalidad">{p.modalidad_display || p.modalidad}</td>
+                                        <td data-label="Estado Presencia">
+                                            <span className={`${styles.statusBadge} ${styles['statusBadge' + p.status_presencia?.toLowerCase().replace(/\s+/g, '').replace(/_/g, '')]}`}>
+                                                {p.status_presencia_display || p.status_presencia}
+                                            </span>
+                                        </td>
+                                        <td data-label="Resultado">{p.resultado_interaccion_display || p.resultado_interaccion || '-'}</td>
+                                        <td data-label="Venta ID">
+                                            {p.venta_asociada_id_str ? 
+                                                <Link to={`/ventas/${p.venta_asociada_id_str}`}>{p.venta_asociada_id_str}</Link>
+                                                : (p.venta_asociada || '-')}
+                                        </td>
+                                        <td data-label="Acciones" className={styles.actionButtons}>
+                                            <Link to={`/presencias/${p.id_presencia}`} className={`${styles.button} ${styles.viewButton}`}>Ver</Link>
+                                            <button onClick={() => handleOpenModal(p)} className={`${styles.button} ${styles.editButton}`}>Editar</button>
+                                            <button onClick={() => handleDeletePresencia(p.id_presencia)} className={`${styles.button} ${styles.deleteButton}`}>Eliminar</button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Controles de paginación */}
+                    {totalPages > 1 && (
+                        <div className={styles.paginationControls}>
+                            <button 
+                                onClick={() => handlePageChange(1)} 
+                                disabled={currentPage === 1}
+                                className={styles.paginationButton}
+                            >
+                                « Primera
+                            </button>
+                            <button 
+                                onClick={() => handlePageChange(currentPage - 1)} 
+                                disabled={currentPage === 1}
+                                className={styles.paginationButton}
+                            >
+                                ‹ Anterior
+                            </button>
+                            
+                            {getPageNumbers().map((page, index) => (
+                                <button
+                                    key={index}
+                                    onClick={() => typeof page === 'number' ? handlePageChange(page) : null}
+                                    disabled={page === '...'}
+                                    className={`${styles.paginationButton} ${page === currentPage ? styles.activePage : ''} ${page === '...' ? styles.ellipsis : ''}`}
+                                >
+                                    {page}
+                                </button>
                             ))}
-                        </tbody>
-                    </table>
-                </div>
+                            
+                            <button 
+                                onClick={() => handlePageChange(currentPage + 1)} 
+                                disabled={currentPage === totalPages}
+                                className={styles.paginationButton}
+                            >
+                                Siguiente ›
+                            </button>
+                            <button 
+                                onClick={() => handlePageChange(totalPages)} 
+                                disabled={currentPage === totalPages}
+                                className={styles.paginationButton}
+                            >
+                                Última »
+                            </button>
+                        </div>
+                    )}
+                </>
             )}
+
             {isModalOpen && (
                 <PresenciaForm 
                     show={isModalOpen} 

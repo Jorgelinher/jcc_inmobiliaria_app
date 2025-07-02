@@ -82,7 +82,7 @@ class Cliente(models.Model):
     ESTADO_CIVIL_CHOICES = [('Soltero(a)', 'Soltero(a)'), ('Casado(a)', 'Casado(a)'), ('Viudo(a)', 'Viudo(a)'), ('Divorciado(a)', 'Divorciado(a)'), ('Conviviente', 'Conviviente')]
     id_cliente = models.CharField(max_length=50, unique=True, primary_key=True, verbose_name="ID Cliente", editable=False)
     tipo_documento = models.CharField(max_length=15, choices=TIPO_DOCUMENTO_CHOICES, verbose_name="Tipo de Documento")
-    numero_documento = models.CharField(max_length=20, unique=True, verbose_name="Número de Documento")
+    numero_documento = models.CharField(max_length=20, unique=False, blank=True, null=True, verbose_name="Número de Documento")
     nombres_completos_razon_social = models.CharField(max_length=255, verbose_name="Nombres Completos / Razón Social")
     fecha_nacimiento_constitucion = models.DateField(blank=True, null=True, verbose_name="Fecha Nacimiento/Constitución")
     direccion = models.CharField(max_length=255, blank=True, null=True, verbose_name="Dirección")
@@ -181,7 +181,7 @@ class Venta(models.Model):
     valor_lote_venta = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Valor de Venta Total (S/.)")
     tipo_venta = models.CharField(max_length=10, choices=TIPO_VENTA_CHOICES, default=TIPO_VENTA_CONTADO, verbose_name="Tipo de Venta")
     plazo_meses_credito = models.PositiveSmallIntegerField(choices=PLAN_PAGO_CHOICES, default=0, verbose_name="Plazo de Crédito (Meses)", help_text="0 para Contado. Seleccionar plazo si el tipo de venta es Crédito.")
-    vendedor_principal = models.ForeignKey(Asesor, on_delete=models.PROTECT, related_name='ventas_realizadas', verbose_name="Vendedor Principal")
+    vendedor_principal = models.ForeignKey(Asesor, on_delete=models.PROTECT, related_name='ventas_realizadas', verbose_name="Vendedor Principal", null=True, blank=True)
     participacion_junior_venta = models.CharField(max_length=50, choices=PARTICIPACION_JUNIOR_CHOICES, blank=True, null=True, verbose_name="Participación Junior")
     id_socio_participante = models.ForeignKey(Asesor, on_delete=models.SET_NULL, null=True, blank=True, related_name='participaciones_socio', verbose_name="ID Socio Participante")
     participacion_socio_venta = models.CharField(max_length=20, choices=PARTICIPACION_SOCIO_CHOICES, blank=True, null=True, verbose_name="Participación Socio")
@@ -685,6 +685,7 @@ class Presencia(models.Model):
     resultado_interaccion = models.CharField(max_length=50, choices=RESULTADO_INTERACCION_CHOICES, blank=True, null=True, verbose_name="Resultado Específico de la Interacción")
     venta_asociada = models.OneToOneField(Venta, on_delete=models.SET_NULL, null=True, blank=True, related_name='presencia_que_origino', verbose_name="Venta Asociada (si aplica)")
     observaciones = models.TextField(blank=True, null=True)
+    lugar_visita = models.CharField(max_length=255, blank=True, null=True, verbose_name="Lugar de Visita")
     fecha_registro_sistema = models.DateTimeField(default=timezone.now, editable=False)
     ultima_modificacion = models.DateTimeField(auto_now=True)
 
@@ -1091,3 +1092,30 @@ class LogAuditoriaCambio(models.Model):
     detalles_adicionales = models.TextField(blank=True, null=True, verbose_name="Detalles Adicionales")
     def __str__(self): return f"{self.timestamp.strftime('%Y-%m-%d %H:%M')} - {self.usuario_email} - {self.accion} en {self.modulo}"
     class Meta: verbose_name = "Log de Auditoría"; verbose_name_plural = "Logs de Auditoría"; ordering = ['-timestamp']
+
+class ComisionVentaAsesor(models.Model):
+    ROL_ASESOR_VENTA_CHOICES = [
+        ('captacion_opc', 'Captación OPC/Redes'),
+        ('call', 'Call (Agendó)'),
+        ('liner', 'Liner (Presentación)'),
+        ('closer', 'Closer (Cierre)'),
+        ('otro', 'Otro'),
+    ]
+    id_comision_venta_asesor = models.AutoField(primary_key=True)
+    venta = models.ForeignKey('Venta', on_delete=models.CASCADE, related_name='comisiones_asesores', verbose_name="Venta Asociada")
+    asesor = models.ForeignKey('Asesor', on_delete=models.PROTECT, related_name='comisiones_en_ventas', verbose_name="Asesor Involucrado")
+    rol = models.CharField(max_length=20, choices=ROL_ASESOR_VENTA_CHOICES, verbose_name="Rol del Asesor en la Venta")
+    porcentaje_comision = models.DecimalField(max_digits=5, decimal_places=2, validators=[MinValueValidator(Decimal('0.00')), MaxValueValidator(Decimal('100.00'))], verbose_name="Porcentaje de Comisión Asignado (%)")
+    monto_comision_calculado = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name="Monto Comisión Calculado (S/.)")
+    notas = models.TextField(blank=True, null=True, verbose_name="Notas Adicionales")
+    fecha_registro = models.DateTimeField(default=timezone.now, editable=False)
+    ultima_modificacion = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Venta {self.venta_id} - Asesor {self.asesor_id} ({self.rol}) - {self.porcentaje_comision}%"
+
+    class Meta:
+        verbose_name = "Comisión de Venta por Asesor"
+        verbose_name_plural = "Comisiones de Ventas por Asesor"
+        unique_together = ('venta', 'asesor', 'rol')
+        ordering = ['venta', 'asesor']

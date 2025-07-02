@@ -46,8 +46,12 @@ function LotesPage() {
     const [filters, setFilters] = useState({
         q: '', 
         estado_lote: '', // Valor inicial vacío para "Todos los Estados"
-        etapa: '' 
+        etapa: '',
+        ubicacion_proyecto: '' // Nuevo filtro
     });
+
+    // Estado para las ubicaciones de proyecto
+    const [ubicacionesProyecto, setUbicacionesProyecto] = useState([]);
 
     const fetchLotes = useCallback(async (currentFilters, page = 1, size = pageSize) => {
         setLoading(true);
@@ -94,6 +98,19 @@ function LotesPage() {
         fetchLotes(filters, 1, pageSize);
     }, [filters, fetchLotes]); // Remover pageSize del useEffect para evitar llamadas duplicadas
 
+    // Obtener ubicaciones de proyecto al montar el componente
+    useEffect(() => {
+        const fetchUbicacionesProyecto = async () => {
+            try {
+                const response = await apiService.getUbicacionesProyecto();
+                setUbicacionesProyecto(response.data.ubicaciones_proyecto || []);
+            } catch (err) {
+                setUbicacionesProyecto([]);
+            }
+        };
+        fetchUbicacionesProyecto();
+    }, []);
+
     const handleFilterChange = (e) => {
         const { name, value } = e.target;
         setFilters(prevFilters => ({
@@ -103,7 +120,7 @@ function LotesPage() {
     };
     
     const resetFilters = () => {
-        setFilters({ q: '', estado_lote: '', etapa: '' });
+        setFilters({ q: '', estado_lote: '', etapa: '', ubicacion_proyecto: '' });
     };
 
     // Funciones de paginación
@@ -252,6 +269,18 @@ function LotesPage() {
                     className={styles.filterInput} 
                     min="0" // Permitir 0 o vacío si es opcional
                 />
+                {/* Nuevo filtro de Proyecto */}
+                <select
+                    name="ubicacion_proyecto"
+                    value={filters.ubicacion_proyecto}
+                    onChange={handleFilterChange}
+                    className={styles.filterSelect}
+                >
+                    <option value="">Todos los Proyectos</option>
+                    {ubicacionesProyecto.map((ubic, idx) => (
+                        <option key={idx} value={ubic}>{ubic}</option>
+                    ))}
+                </select>
                 <button onClick={resetFilters} className={styles.resetButton}>Limpiar</button>
             </div>
 

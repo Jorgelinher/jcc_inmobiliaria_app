@@ -1,6 +1,89 @@
 NOMBRE;DNI;FECHA_NACIMIENTO;ESTADO_CIVIL;NUMERO_HIJOS;DIRECCION;DISTRITO;TELEFONO;EMAIL;BANCO;CUENTA_BANCARIA;CCI;FECHA_INGRESO;TIPO;FECHA_CAMBIO_SOCIO;OBSERVACIONES
-CLARA;12345678;15/03/1990;Soltero(a);0;Av. Principal 123;Lima;999888777;clara@email.com;BCP;1234567890123456;00212345678901234567;01/01/2023;Junior;;Asesora dedicada y comprometida
-BRIAN;23456789;22/07/1985;Casado(a);2;Calle Secundaria 456;Lima;999777666;brian@email.com;Interbank;9876543210987654;00398765432109876543;01/02/2023;Socio;01/06/2023;Líder de equipo con experiencia
-EDUARDO;34567890;10/12/1988;Soltero(a);1;Jr. Comercial 789;Lima;999666555;eduardo@email.com;Scotiabank;5555666677778888;00955556666777788889;01/03/2023;Junior;;Closer experto en cierres
-SAUL;45678901;05/09/1992;Conviviente;0;Av. Industrial 321;Lima;999555444;saul@email.com;BBVA;1111222233334444;00111112222333344445;01/04/2023;Junior;;Especialista en ventas directas
-CARMEN;56789012;18/11/1987;Casado(a);1;Calle Residencial 654;Lima;999444333;carmen@email.com;BCP;7777888899990000;00277778888999900001;01/05/2023;Socio;01/08/2023;Supervisora de equipo 
+CLARA;12345678;15/03/1990;Soltero(a);0;Av. Principal 123;Lima;999888777;clara@email.com;BCP;1,23457E+15;2,12346E+17;01/01/2023;Junior;;Asesora dedicada
+CARMEN;23456789;22/07/1985;Casado(a);2;Calle Secundaria 456;Lima;999777666;carmen@email.com;Interbank;9,87654E+15;3,98765E+17;01/02/2023;Junior;;Líder de equipo con experiencia
+CATHERINE;34567890;10/12/1988;Soltero(a);1;Jr. Comercial 789;Lima;999666555;catherine@email.com;Scotiabank;5,55567E+15;9,55557E+17;01/03/2023;Junior;;Closer experto en cierres
+GILES;45678901;05/09/1992;Conviviente;0;Av. Industrial 321;Lima;999555444;giles@email.com;BBVA;1,11122E+15;1,11112E+17;01/04/2023;Junior;;Especialista en ventas directas
+BRUNO;56789012;18/11/1987;Casado(a);1;Calle Residencial 654;Lima;999444333;bruno@email.com;BCP;7,77789E+15;2,77779E+17;01/05/2023;Junior;;Supervisor de equipo
+KARINA;67890123;12/04/1991;Soltero(a);0;Av. Los Pinos 789;Lima;999333222;karina@email.com;BCP;1,11122E+15;2,11112E+17;01/06/2023;Junior;;Asesora proactiva
+ERICK;78901234;25/08/1986;Casado(a);1;Jr. San Martín 456;Lima;999222111;erick@email.com;Interbank;2,22233E+15;3,22223E+17;01/07/2023;Junior;;Especialista en captación
+EDWIN;89012345;03/01/1989;Soltero(a);0;Calle Real 123;Lima;999111000;edwin@email.com;Scotiabank;3,33344E+15;9,33334E+17;01/08/2023;Junior;;Closer experimentado
+JUAN;90123456;14/06/1993;Conviviente;0;Av. Arequipa 987;Lima;999000999;juan@email.com;BBVA;4,44456E+15;1,44446E+17;01/09/2023;Junior;;Asesor dedicado
+ANGELLO;1234567;28/12/1984;Casado(a);2;Calle Tacna 654;Lima;998999888;angello@email.com;BCP;5,55567E+15;2,55557E+17;01/10/2023;Junior;;Líder de ventas
+LASIELA;12345670;07/03/1990;Soltero(a);0;Jr. Huancavelica 321;Lima;998888777;lasiela@email.com;Interbank;6,66678E+15;3,66668E+17;01/11/2023;Junior;;Asesora comprometida
+JANIS;23456701;19/09/1987;Casado(a);1;Av. Brasil 147;Lima;998777666;janis@email.com;Scotiabank;7,77789E+15;9,77779E+17;01/12/2023;Junior;;Especialista en cierres
+SARA;34567012;02/05/1992;Soltero(a);0;Calle Lima 258;Lima;998666555;sara@email.com;BBVA;8,889E+15;1,8889E+17;02/01/2023;Junior;;Asesora dinámica
+GRECIA;45670123;11/11/1988;Conviviente;0;Jr. Callao 369;Lima;998555444;grecia@email.com;BCP;9,999E+15;2,9999E+17;02/02/2023;Junior;;Closer efectiva
+ISAURA;56701234;23/07/1985;Casado(a);1;Av. Venezuela 741;Lima;998444333;isaura@email.com;Interbank;1,11122E+11;3,00001E+17;02/03/2023;Junior;;Supervisora de equipo
+SEBASTIAN;67012345;08/02/1991;Soltero(a);0;Calle Trujillo 852;Lima;998333222;sebastian@email.com;Scotiabank;1,11122E+15;9,11112E+17;02/04/2023;Junior;;Asesor motivado
+MARIA DEL PILAR;70123456;16/10/1986;Casado(a);2;Jr. Piura 963;Lima;998222111;maria.pilar@email.com;BBVA;2,22233E+15;1,22223E+17;02/05/2023;Junior;;Asesora profesional
+MERCEDES;1234560;30/04/1993;Soltero(a);0;Av. Chiclayo 159;Lima;998111000;mercedes@email.com;BCP;3,33344E+15;2,33334E+17;02/06/2023;Junior;;Especialista en ventas
+DANIEL;12345601;05/12/1989;Conviviente;0;Calle Iquitos 753;Lima;998000999;daniel@email.com;Interbank;4,44456E+15;3,44446E+17;02/07/2023;Junior;;Asesor confiable
+EDUARDO;23456012;21/08/1984;Casado(a);1;Jr. Cajamarca 951;Lima;997999888;eduardo@email.com;Scotiabank;5,55567E+15;9,55557E+17;02/08/2023;Junior;;Líder experimentado
+PEDRO;34560123;13/03/1990;Soltero(a);0;Av. Huánuco 357;Lima;997888777;pedro@email.com;BBVA;6,66678E+15;1,66668E+17;02/09/2023;Junior;;Closer dedicado
+JOSE;45601234;27/06/1987;Casado(a);1;Calle Ayacucho 486;Lima;997777666;jose@email.com;BCP;7,77789E+15;2,77779E+17;02/10/2023;Junior;;Asesor comprometido
+ANDREA;56012345;09/01/1992;Soltero(a);0;Jr. Cusco 753;Lima;997666555;andrea@email.com;Interbank;8,889E+15;3,8889E+17;02/11/2023;Junior;;Asesora proactiva
+ROCIO;60123450;18/05/1988;Conviviente;0;Av. Puno 159;Lima;997555444;rocio@email.com;Scotiabank;9,999E+15;9,9999E+17;02/12/2023;Junior;;Especialista en captación
+ALONSO;1234561;04/09/1985;Casado(a);2;Calle Arequipa 753;Lima;997444333;alonso@email.com;BBVA;1,11122E+11;1,00001E+17;03/01/2023;Junior;;Supervisor de ventas
+ERIKA;12345602;22/12/1991;Soltero(a);0;Jr. Tacna 951;Lima;997333222;erika@email.com;BCP;1,11122E+15;2,11112E+17;03/02/2023;Junior;;Asesora dinámica
+LUZ ANDREA;23456013;07/07/1986;Casado(a);1;Av. Moquegua 357;Lima;997222111;luz.andrea@email.com;Interbank;2,22233E+15;3,22223E+17;03/03/2023;Junior;;Closer efectiva
+EDITH;34560124;15/11/1993;Soltero(a);0;Calle Tumbes 486;Lima;997111000;edith@email.com;Scotiabank;3,33344E+15;9,33334E+17;03/04/2023;Junior;;Asesora dedicada
+JOSE CARLOS;45601235;29/02/1989;Conviviente;0;Jr. Loreto 753;Lima;997000999;jose.carlos@email.com;BBVA;4,44456E+15;1,44446E+17;03/05/2023;Junior;;Asesor profesional
+NERY;56012346;12/08/1984;Casado(a);1;Av. Ucayali 159;Lima;996999888;nery@email.com;BCP;5,55567E+15;2,55557E+17;03/06/2023;Junior;;Líder de equipo
+MELANY;60123451;25/04/1990;Soltero(a);0;Calle Madre de Dios 951;Lima;996888777;melany@email.com;Interbank;6,66678E+15;3,66668E+17;03/07/2023;Junior;;Asesora motivada
+BRENDA;1234562;03/10/1987;Casado(a);1;Jr. Amazonas 357;Lima;996777666;brenda@email.com;Scotiabank;7,77789E+15;9,77779E+17;03/08/2023;Junior;;Closer confiable
+KATIA;12345603;17/06/1992;Soltero(a);0;Av. San Martín 486;Lima;996666555;katia@email.com;BBVA;8,889E+15;1,8889E+17;03/09/2023;Junior;;Asesora comprometida
+MARILYN;23456014;08/01/1988;Conviviente;0;Calle Pasco 753;Lima;996555444;marilyn@email.com;BCP;9,999E+15;2,9999E+17;03/10/2023;Junior;;Especialista en ventas
+JAIR;34560125;20/03/1985;Casado(a);2;Jr. Junín 159;Lima;996444333;jair@email.com;Interbank;1,11122E+11;3,00001E+17;03/11/2023;Junior;;Supervisor experimentado
+LEONEL ;45601236;11/09/1991;Soltero(a);0;Av. Huancavelica 951;Lima;996333222;leonel@email.com;Scotiabank;1,11122E+15;9,11112E+17;03/12/2023;Junior;;Asesor dedicado
+SAUL;56012347;26/05/1986;Casado(a);1;Calle Apurímac 357;Lima;996222111;saul@email.com;BBVA;2,22233E+15;1,22223E+17;04/01/2023;Junior;;Closer profesional
+BRIAN;60123452;14/12/1993;Soltero(a);0;Jr. Ayacucho 486;Lima;996111000;brian@email.com;BCP;3,33344E+15;2,33334E+17;04/02/2023;Junior;;Asesor dinámico
+MAYRA;1234563;01/07/1989;Conviviente;0;Av. Cusco 753;Lima;996000999;mayra@email.com;Interbank;4,44456E+15;3,44446E+17;04/03/2023;Junior;;Asesora proactiva
+JAVIER HERRERA;12345604;23/11/1984;Casado(a);1;Calle Puno 159;Lima;995999888;javier.herrera@email.com;Scotiabank;5,55567E+15;9,55557E+17;04/04/2023;Junior;;Líder de ventas
+ALAN;23456015;06/02/1990;Soltero(a);0;Jr. Tacna 951;Lima;995888777;alan@email.com;BBVA;6,66678E+15;1,66668E+17;04/05/2023;Junior;;Asesor comprometido
+WENDY;34560126;19/08/1987;Casado(a);1;Av. Moquegua 357;Lima;995777666;wendy@email.com;BCP;7,77789E+15;2,77779E+17;04/06/2023;Junior;;Closer efectiva
+FRANKLING;45601237;10/04/1992;Soltero(a);0;Calle Tumbes 486;Lima;995666555;frankling@email.com;Interbank;8,889E+15;3,8889E+17;04/07/2023;Junior;;Asesor motivado
+JAVIER CASTRO;56012348;28/12/1988;Conviviente;0;Jr. Loreto 753;Lima;995555444;javier.castro@email.com;Scotiabank;9,999E+15;9,9999E+17;04/08/2023;Junior;;Especialista en captación
+FRANCO;60123453;15/06/1985;Casado(a);2;Av. Ucayali 159;Lima;995444333;franco@email.com;BBVA;1,11122E+11;1,00001E+17;04/09/2023;Junior;;Supervisor de equipo
+BRIAM;1234564;02/01/1991;Soltero(a);0;Calle Madre de Dios 951;Lima;995333222;briam@email.com;BCP;1,11122E+15;2,11112E+17;04/10/2023;Junior;;Asesor dedicado
+LEONEL;12345605;21/05/1986;Casado(a);1;Jr. Amazonas 357;Lima;995222111;leonel@email.com;Interbank;2,22233E+15;3,22223E+17;04/11/2023;Junior;;Closer confiable
+JANET;23456016;09/10/1993;Soltero(a);0;Av. San Martín 486;Lima;995111000;janet@email.com;Scotiabank;3,33344E+15;9,33334E+17;04/12/2023;Junior;;Asesora profesional
+LESLY;34560127;24/03/1989;Conviviente;0;Calle Pasco 753;Lima;995000999;lesly@email.com;BBVA;4,44456E+15;1,44446E+17;05/01/2023;Junior;;Asesora dinámica
+HENRY;45601238;07/09/1984;Casado(a);1;Jr. Junín 159;Lima;994999888;henry@email.com;BCP;5,55567E+15;2,55557E+17;05/02/2023;Junior;;Líder experimentado
+LUIS MARIO;56012349;18/07/1990;Soltero(a);0;Av. Huancavelica 951;Lima;994888777;luis.mario@email.com;Interbank;6,66678E+15;3,66668E+17;05/03/2023;Junior;;Asesor comprometido
+BERENICE;60123454;31/12/1987;Casado(a);1;Calle Apurímac 357;Lima;994777666;berenice@email.com;Scotiabank;7,77789E+15;9,77779E+17;05/04/2023;Junior;;Closer dedicada
+VICTOR;1234565;13/04/1992;Soltero(a);0;Jr. Ayacucho 486;Lima;994666555;victor@email.com;BBVA;8,889E+15;1,8889E+17;05/05/2023;Junior;;Asesor motivado
+ARICSA;12345606;26/08/1988;Conviviente;0;Av. Cusco 753;Lima;994555444;aricsa@email.com;BCP;9,999E+15;2,9999E+17;05/06/2023;Junior;;Asesora proactiva
+ROLANDO;23456017;05/02/1985;Casado(a);2;Calle Puno 159;Lima;994444333;rolando@email.com;Interbank;1,11122E+11;3,00001E+17;05/07/2023;Junior;;Supervisor de ventas
+FIORELLA;34560128;20/11/1991;Soltero(a);0;Jr. Tacna 951;Lima;994333222;fiorella@email.com;Scotiabank;1,11122E+15;9,11112E+17;05/08/2023;Junior;;Asesora dedicada
+ASHLEY;45601239;12/06/1986;Casado(a);1;Av. Moquegua 357;Lima;994222111;ashley@email.com;BBVA;2,22233E+15;1,22223E+17;05/09/2023;Junior;;Closer efectiva
+AHSLEY;56012340;03/01/1993;Soltero(a);0;Calle Tumbes 486;Lima;994111000;ahsley@email.com;BCP;3,33344E+15;2,33334E+17;05/10/2023;Junior;;Asesora confiable
+XUANNY;60123455;25/05/1989;Conviviente;0;Jr. Loreto 753;Lima;994000999;xuanny@email.com;Interbank;4,44456E+15;3,44446E+17;05/11/2023;Junior;;Especialista en ventas
+LUIS;1234566;16/10/1984;Casado(a);1;Av. Ucayali 159;Lima;993999888;luis@email.com;Scotiabank;5,55567E+15;9,55557E+17;05/12/2023;Junior;;Líder de equipo
+RICARDO;12345607;08/03/1990;Soltero(a);0;Calle Madre de Dios 951;Lima;993888777;ricardo@email.com;BBVA;6,66678E+15;1,66668E+17;06/01/2023;Junior;;Asesor profesional
+HEIDY;23456018;29/07/1987;Casado(a);1;Jr. Amazonas 357;Lima;993777666;heidy@email.com;BCP;7,77789E+15;2,77779E+17;06/02/2023;Junior;;Closer dedicada
+CLAUDET;34560129;11/12/1992;Soltero(a);0;Av. San Martín 486;Lima;993666555;claudet@email.com;Interbank;8,889E+15;3,8889E+17;06/03/2023;Junior;;Asesora dinámica
+FLAVIA;45601230;22/04/1988;Conviviente;0;Calle Pasco 753;Lima;993555444;flavia@email.com;Scotiabank;9,999E+15;9,9999E+17;06/04/2023;Junior;;Asesora comprometida
+ANTONIO;56012341;04/09/1985;Casado(a);2;Jr. Junín 159;Lima;993444333;antonio@email.com;BBVA;1,11122E+11;1,00001E+17;06/05/2023;Junior;;Supervisor experimentado
+SOFIA;60123456;17/01/1991;Soltero(a);0;Av. Huancavelica 951;Lima;993333222;sofia@email.com;BCP;1,11122E+15;2,11112E+17;06/06/2023;Junior;;Asesora motivada
+ANGEL;1234567;30/06/1986;Casado(a);1;Calle Apurímac 357;Lima;993222111;angel@email.com;Interbank;2,22233E+15;3,22223E+17;06/07/2023;Junior;;Closer profesional
+ALEJANDRO;12345608;21/11/1993;Soltero(a);0;Jr. Ayacucho 486;Lima;993111000;alejandro@email.com;Scotiabank;3,33344E+15;9,33334E+17;06/08/2023;Junior;;Asesor dedicado
+OLIVER;23456019;12/05/1989;Conviviente;0;Av. Cusco 753;Lima;993000999;oliver@email.com;BBVA;4,44456E+15;1,44446E+17;06/09/2023;Junior;;Especialista en captación
+SAMUEL;34560120;25/02/1984;Casado(a);1;Calle Puno 159;Lima;992999888;samuel@email.com;BCP;5,55567E+15;2,55557E+17;06/10/2023;Junior;;Líder de ventas
+GABRIEL;45601231;06/08/1990;Soltero(a);0;Jr. Tacna 951;Lima;992888777;gabriel@email.com;Interbank;6,66678E+15;3,66668E+17;06/11/2023;Junior;;Asesor confiable
+KIARA;56012342;19/03/1987;Casado(a);1;Av. Moquegua 357;Lima;992777666;kiara@email.com;Scotiabank;7,77789E+15;9,77779E+17;06/12/2023;Junior;;Closer efectiva
+ZULMA;60123457;10/10/1992;Soltero(a);0;Calle Tumbes 486;Lima;992666555;zulma@email.com;BBVA;8,889E+15;1,8889E+17;07/01/2023;Junior;;Asesora proactiva
+YOSELYN;1234568;23/07/1988;Conviviente;0;Jr. Loreto 753;Lima;992555444;yoselyn@email.com;BCP;9,999E+15;2,9999E+17;07/02/2023;Junior;;Asesora dedicada
+DAYANA;12345609;14/12/1985;Casado(a);2;Av. Ucayali 159;Lima;992444333;dayana@email.com;Interbank;1,11122E+11;3,00001E+17;07/03/2023;Junior;;Supervisor de equipo
+ANDRE;23456010;05/04/1991;Soltero(a);0;Calle Madre de Dios 951;Lima;992333222;andre@email.com;Scotiabank;1,11122E+15;9,11112E+17;07/04/2023;Junior;;Asesor dinámico
+CAMILA;34560111;28/09/1986;Casado(a);1;Jr. Amazonas 357;Lima;992222111;camila@email.com;BBVA;2,22233E+15;1,22223E+17;07/05/2023;Junior;;Closer profesional
+DAYANNA;45601232;18/01/1993;Soltero(a);0;Av. San Martín 486;Lima;992111000;dayanna@email.com;BCP;3,33344E+15;2,33334E+17;07/06/2023;Junior;;Asesora comprometida
+FRANK;56012343;09/06/1989;Conviviente;0;Calle Pasco 753;Lima;992000999;frank@email.com;Interbank;4,44456E+15;3,44446E+17;07/07/2023;Junior;;Especialista en ventas
+FABIOLA;60123458;22/11/1984;Casado(a);1;Jr. Junín 159;Lima;991999888;fabiola@email.com;Scotiabank;5,55567E+15;9,55557E+17;07/08/2023;Junior;;Líder experimentado
+SERGIO;1234569;13/05/1990;Soltero(a);0;Av. Huancavelica 951;Lima;991888777;sergio@email.com;BBVA;6,66678E+15;1,66668E+17;07/09/2023;Junior;;Asesor motivado
+KORIANCA;12345610;26/02/1987;Casado(a);1;Calle Apurímac 357;Lima;991777666;korianca@email.com;BCP;7,77789E+15;2,77779E+17;07/10/2023;Junior;;Closer dedicada
+NAYSHA;23456011;07/08/1992;Soltero(a);0;Jr. Ayacucho 486;Lima;991666555;naysha@email.com;Interbank;8,889E+15;3,8889E+17;07/11/2023;Junior;;Asesora confiable
+LIZETH;34560112;20/12/1988;Conviviente;0;Av. Cusco 753;Lima;991555444;lizeth@email.com;Scotiabank;9,999E+15;9,9999E+17;07/12/2023;Junior;;Asesora proactiva
+CRISOSTOMO;45601233;11/03/1985;Casado(a);2;Calle Puno 159;Lima;991444333;crisostomo@email.com;BBVA;1,11122E+11;1,00001E+17;08/01/2023;Junior;;Supervisor de ventas
+DAYANARA;56012344;24/07/1991;Soltero(a);0;Jr. Tacna 951;Lima;991333222;dayanara@email.com;BCP;1,11122E+15;2,11112E+17;08/02/2023;Junior;;Asesora dedicada
+MASSIEL;60123459;15/10/1986;Casado(a);1;Av. Moquegua 357;Lima;991222111;massiel@email.com;Interbank;2,22233E+15;3,22223E+17;08/03/2023;Junior;;Closer efectiva
+EMILY;1234560;06/04/1993;Soltero(a);0;Calle Tumbes 486;Lima;991111000;emily@email.com;Scotiabank;3,33344E+15;9,33334E+17;08/04/2023;Junior;;Asesora dinámica 

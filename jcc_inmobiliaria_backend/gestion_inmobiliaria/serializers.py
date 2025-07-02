@@ -23,7 +23,7 @@ from .models import (
     Lote, Cliente, Asesor, Venta, ActividadDiaria,
     DefinicionMetaComision, TablaComisionDirecta, ConfigGeneral, LogAuditoriaCambio,
     RegistroPago, Presencia,
-    PlanPagoVenta, CuotaPlanPago
+    PlanPagoVenta, CuotaPlanPago, ComisionVentaAsesor
 )
 from decimal import Decimal
 
@@ -309,6 +309,13 @@ class RegistroPagoSerializer(serializers.ModelSerializer):
             return f"${obj.monto_pago_dolares} (TC: {obj.tipo_cambio_pago})"
         return f"S/. {obj.monto_pago}"
 
+class ComisionVentaAsesorSerializer(serializers.ModelSerializer):
+    asesor_nombre = serializers.CharField(source='asesor.nombre_asesor', read_only=True)
+    class Meta:
+        model = ComisionVentaAsesor
+        fields = ['id_comision_venta_asesor', 'asesor', 'asesor_nombre', 'rol', 'porcentaje_comision', 'monto_comision_calculado', 'notas']
+        read_only_fields = ['id_comision_venta_asesor', 'monto_comision_calculado']
+
 class VentaSerializer(serializers.ModelSerializer):
     lote_info = serializers.CharField(source='lote.__str__', read_only=True, allow_null=True)
     cliente_detalle = ClienteSummarySerializer(source='cliente', read_only=True)
@@ -323,6 +330,7 @@ class VentaSerializer(serializers.ModelSerializer):
     precio_dolares = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, allow_null=True)
     tipo_cambio = serializers.DecimalField(max_digits=8, decimal_places=3, required=False, allow_null=True)
     saldo_pendiente_dolares = serializers.SerializerMethodField()
+    comisiones_asesores = ComisionVentaAsesorSerializer(many=True, required=False)
 
     # --- INICIO: AÑADIR CAMPOS DE FIRMA ---
     cliente_firmo_contrato = serializers.BooleanField(read_only=True)
@@ -358,6 +366,7 @@ class VentaSerializer(serializers.ModelSerializer):
             'precio_dolares',
             'tipo_cambio',
             'saldo_pendiente_dolares',
+            'comisiones_asesores',
         ]
         read_only_fields = (
             'valor_lote_venta', 
@@ -369,6 +378,7 @@ class VentaSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'cliente': {'required': False, 'allow_null': True},
             'plazo_meses_credito': {'required': False, 'allow_null': False, 'default': 0},
+            'vendedor_principal': {'required': False, 'allow_null': True},
         }
     def validate_plazo_meses_credito(self, value):
         tipo_venta = self.initial_data.get('tipo_venta')
@@ -439,22 +449,19 @@ class VentaSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
-        # LOG para depuración
-        print("[VentaSerializer.create] validated_data:", validated_data)
-        precio_dolares = validated_data.get('precio_dolares')
-        tipo_cambio = validated_data.get('tipo_cambio')
-        print(f"[VentaSerializer.create] precio_dolares: {precio_dolares}, tipo_cambio: {tipo_cambio}")
-        # Crea la instancia pero NO la guarda aún
-        venta = Venta(**validated_data)
-        # Asigna explícitamente los campos antes de guardar
-        if precio_dolares is not None:
-            venta.precio_dolares = precio_dolares
-        if tipo_cambio is not None:
-            venta.tipo_cambio = tipo_cambio
-        print(f"[VentaSerializer.create] venta.precio_dolares: {venta.precio_dolares}, venta.tipo_cambio: {venta.tipo_cambio}")
-        # Ahora sí guarda, para que el método save() tenga los datos correctos
-        venta.save()
-        print(f"[VentaSerializer.create] venta.valor_lote_venta después de save: {venta.valor_lote_venta}")
+        comisiones_asesores_data = validated_data.pop('comisiones_asesores', [])
+        venta = super().create(validated_data)
+        for comision_data in comisiones_asesores_data:
+            ComisionVentaAsesor.objects.create(venta=venta, **comision_data)
+        return venta
+
+    def update(self, instance, validated_data):
+        comisiones_asesores_data = validated_data.pop('comisiones_asesores', None)
+        venta = super().update(instance, validated_data)
+        if comisiones_asesores_data is not None:
+            instance.comisiones_asesores.all().delete()
+            for comision_data in comisiones_asesores_data:
+                ComisionVentaAsesor.objects.create(venta=instance, **comision_data)
         return venta
 
     def get_saldo_pendiente_dolares(self, obj):

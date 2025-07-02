@@ -29,12 +29,18 @@ function AsesoresPage() {
     const [editingAsesor, setEditingAsesor] = useState(null);
     const [asesorMap, setAsesorMap] = useState({});
 
+    // Estado de paginación
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(20);
+    const [totalPages, setTotalPages] = useState(0);
+    const [totalCount, setTotalCount] = useState(0);
+
     const [filters, setFilters] = useState({
         nombre_asesor: '',
         tipo_asesor_actual: ''
     });
 
-    const fetchAsesores = useCallback(async (currentFilters) => {
+    const fetchAsesores = useCallback(async (currentFilters, page = 1, size = pageSize) => {
         setLoading(true);
         setError(null);
         try {
@@ -42,11 +48,21 @@ function AsesoresPage() {
                 .filter(([key, value]) => value !== '' && value !== null)
                 .reduce((obj, [key, value]) => { obj[key] = value; return obj; }, {});
             
+            // Agregar parámetros de paginación
+            activeFilters.page = page;
+            activeFilters.page_size = size;
+            
             const queryParams = new URLSearchParams(activeFilters).toString();
             console.log("[AsesoresPage] Fetching asesores con queryParams:", queryParams);
             const response = await apiService.getAsesores(queryParams);
+            console.log("[AsesoresPage] Asesores response:", response.data);
+            
+            // Extraer datos paginados
             const fetchedAsesores = response.data.results || response.data || [];
             setAsesores(fetchedAsesores);
+            setTotalCount(response.data.count || 0);
+            setTotalPages(Math.ceil((response.data.count || 0) / size));
+            setCurrentPage(page);
 
             const map = {};
             fetchedAsesores.forEach(a => { map[a.id_asesor] = a.nombre_asesor; });
@@ -61,11 +77,11 @@ function AsesoresPage() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, []); // Remover pageSize de las dependencias para evitar ciclos
 
     useEffect(() => {
-        fetchAsesores(filters);
-    }, [filters, fetchAsesores]);
+        fetchAsesores(filters, 1, pageSize);
+    }, [filters, fetchAsesores]); // Remover pageSize del useEffect para evitar llamadas duplicadas
     
     const handleFilterChange = (e) => {
         const { name, value } = e.target;
@@ -74,6 +90,20 @@ function AsesoresPage() {
 
     const resetFilters = () => {
         setFilters({ nombre_asesor: '', tipo_asesor_actual: '' });
+    };
+
+    // Funciones de paginación
+    const handlePageChange = (newPage) => {
+        if (newPage >= 1 && newPage <= totalPages) {
+            fetchAsesores(filters, newPage, pageSize);
+        }
+    };
+
+    const handlePageSizeChange = (newPageSize) => {
+        setPageSize(newPageSize);
+        setCurrentPage(1); // Reset a la primera página cuando cambia el tamaño
+        // Llamar directamente a fetchAsesores con el nuevo tamaño
+        fetchAsesores(filters, 1, newPageSize);
     };
 
     const handleOpenModalForCreate = () => { setEditingAsesor(null); setIsModalOpen(true); };
@@ -104,7 +134,7 @@ function AsesoresPage() {
                 alert('Asesor creado con éxito!');
             }
             handleCloseModal();
-            fetchAsesores(filters); 
+            fetchAsesores(filters, currentPage, pageSize); 
         } catch (err) { 
             let submitErrorMessage = "Error al guardar el asesor.";
             if (err.response && err.response.data) {
@@ -129,7 +159,7 @@ function AsesoresPage() {
                 setLoading(true);
                 await apiService.deleteAsesor(asesorId);
                 alert('Asesor eliminado con éxito!');
-                fetchAsesores(filters); 
+                fetchAsesores(filters, currentPage, pageSize); 
             } catch (err) { 
                 alert(`Error al eliminar el asesor: ${err.response?.data?.detail || err.message || 'Error desconocido.'}`);
             } finally {
@@ -141,6 +171,40 @@ function AsesoresPage() {
     const showInitialLoading = loading && asesores.length === 0 && !Object.values(filters).some(f => f !== '');
     const showFilteringMessage = loading && (asesores.length > 0 || Object.values(filters).some(f => f !== ''));
 
+    // Generar array de páginas para mostrar en la paginación
+    const getPageNumbers = () => {
+        const pages = [];
+        const maxVisiblePages = 5;
+        
+        if (totalPages <= maxVisiblePages) {
+            for (let i = 1; i <= totalPages; i++) {
+                pages.push(i);
+            }
+        } else {
+            if (currentPage <= 3) {
+                for (let i = 1; i <= 4; i++) {
+                    pages.push(i);
+                }
+                pages.push('...');
+                pages.push(totalPages);
+            } else if (currentPage >= totalPages - 2) {
+                pages.push(1);
+                pages.push('...');
+                for (let i = totalPages - 3; i <= totalPages; i++) {
+                    pages.push(i);
+                }
+            } else {
+                pages.push(1);
+                pages.push('...');
+                for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+                    pages.push(i);
+                }
+                pages.push('...');
+                pages.push(totalPages);
+            }
+        }
+        return pages;
+    };
 
     return (
         <div className={styles.pageContainer}>
@@ -181,36 +245,106 @@ function AsesoresPage() {
             )}
 
             {asesores.length > 0 && (
-                <div className={styles.tableResponsiveContainer}>
-                    <table className={styles.table}>
-                        <thead>
-                            <tr>
-                                <th>ID Asesor</th>
-                                <th>Nombre</th>
-                                <th>Tipo</th>
-                                <th>Fecha Ingreso</th>
-                                <th>Referidor</th>
-                                <th style={{minWidth: '180px'}}>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {asesores.map(asesor => (
-                                <tr key={asesor.id_asesor}>
-                                    <td data-label="ID Asesor">{asesor.id_asesor}</td>
-                                    <td data-label="Nombre">{asesor.nombre_asesor}</td>
-                                    <td data-label="Tipo">{asesor.tipo_asesor_actual}</td>
-                                    <td data-label="Fecha Ingreso">{displayDate(asesor.fecha_ingreso)}</td>
-                                    <td data-label="Referidor">{asesor.id_referidor ? (asesor.nombre_referidor || asesorMap[asesor.id_referidor] || asesor.id_referidor) : '-'}</td>
-                                    <td data-label="Acciones" className={styles.actionButtons}>
-                                        <Link to={`/asesores/${asesor.id_asesor}`} className={`${styles.button} ${styles.viewButton}`}>Ver</Link>
-                                        <button onClick={() => handleOpenModalForEdit(asesor)} className={`${styles.button} ${styles.editButton}`}>Editar</button>
-                                        <button onClick={() => handleDeleteAsesor(asesor.id_asesor)} className={`${styles.button} ${styles.deleteButton}`}>Eliminar</button>
-                                    </td>
+                <>
+                    {/* Información de paginación */}
+                    <div className={styles.paginationInfo}>
+                        <span>
+                            Mostrando {((currentPage - 1) * pageSize) + 1} a {Math.min(currentPage * pageSize, totalCount)} de {totalCount} asesores
+                        </span>
+                        <div className={styles.pageSizeSelector}>
+                            <label htmlFor="pageSize">Asesores por página:</label>
+                            <select 
+                                id="pageSize"
+                                value={pageSize} 
+                                onChange={(e) => handlePageSizeChange(parseInt(e.target.value))}
+                                className={styles.pageSizeSelect}
+                            >
+                                <option value={10}>10</option>
+                                <option value={20}>20</option>
+                                <option value={50}>50</option>
+                                <option value={100}>100</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Tabla de asesores */}
+                    <div className={styles.tableResponsiveContainer}>
+                        <table className={styles.table}>
+                            <thead>
+                                <tr>
+                                    <th>ID Asesor</th>
+                                    <th>Nombre</th>
+                                    <th>Tipo</th>
+                                    <th>Fecha Ingreso</th>
+                                    <th>Referidor</th>
+                                    <th style={{minWidth: '180px'}}>Acciones</th>
                                 </tr>
+                            </thead>
+                            <tbody>
+                                {asesores.map(asesor => (
+                                    <tr key={asesor.id_asesor}>
+                                        <td data-label="ID Asesor">{asesor.id_asesor}</td>
+                                        <td data-label="Nombre">{asesor.nombre_asesor}</td>
+                                        <td data-label="Tipo">{asesor.tipo_asesor_actual}</td>
+                                        <td data-label="Fecha Ingreso">{displayDate(asesor.fecha_ingreso)}</td>
+                                        <td data-label="Referidor">{asesor.id_referidor ? (asesor.nombre_referidor || asesorMap[asesor.id_referidor] || asesor.id_referidor) : '-'}</td>
+                                        <td data-label="Acciones" className={styles.actionButtons}>
+                                            <Link to={`/asesores/${asesor.id_asesor}`} className={`${styles.button} ${styles.viewButton}`}>Ver</Link>
+                                            <button onClick={() => handleOpenModalForEdit(asesor)} className={`${styles.button} ${styles.editButton}`}>Editar</button>
+                                            <button onClick={() => handleDeleteAsesor(asesor.id_asesor)} className={`${styles.button} ${styles.deleteButton}`}>Eliminar</button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Controles de paginación */}
+                    {totalPages > 1 && (
+                        <div className={styles.paginationControls}>
+                            <button 
+                                onClick={() => handlePageChange(1)} 
+                                disabled={currentPage === 1}
+                                className={styles.paginationButton}
+                            >
+                                « Primera
+                            </button>
+                            <button 
+                                onClick={() => handlePageChange(currentPage - 1)} 
+                                disabled={currentPage === 1}
+                                className={styles.paginationButton}
+                            >
+                                ‹ Anterior
+                            </button>
+                            
+                            {getPageNumbers().map((page, index) => (
+                                <button
+                                    key={index}
+                                    onClick={() => typeof page === 'number' ? handlePageChange(page) : null}
+                                    disabled={page === '...'}
+                                    className={`${styles.paginationButton} ${page === currentPage ? styles.activePage : ''} ${page === '...' ? styles.ellipsis : ''}`}
+                                >
+                                    {page}
+                                </button>
                             ))}
-                        </tbody>
-                    </table>
-                </div>
+                            
+                            <button 
+                                onClick={() => handlePageChange(currentPage + 1)} 
+                                disabled={currentPage === totalPages}
+                                className={styles.paginationButton}
+                            >
+                                Siguiente ›
+                            </button>
+                            <button 
+                                onClick={() => handlePageChange(totalPages)} 
+                                disabled={currentPage === totalPages}
+                                className={styles.paginationButton}
+                            >
+                                Última »
+                            </button>
+                        </div>
+                    )}
+                </>
             )}
             {isModalOpen && (
                 <AsesorForm 

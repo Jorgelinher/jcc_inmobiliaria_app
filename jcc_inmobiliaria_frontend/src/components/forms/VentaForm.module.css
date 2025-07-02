@@ -7,3 +7,18 @@
 
 /* Puedes dejarlo vacío si FormStyles.module.css es suficiente,
    excepto por la clase para el max-width si es diferente de otros modales. */
+
+.buttonDeleteAsesor {
+    color: var(--color-error); /* Rojo de la app */
+    background: transparent;
+    border: 1px solid var(--color-error);
+    margin-left: 8px;
+    font-size: 1.2em;
+    padding: 6px 14px;
+    font-weight: bold;
+    transition: background 0.2s, color 0.2s;
+}
+.buttonDeleteAsesor:hover {
+    background: var(--color-error);
+    color: #fff;
+}
