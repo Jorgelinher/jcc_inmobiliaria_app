@@ -23,7 +23,8 @@ from .models import (
     Lote, Cliente, Asesor, Venta, ActividadDiaria,
     DefinicionMetaComision, TablaComisionDirecta, ConfigGeneral, LogAuditoriaCambio,
     RegistroPago, Presencia,
-    PlanPagoVenta, CuotaPlanPago, ComisionVentaAsesor
+    PlanPagoVenta, CuotaPlanPago, ComisionVentaAsesor, GestionCobranza,
+    CierreComisionMensual, DetalleComisionCerrada
 )
 from decimal import Decimal
 
@@ -213,7 +214,7 @@ class CuotaPlanPagoSerializer(serializers.ModelSerializer):
         return None
 
 class PlanPagoVentaSerializer(serializers.ModelSerializer):
-    cuotas = CuotaPlanPagoSerializer(many=True, read_only=True)
+    cuotas = serializers.SerializerMethodField()
     venta_id_str = serializers.CharField(source='venta.id_venta', read_only=True)
     venta_cliente_nombre = serializers.CharField(source='venta.cliente.nombres_completos_razon_social', read_only=True)
     venta_lote_id = serializers.CharField(source='venta.lote.id_lote', read_only=True)
@@ -232,6 +233,11 @@ class PlanPagoVentaSerializer(serializers.ModelSerializer):
             'monto_pagado_dolares', 'saldo_total_dolares',
         ]
         read_only_fields = ('id_plan_pago', 'fecha_creacion', 'ultima_modificacion', 'venta_id_str', 'cuotas', 'venta_cliente_nombre', 'venta_lote_id')
+
+    def get_cuotas(self, obj):
+        from .serializers import CuotaPlanPagoSerializer
+        cuotas_qs = obj.cuotas.all().order_by('numero_cuota')
+        return CuotaPlanPagoSerializer(cuotas_qs, many=True).data
 
     def get_monto_cuota_regular_display(self, obj):
         if obj.venta and obj.venta.lote and (
@@ -513,3 +519,26 @@ class TablaComisionDirectaSerializer(serializers.ModelSerializer):
     class Meta: model = TablaComisionDirecta; fields = '__all__'
 class ConfigGeneralSerializer(serializers.ModelSerializer):
     class Meta: model = ConfigGeneral; fields = '__all__'
+
+class GestionCobranzaSerializer(serializers.ModelSerializer):
+    responsable_nombre = serializers.CharField(source='responsable.get_full_name', read_only=True)
+    responsable = serializers.PrimaryKeyRelatedField(read_only=True)
+    class Meta:
+        model = GestionCobranza
+        fields = ['id', 'cuota', 'responsable', 'responsable_nombre', 'fecha_gestion', 'tipo_contacto', 'resultado', 'proximo_seguimiento']
+        read_only_fields = ['id', 'fecha_gestion', 'responsable', 'responsable_nombre']
+
+# --- SERIALIZERS DE CIERRE DE COMISIONES ---
+
+class DetalleComisionCerradaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DetalleComisionCerrada
+        fields = '__all__'
+        depth = 1
+
+class CierreComisionMensualSerializer(serializers.ModelSerializer):
+    detalles = DetalleComisionCerradaSerializer(many=True, read_only=True)
+    class Meta:
+        model = CierreComisionMensual
+        fields = '__all__'
+        depth = 1

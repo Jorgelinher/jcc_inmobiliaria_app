@@ -8,6 +8,9 @@ from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from dateutil.relativedelta import relativedelta 
 from uuid import uuid4
+from django.contrib.auth import get_user_model
+from django.conf import settings
+User = get_user_model()
 
 # --- Función Auxiliar para generar IDs Correlativos ---
 def generar_siguiente_id(modelo, prefijo, longitud_numero=4):
@@ -360,19 +363,19 @@ class PlanPagoVenta(models.Model):
             else:
                 monto_financiado = self.monto_total_credito
             
-            monto_cuota_original = (monto_financiado / Decimal(numero_cuotas_original)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            numero_cuotas = self.numero_cuotas or 1
+            monto_cuota_original = (monto_financiado / Decimal(numero_cuotas)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
             
             # Restaurar el monto_cuota_regular_original
             self.monto_cuota_regular_original = monto_cuota_original
             print(f"  Monto cuota regular restaurado a: {monto_cuota_original}")
             
             # Recrear las cuotas originales
-            from datetime import date, timedelta
+            from datetime import date
+            from dateutil.relativedelta import relativedelta
             fecha_inicio = self.fecha_inicio_pago_cuotas
-            
             for i in range(1, numero_cuotas_original + 1):
-                fecha_vencimiento = fecha_inicio + timedelta(days=30 * (i - 1))
-                
+                fecha_vencimiento = fecha_inicio + relativedelta(months=i-1)
                 cuota = CuotaPlanPago(
                     plan_pago_venta=self,
                     numero_cuota=i,
@@ -382,10 +385,8 @@ class PlanPagoVenta(models.Model):
                     estado_cuota='pendiente',
                     fecha_pago_efectivo=None
                 )
-                
                 if es_proyecto_dolares:
                     cuota.monto_programado_dolares = monto_cuota_original
-                
                 cuota.save()
                 print(f"    Cuota N°{i} recreada: monto={monto_cuota_original}, vencimiento={fecha_vencimiento}")
             
@@ -432,105 +433,63 @@ class PlanPagoVenta(models.Model):
             print(f"  Advertencia: Saldo a redistribuir calculado como {saldo_capital_a_redistribuir}, ajustando a 0.")
             saldo_capital_a_redistribuir = Decimal('0.00')
         
-        # NUEVA LÓGICA: Eliminar cuotas que ya no son necesarias basándose en el monto total pagado
-        cuotas_a_eliminar = []
-        
-        if es_proyecto_dolares:
-            monto_total_pagado = sum(p.monto_pago_dolares or Decimal('0.00') for p in self.venta.registros_pago.all())
-        else:
-            monto_total_pagado = self.venta.monto_pagado_actual or Decimal('0.00')
-        
-        monto_acumulado_cuotas = Decimal('0.00')
-        
-        for cuota in self.cuotas.all().order_by('numero_cuota'):
+        # NUEVA LÓGICA: No eliminar cuotas pagadas ni ninguna cuota existente
+        # Solo actualizar el estado y montos de las cuotas existentes, y crear nuevas si faltan
+        cuotas_existentes = list(self.cuotas.all().order_by('numero_cuota'))
+        num_cuotas_existentes = len(cuotas_existentes)
+        cuotas_necesarias = self.numero_cuotas
+        if num_cuotas_existentes < cuotas_necesarias:
+            # Definir SIEMPRE monto_cuota_original antes de crear cuotas
             if es_proyecto_dolares:
-                monto_programado = cuota.monto_programado_dolares or Decimal('0.00')
+                precio_dolares = self.venta.precio_dolares or Decimal('0.00')
+                cuota_inicial_dolares = Decimal('0.00')
+                if self.venta.cuota_inicial_requerida and self.venta.cuota_inicial_requerida > Decimal('0.00'):
+                    if self.venta.tipo_cambio and self.venta.tipo_cambio > Decimal('0.00'):
+                        cuota_inicial_dolares = (self.venta.cuota_inicial_requerida / self.venta.tipo_cambio).quantize(Decimal('0.01'))
+                monto_financiado = precio_dolares - cuota_inicial_dolares
+                monto_cuota_original = (monto_financiado / Decimal(cuotas_necesarias)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
             else:
-                monto_programado = cuota.monto_programado
-            
-            # Si el monto total pagado cubre completamente esta cuota, marcarla para eliminar
-            if monto_total_pagado >= (monto_acumulado_cuotas + monto_programado) and monto_programado > Decimal('0.00'):
-                cuotas_a_eliminar.append(cuota)
-                print(f"    Cuota N°{cuota.numero_cuota} marcada para eliminar (cubierta por pagos acumulados)")
-            
-            monto_acumulado_cuotas += monto_programado
-        
-        # Eliminar las cuotas que ya no son necesarias
-        if cuotas_a_eliminar:
-            print(f"  Eliminando {len(cuotas_a_eliminar)} cuotas que ya no son necesarias...")
-            for cuota in cuotas_a_eliminar:
-                cuota.delete()
-            print(f"  {len(cuotas_a_eliminar)} cuotas eliminadas exitosamente.")
-        
-        # Recalcular números de cuota después de eliminar
-        cuotas_restantes = self.cuotas.all().order_by('numero_cuota')
-        for i, cuota in enumerate(cuotas_restantes, 1):
-            if cuota.numero_cuota != i:
-                cuota.numero_cuota = i
-                cuota.save(update_fields=['numero_cuota'])
-                print(f"    Cuota re-numerada: {cuota.numero_cuota} -> {i}")
-        
-        # Actualizar el número total de cuotas en el plan
-        nuevo_numero_cuotas = self.cuotas.count()
-        if self.numero_cuotas != nuevo_numero_cuotas:
-            self.numero_cuotas = nuevo_numero_cuotas
-            print(f"  Número de cuotas actualizado: {self.numero_cuotas} -> {nuevo_numero_cuotas}")
-        
-        # Obtener todas las cuotas restantes para recalcular
-        cuotas_a_recalcular_lista = list(self.cuotas.all().order_by('numero_cuota'))
-        num_cuotas_a_recalcular = len(cuotas_a_recalcular_lista)
-        print(f"  Número de cuotas a recalcular: {num_cuotas_a_recalcular}")
-        
-        if num_cuotas_a_recalcular > 0:
-            # Calcular el monto por cuota basándose en el saldo restante
-            nuevo_monto_programado_cuota_bruto = saldo_capital_a_redistribuir / Decimal(num_cuotas_a_recalcular) if num_cuotas_a_recalcular > 0 else Decimal('0.00')
-            nuevo_monto_programado_cuota_regular = nuevo_monto_programado_cuota_bruto.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-            if nuevo_monto_programado_cuota_regular < Decimal('0.00'): nuevo_monto_programado_cuota_regular = Decimal('0.00')
-            print(f"  Nuevo monto PROGRAMADO de cuota regular (recalculado): {nuevo_monto_programado_cuota_regular}")
-            
-            # Actualizar el monto_cuota_regular_original del plan con el nuevo valor recalculado
-            if self.monto_cuota_regular_original != nuevo_monto_programado_cuota_regular:
-                self.monto_cuota_regular_original = nuevo_monto_programado_cuota_regular
-                print(f"  Monto cuota regular original actualizado: {self.monto_cuota_regular_original}")
-            
-            monto_acumulado_para_ajuste_final = Decimal('0.00')
-            for i, cuota in enumerate(cuotas_a_recalcular_lista):
-                cuota._monto_programado_changed_in_recalc = True 
-                
-                if i < num_cuotas_a_recalcular - 1:
-                    if es_proyecto_dolares:
-                        cuota.monto_programado_dolares = nuevo_monto_programado_cuota_regular
-                        monto_acumulado_para_ajuste_final += cuota.monto_programado_dolares
-                    else:
-                        cuota.monto_programado = nuevo_monto_programado_cuota_regular
-                        monto_acumulado_para_ajuste_final += cuota.monto_programado
-                else: 
-                    if es_proyecto_dolares:
-                        cuota.monto_programado_dolares = saldo_capital_a_redistribuir - monto_acumulado_para_ajuste_final
-                        if cuota.monto_programado_dolares < Decimal('0.00'): cuota.monto_programado_dolares = Decimal('0.00')
-                    else:
-                        cuota.monto_programado = saldo_capital_a_redistribuir - monto_acumulado_para_ajuste_final
-                        if cuota.monto_programado < Decimal('0.00'): cuota.monto_programado = Decimal('0.00')
-                
-                # Resetear monto_pagado y estado de la cuota
-                cuota.monto_pagado = Decimal('0.00')
-                cuota.fecha_pago_efectivo = None
-                cuota.actualizar_estado(save_instance=False) 
-                
+                monto_financiado = self.monto_total_credito
+                monto_cuota_original = (monto_financiado / Decimal(cuotas_necesarias)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            from datetime import timedelta
+            fecha_inicio = self.fecha_inicio_pago_cuotas
+            for i in range(num_cuotas_existentes + 1, cuotas_necesarias + 1):
+                fecha_vencimiento = fecha_inicio + timedelta(days=30 * (i - 1))
+                cuota = CuotaPlanPago(
+                    plan_pago_venta=self,
+                    numero_cuota=i,
+                    fecha_vencimiento=fecha_vencimiento,
+                    monto_programado=monto_cuota_original,
+                    monto_pagado=Decimal('0.00'),
+                    estado_cuota='pendiente',
+                    fecha_pago_efectivo=None
+                )
                 if es_proyecto_dolares:
-                    print(f"    Cuota N°{cuota.numero_cuota}: NUEVO monto_programado_dolares={cuota.monto_programado_dolares}, NUEVO estado={cuota.estado_cuota}")
-                else:
-                    print(f"    Cuota N°{cuota.numero_cuota}: NUEVO monto_programado={cuota.monto_programado}, NUEVO estado={cuota.estado_cuota}")
-            
-            if save_cuotas and cuotas_a_recalcular_lista:
-                if es_proyecto_dolares:
-                    campos_bulk_update = ['monto_programado_dolares', 'monto_pagado', 'estado_cuota', 'fecha_pago_efectivo']
-                else:
-                    campos_bulk_update = ['monto_programado', 'monto_pagado', 'estado_cuota', 'fecha_pago_efectivo']
-                CuotaPlanPago.objects.bulk_update(cuotas_a_recalcular_lista, campos_bulk_update)
-                print(f"  {len(cuotas_a_recalcular_lista)} cuotas actualizadas con bulk_update.")
-        elif num_cuotas_a_recalcular == 0 and saldo_capital_a_redistribuir > Decimal('0.00'):
-            print(f"  ADVERTENCIA: No hay cuotas no pagadas pero queda saldo de capital {saldo_capital_a_redistribuir} en Plan ID {self.id_plan_pago}.")
+                    cuota.monto_programado_dolares = monto_cuota_original
+                cuota.save()
+        # --- Antes de actualizar cuotas existentes ---
+        if es_proyecto_dolares:
+            precio_dolares = self.venta.precio_dolares or Decimal('0.00')
+            cuota_inicial_dolares = Decimal('0.00')
+            if self.venta.cuota_inicial_requerida and self.venta.cuota_inicial_requerida > Decimal('0.00'):
+                if self.venta.tipo_cambio and self.venta.tipo_cambio > Decimal('0.00'):
+                    cuota_inicial_dolares = (self.venta.cuota_inicial_requerida / self.venta.tipo_cambio).quantize(Decimal('0.01'))
+            monto_financiado = precio_dolares - cuota_inicial_dolares
+            monto_cuota_original = (monto_financiado / Decimal(cuotas_necesarias)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        else:
+            monto_financiado = self.monto_total_credito
+            monto_cuota_original = (monto_financiado / Decimal(cuotas_necesarias)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        for cuota in cuotas_existentes:
+            if es_proyecto_dolares:
+                cuota.monto_programado_dolares = monto_cuota_original
+            else:
+                cuota.monto_programado = monto_cuota_original
+            if cuota.estado_cuota == 'pagada':
+                cuota.save(update_fields=['monto_programado', 'monto_programado_dolares'])
+                continue  # No modificar estado ni fecha de pago
+            cuota.estado_cuota = 'pendiente'
+            cuota.fecha_pago_efectivo = None
+            cuota.save(update_fields=['monto_programado', 'monto_programado_dolares', 'estado_cuota', 'fecha_pago_efectivo'])
         
         self.ultima_modificacion = timezone.now()
         self.save(update_fields=['ultima_modificacion', 'numero_cuotas', 'monto_cuota_regular_original']) 
@@ -1119,3 +1078,82 @@ class ComisionVentaAsesor(models.Model):
         verbose_name_plural = "Comisiones de Ventas por Asesor"
         unique_together = ('venta', 'asesor', 'rol')
         ordering = ['venta', 'asesor']
+
+class GestionCobranza(models.Model):
+    TIPO_CONTACTO = [
+        ('LLAMADA', 'Llamada Telefónica'),
+        ('WHATSAPP', 'Mensaje de WhatsApp'),
+        ('EMAIL', 'Correo Electrónico'),
+        ('CARTA', 'Carta Notarial'),
+    ]
+    cuota = models.ForeignKey('CuotaPlanPago', on_delete=models.CASCADE, related_name='gestiones_cobranza')
+    responsable = models.ForeignKey(User, on_delete=models.PROTECT)
+    fecha_gestion = models.DateTimeField(auto_now_add=True)
+    tipo_contacto = models.CharField(max_length=10, choices=TIPO_CONTACTO)
+    resultado = models.TextField(help_text="Ej: Cliente confirma pago para el día de mañana.")
+    proximo_seguimiento = models.DateField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Gestión para cuota {self.cuota.id_cuota} el {self.fecha_gestion.strftime('%d-%m-%Y')}"
+
+# --- MODELOS DE CIERRE DE COMISIONES ---
+from uuid import uuid4
+from decimal import Decimal
+from django.conf import settings
+from django.utils import timezone
+
+class CierreComisionMensual(models.Model):
+    """
+    Representa el 'candado' de un período contable (mes/año).
+    Almacena el estado general del cierre de comisiones para ese período.
+    """
+    STATUS_CHOICES = [
+        ('ABIERTO', 'Abierto'),   # El mes aún no se ha cerrado, los cálculos son dinámicos.
+        ('CERRADO', 'Cerrado'),   # El cálculo se ha ejecutado y es final, pendiente de pago.
+        ('PAGADO', 'Pagado'),     # Las comisiones de este cierre ya han sido liquidadas.
+    ]
+    id_cierre = models.UUIDField(primary_key=True, default=uuid4, editable=False)
+    mes = models.IntegerField()
+    año = models.IntegerField()
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='ABIERTO')
+    fecha_cierre = models.DateTimeField(null=True, blank=True, help_text="Fecha y hora en que se ejecutó el cierre.")
+    cerrado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="cierres_realizados")
+    monto_total_comisiones = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+
+    class Meta:
+        unique_together = ('mes', 'año') # Garantiza que solo haya un registro de cierre por mes/año.
+        ordering = ['-año', '-mes']
+        verbose_name = "Cierre de Comisión Mensual"
+        verbose_name_plural = "Cierres de Comisiones Mensuales"
+
+    def __str__(self):
+        return f"Cierre {self.mes}/{self.año} - {self.get_status_display()}"
+
+
+class DetalleComisionCerrada(models.Model):
+    """
+    Es una 'foto' o snapshot inmutable de una comisión específica
+    en el momento del cierre. Este es el registro que se usa para el pago.
+    """
+    id_detalle = models.UUIDField(primary_key=True, default=uuid4, editable=False)
+    cierre = models.ForeignKey(CierreComisionMensual, on_delete=models.CASCADE, related_name='detalles')
+    comision_original = models.OneToOneField('ComisionVentaAsesor', on_delete=models.PROTECT, help_text="Referencia a la comisión original")
+    
+    # Datos congelados al momento del cierre para garantizar inmutabilidad
+    asesor_nombre = models.CharField(max_length=255)
+    asesor_dni = models.CharField(max_length=20)
+    venta_id = models.CharField(max_length=20)
+    lote_str = models.CharField(max_length=255)
+    fecha_venta = models.DateField()
+    rol_en_venta = models.CharField(max_length=100)
+    monto_base_calculo = models.DecimalField(max_digits=12, decimal_places=2)
+    porcentaje_comision_aplicado = models.DecimalField(max_digits=5, decimal_places=2)
+    monto_comision_final = models.DecimalField(max_digits=12, decimal_places=2)
+
+    class Meta:
+        ordering = ['asesor_nombre', 'fecha_venta']
+        verbose_name = "Detalle de Comisión Cerrada"
+        verbose_name_plural = "Detalles de Comisiones Cerradas"
+
+    def __str__(self):
+        return f"Detalle para {self.asesor_nombre} en cierre {self.cierre}"

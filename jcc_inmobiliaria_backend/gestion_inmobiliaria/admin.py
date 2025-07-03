@@ -6,7 +6,7 @@ from .models import (
     Lote, Cliente, Asesor, Venta, ActividadDiaria, 
     DefinicionMetaComision, TablaComisionDirecta, ConfigGeneral, LogAuditoriaCambio,
     RegistroPago, Presencia,
-    PlanPagoVenta, CuotaPlanPago, ComisionVentaAsesor
+    PlanPagoVenta, CuotaPlanPago, ComisionVentaAsesor, CierreComisionMensual, DetalleComisionCerrada, GestionCobranza
 )
 
 @admin.register(Lote)
@@ -305,3 +305,21 @@ class ComisionVentaAsesorAdmin(admin.ModelAdmin):
     list_display = ('venta', 'asesor', 'rol', 'porcentaje_comision', 'monto_comision_calculado')
     search_fields = ('venta__id_venta', 'asesor__nombre_asesor', 'rol')
     list_filter = ('rol',)
+
+@admin.register(CierreComisionMensual)
+class CierreComisionMensualAdmin(admin.ModelAdmin):
+    list_display = ('mes', 'año', 'status', 'fecha_cierre', 'monto_total_comisiones')
+    search_fields = ('mes', 'año', 'status')
+    list_filter = ('año', 'status')
+
+@admin.register(DetalleComisionCerrada)
+class DetalleComisionCerradaAdmin(admin.ModelAdmin):
+    list_display = ('asesor_nombre', 'venta_id', 'fecha_venta', 'monto_comision_final')
+    search_fields = ('asesor_nombre', 'venta_id')
+    list_filter = ('fecha_venta',)
+
+@admin.register(GestionCobranza)
+class GestionCobranzaAdmin(admin.ModelAdmin):
+    list_display = ('cuota', 'responsable', 'fecha_gestion', 'tipo_contacto', 'resultado', 'proximo_seguimiento')
+    search_fields = ('resultado', 'responsable__username', 'cuota__plan_pago_venta__venta__cliente__nombres_completos_razon_social')
+    list_filter = ('tipo_contacto', 'fecha_gestion')

@@ -2,6 +2,9 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
+from .views import (
+    GestionCobranzaViewSet, CuotasPendientesCobranzaViewSet, CierreComisionViewSet,
+)
 
 router = DefaultRouter()
 router.register(r'lotes', views.LoteViewSet, basename='lote')
@@ -16,6 +19,10 @@ router.register(r'presencias', views.PresenciaViewSet, basename='presencia')
 router.register(r'planespago', views.PlanPagoVentaViewSet, basename='planpagoventa')
 router.register(r'cuotasplanpago', views.CuotaPlanPagoViewSet, basename='cuotaplanpago')
 # --- FIN: RUTAS ---
+
+router.register(r'cobranzas/gestiones', GestionCobranzaViewSet, basename='gestioncobranza')
+router.register(r'cobranzas/cuotas-pendientes', CuotasPendientesCobranzaViewSet, basename='cuotapendientecobranza')
+router.register(r'cierres-comisiones', CierreComisionViewSet, basename='cierres-comisiones')
 
 urlpatterns = [
     path('', include(router.urls)),

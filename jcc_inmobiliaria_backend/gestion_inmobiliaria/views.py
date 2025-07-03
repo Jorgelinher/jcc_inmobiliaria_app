@@ -4,7 +4,7 @@ from django.middleware.csrf import get_token as get_csrf_token_value
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie, csrf_protect
 from django.utils.dateparse import parse_date
-from django.db.models import Sum, Count, Value, DecimalField, Q, Case, When, IntegerField, F
+from django.db.models import Sum, Count, Value, DecimalField, Q, Case, When, IntegerField, F, ExpressionWrapper
 from django.db.models.functions import Coalesce, TruncMonth, Cast
 from datetime import datetime, date, timedelta
 from decimal import Decimal, ROUND_HALF_UP
@@ -25,11 +25,13 @@ from django.shortcuts import render
 from rest_framework import viewsets, status, filters
 from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend
+from django.db.models import fields
 
 from .models import (
     Lote, Cliente, Asesor, Venta, ActividadDiaria,
     DefinicionMetaComision, TablaComisionDirecta, RegistroPago,
-    Presencia, PlanPagoVenta, CuotaPlanPago, ComisionVentaAsesor
+    Presencia, PlanPagoVenta, CuotaPlanPago, ComisionVentaAsesor, GestionCobranza,
+    CierreComisionMensual, DetalleComisionCerrada
 )
 
 from rest_framework.views import APIView
@@ -41,7 +43,8 @@ from .serializers import (
     LoteSerializer, ClienteSerializer, AsesorSerializer, VentaSerializer, ActividadDiariaSerializer,
     RegistroPagoSerializer, PresenciaSerializer, TablaComisionDirectaSerializer,
     ClienteCreateSerializer,
-    PlanPagoVentaSerializer, CuotaPlanPagoSerializer, ComisionVentaAsesorSerializer
+    PlanPagoVentaSerializer, CuotaPlanPagoSerializer, ComisionVentaAsesorSerializer,
+    GestionCobranzaSerializer, CierreComisionMensualSerializer
 )
 from .filters import (
     LoteFilter, ClienteFilter, AsesorFilter, VentaFilter, ActividadDiariaFilter,
@@ -1176,3 +1179,162 @@ class WebhookPresenciaCRMAPIView(APIView):
             else:
                 return Response({'detail': 'Datos de venta inválidos.', 'errors': venta_serializer.errors}, status=400)
         return Response({'detail': 'Presencia y vinculación procesadas correctamente.', 'id_presencia': presencia_obj.id_presencia, 'id_venta': venta_obj.id_venta if venta_obj else None})
+
+class GestionCobranzaViewSet(viewsets.ModelViewSet):
+    queryset = GestionCobranza.objects.select_related('cuota', 'responsable').all()
+    serializer_class = GestionCobranzaSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [filters.OrderingFilter, filters.SearchFilter]
+    search_fields = ['resultado', 'responsable__username', 'cuota__plan_pago_venta__venta__cliente__nombres_completos_razon_social']
+    ordering_fields = ['fecha_gestion', 'proximo_seguimiento']
+    ordering = ['-fecha_gestion']
+
+    def perform_create(self, serializer):
+        serializer.save(responsable=self.request.user)
+
+class CuotasPendientesCobranzaViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = None  # Se define en get_serializer_class
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [filters.OrderingFilter, filters.SearchFilter]
+    ordering_fields = ['fecha_vencimiento', 'numero_cuota']
+    ordering = ['fecha_vencimiento']
+    # No usar paginación para obtener todas las cuotas y agrupar por venta en el frontend
+
+    def get_queryset(self):
+        hoy = timezone.now().date()
+        qs = CuotaPlanPago.objects.filter(estado_cuota__in=['pendiente', 'atrasada', 'vencida_no_pagada'])
+        # Filtros avanzados
+        proyecto = self.request.query_params.get('proyecto')
+        cliente = self.request.query_params.get('cliente')
+        fecha_desde = self.request.query_params.get('fecha_desde')
+        fecha_hasta = self.request.query_params.get('fecha_hasta')
+        if proyecto:
+            qs = qs.filter(plan_pago_venta__venta__lote__ubicacion_proyecto__icontains=proyecto)
+        if cliente:
+            qs = qs.filter(plan_pago_venta__venta__cliente__nombres_completos_razon_social__icontains=cliente)
+        if fecha_desde:
+            qs = qs.filter(fecha_vencimiento__gte=fecha_desde)
+        if fecha_hasta:
+            qs = qs.filter(fecha_vencimiento__lte=fecha_hasta)
+        # Annotar días vencidos
+        qs = qs.annotate(
+            dias_vencidos=ExpressionWrapper(F('fecha_vencimiento') - hoy, output_field=fields.DurationField())
+        )
+        return qs
+
+    def list(self, request, *args, **kwargs):
+        qs = self.get_queryset()
+        data = []
+        print("[LOG] Iniciando procesamiento de cuotas pendientes para cobranza. Total cuotas en queryset:", qs.count())
+        
+        for cuota in qs:
+            try:
+                print(f"[LOG] Procesando cuota ID {cuota.id_cuota} | Estado: {cuota.estado_cuota}")
+                gestiones = cuota.gestiones_cobranza.order_by('-fecha_gestion')
+                ultima_gestion = gestiones.first()
+                cliente_str = str(cuota.plan_pago_venta.venta.cliente)
+                lote_str = str(cuota.plan_pago_venta.venta.lote)
+                data.append({
+                    'id_cuota': cuota.id_cuota,
+                    'cliente': cliente_str,
+                    'lote': lote_str,
+                    'numero_cuota': cuota.numero_cuota,
+                    'fecha_vencimiento': cuota.fecha_vencimiento,
+                    'monto_programado': cuota.monto_programado,
+                    'dias_vencidos': (timezone.now().date() - cuota.fecha_vencimiento).days if cuota.fecha_vencimiento < timezone.now().date() else 0,
+                    'estado_cuota': cuota.estado_cuota,
+                    'ultima_gestion': {
+                        'fecha_gestion': ultima_gestion.fecha_gestion if ultima_gestion else None,
+                        'tipo_contacto': ultima_gestion.tipo_contacto if ultima_gestion else None,
+                        'resultado': ultima_gestion.resultado if ultima_gestion else None,
+                    } if ultima_gestion else None
+                })
+            except Exception as e:
+                print(f"[ERROR] Fallo procesando cuota ID {cuota.id_cuota}: {e}")
+        print(f"[LOG] Total cuotas procesadas correctamente: {len(data)}")
+        return Response(data)
+
+# --- VIEWS DE CIERRE DE COMISIONES ---
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from django.db import transaction
+from django.utils import timezone
+from decimal import Decimal
+from .models import CierreComisionMensual, DetalleComisionCerrada, ComisionVentaAsesor
+from .serializers import CierreComisionMensualSerializer
+
+class CierreComisionViewSet(viewsets.ModelViewSet):
+    queryset = CierreComisionMensual.objects.all()
+    serializer_class = CierreComisionMensualSerializer
+
+    def list(self, request, *args, **kwargs):
+        mes = request.query_params.get('mes')
+        año = request.query_params.get('año')
+        qs = self.get_queryset()
+        if mes and año:
+            qs = qs.filter(mes=mes, año=año)
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(qs, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['post'], url_path='ejecutar-cierre')
+    @transaction.atomic
+    def ejecutar_cierre(self, request):
+        mes = request.data.get('mes')
+        año = request.data.get('año')
+
+        if not mes or not año:
+            return Response({"error": "Mes y año son requeridos."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validar que el período no esté ya cerrado
+        if CierreComisionMensual.objects.filter(mes=mes, año=año, status__in=['CERRADO', 'PAGADO']).exists():
+            return Response({"error": f"El período {mes}/{año} ya ha sido cerrado."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Comisiones del período que no han sido cerradas
+        comisiones_a_cerrar = ComisionVentaAsesor.objects.filter(
+            venta__fecha_venta__month=mes,
+            venta__fecha_venta__year=año,
+            detallecomisioncerrada__isnull=True
+        )
+
+        if not comisiones_a_cerrar.exists():
+            return Response({"error": "No hay nuevas comisiones para cerrar en este período."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Crear el registro de cierre
+        cierre, created = CierreComisionMensual.objects.update_or_create(
+            mes=mes, año=año,
+            defaults={
+                'status': 'CERRADO',
+                'cerrado_por': request.user,
+                'fecha_cierre': timezone.now()
+            }
+        )
+
+        total_comisiones_periodo = Decimal('0.0')
+
+        # Crear los detalles inmutables (snapshots)
+        for comision in comisiones_a_cerrar:
+            monto_final = comision.monto_comision_calculado
+            DetalleComisionCerrada.objects.create(
+                cierre=cierre,
+                comision_original=comision,
+                asesor_nombre=comision.asesor.nombre_asesor,
+                asesor_dni=comision.asesor.dni,
+                venta_id=comision.venta.id_venta,
+                lote_str=str(comision.venta.lote),
+                fecha_venta=comision.venta.fecha_venta,
+                rol_en_venta=comision.rol,
+                monto_base_calculo=comision.venta.valor_lote_venta,
+                porcentaje_comision_aplicado=comision.porcentaje_comision,
+                monto_comision_final=monto_final
+            )
+            total_comisiones_periodo += monto_final
+
+        cierre.monto_total_comisiones = total_comisiones_periodo
+        cierre.save()
+
+        return Response(CierreComisionMensualSerializer(cierre).data, status=status.HTTP_201_CREATED)
