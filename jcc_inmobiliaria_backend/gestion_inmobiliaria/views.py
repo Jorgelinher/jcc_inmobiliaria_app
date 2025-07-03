@@ -1298,6 +1298,7 @@ class CierreComisionViewSet(viewsets.ModelViewSet):
         comisiones_a_cerrar = ComisionVentaAsesor.objects.filter(
             venta__fecha_venta__month=mes,
             venta__fecha_venta__year=año,
+            venta__status_venta=Venta.STATUS_VENTA_PROCESABLE,  # Solo ventas procesables
             detallecomisioncerrada__isnull=True
         )
 
