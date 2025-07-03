@@ -233,3 +233,10 @@ export const calculateCommission = (params) => apiClient.get('/gestion/calculate
 export const getCommissionStructure = () => apiClient.get('/gestion/commission-structure/');
 export const getGeneralConfigs = () => apiClient.get('/gestion/general-configs/');
 
+export const get = (url, config) => apiClient.get(url, config);
+export const post = (url, data, config) => apiClient.post(url, data, config);
+
+// Exportación default para compatibilidad con import apiService from '...'
+const apiService = { get, post };
+export default apiService;
+

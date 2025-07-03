@@ -25,7 +25,9 @@ function Navbar() {
                         <NavLink to="/asesores" className={getLinkClassName}>Asesores</NavLink>
                         <NavLink to="/ventas" className={getLinkClassName}>Ventas</NavLink>
                         <NavLink to="/actividades" className={getLinkClassName}>Actividades</NavLink>
-                        <NavLink to="/comisiones" className={getLinkClassName}>Comisiones</NavLink> 
+                        <NavLink to="/comisiones" className={getLinkClassName}>Comisiones</NavLink>
+                        <NavLink to="/cierres-comisiones" className={getLinkClassName}>Cierre de Comisiones</NavLink>
+                        <NavLink to="/cobranzas" className={getLinkClassName}>Cobranzas</NavLink>
                     </>
                 )}
             </div>

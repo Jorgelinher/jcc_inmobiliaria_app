@@ -1,0 +1,263 @@
+.pageContainer {
+  padding: var(--spacing-lg, 24px);
+  background-color: var(--color-fondo-app, #F8F9FA);
+  min-height: calc(100vh - 68px);
+}
+.pageTitle {
+  font-family: var(--fuente-encabezados, 'Montserrat', sans-serif);
+  font-size: var(--font-size-h1, 32px);
+  color: var(--color-primario, #2A4A6B);
+  text-align: left;
+  margin-bottom: var(--spacing-lg, 24px);
+  font-weight: 700;
+}
+.filtersContainer {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--spacing-md, 16px);
+  margin-bottom: var(--spacing-lg, 24px);
+  padding: var(--spacing-lg, 24px);
+  background-color: var(--color-fondo-contenedor);
+  border: 1px solid var(--color-secundario);
+  border-radius: var(--border-radius-lg, 8px);
+  box-shadow: var(--sombra-media);
+  align-items: flex-end;
+}
+.filterInput,
+.filterSelect,
+.filterInputSmall {
+  font-family: var(--fuente-principal, 'Inter', sans-serif);
+  font-size: var(--font-size-sm, 14px);
+  color: var(--color-texto-principal, #343A40);
+  background-color: var(--color-fondo-input, #FFFFFF);
+  border: 1px solid var(--color-borde-input, #CED4DA);
+  border-radius: var(--border-radius-md, 6px);
+  padding: 0 var(--spacing-sm, 8px);
+  height: 38px;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.filterInput::placeholder { color: var(--color-texto-placeholders, #6C757D); }
+.filterSelect {
+  padding-right: 30px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23343A40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px;
+  appearance: none; -webkit-appearance: none; -moz-appearance: none;
+}
+.filterSelect option { background-color: var(--color-fondo-contenedor, #FFFFFF); color: var(--color-texto-principal, #343A40); }
+.filterSelect option[value=""] { color: var(--color-texto-secundario, #6C757D); }
+.filterInput:focus,
+.filterSelect:focus,
+.filterInputSmall:focus {
+  border-color: var(--color-borde-input-focus, #2A4A6B);
+  box-shadow: 0 0 0 0.2rem rgba(42, 74, 107, 0.25);
+  outline: none;
+}
+.filterButton {
+  font-family: var(--fuente-principal, 'Inter', sans-serif);
+  font-weight: 500;
+  font-size: var(--font-size-btn, 15px);
+  padding: 0 var(--spacing-md, 16px);
+  height: 38px;
+  background-color: transparent;
+  color: var(--color-primario, #2A4A6B);
+  border: 1px solid var(--color-primario, #2A4A6B);
+  border-radius: var(--border-radius-md, 6px);
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.filterButton:hover {
+  background-color: var(--color-primario, #2A4A6B);
+  color: var(--color-primario-texto, #FFFFFF);
+}
+.tableResponsiveWrapper {
+  position: relative;
+  width: 100%;
+  overflow-x: auto;
+  margin-bottom: 32px;
+  background-color: var(--color-fondo-contenedor, #FFFFFF);
+  border-radius: var(--border-radius-lg, 8px);
+  box-shadow: var(--sombra-media, 0 4px 12px rgba(0,0,0,0.08));
+  border: 1px solid var(--color-borde-general, #E9ECEF);
+  margin-top: var(--spacing-sm, 8px);
+  padding: 0 0 8px 0;
+}
+.table {
+  width: 100%;
+  min-width: 800px;
+  border-collapse: collapse;
+  table-layout: auto;
+}
+.table th,
+.table td {
+  padding: var(--spacing-sm, 8px) var(--spacing-sm, 12px);
+  text-align: center;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--color-borde-general, #E9ECEF);
+  font-family: var(--fuente-principal, 'Inter', sans-serif);
+  font-size: var(--font-size-sm, 13px);
+  line-height: 1.4;
+}
+.table th {
+  background-color: var(--color-primario, #2A4A6B);
+  color: var(--color-primario-texto, #FFFFFF);
+  font-family: var(--fuente-principal, 'Inter', sans-serif);
+  font-weight: 500;
+  white-space: normal;
+  word-break: break-word;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.table td {
+  color: var(--color-texto-principal, #343A40);
+  white-space: normal;
+  word-break: break-word;
+}
+.table tbody tr:nth-child(odd) {
+  background-color: var(--color-fondo-contenedor, #FFFFFF);
+}
+.table tbody tr:nth-child(even) {
+  background-color: var(--color-fondo-app, #F8F9FA);
+}
+.table tbody tr:hover {
+  background-color: #ddebf7;
+}
+.table tbody tr:last-child td {
+  border-bottom: none;
+} 
+
+/* Estilos de paginación */
+.paginationInfo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md, 16px);
+  padding: var(--spacing-sm, 12px) var(--spacing-md, 16px);
+  background-color: var(--color-fondo-contenedor, #FFFFFF);
+  border: 1px solid var(--color-borde-general, #E9ECEF);
+  border-radius: var(--border-radius-md, 6px);
+  font-family: var(--fuente-principal, 'Inter', sans-serif);
+  font-size: var(--font-size-sm, 14px);
+  color: var(--color-texto-principal, #343A40);
+}
+
+.pageSizeSelector {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm, 8px);
+}
+
+.pageSizeSelector label {
+  font-weight: 500;
+  color: var(--color-texto-principal, #343A40);
+}
+
+.pageSizeSelect {
+  font-family: var(--fuente-principal, 'Inter', sans-serif);
+  font-size: var(--font-size-sm, 14px);
+  color: var(--color-texto-principal, #343A40);
+  background-color: var(--color-fondo-input, #FFFFFF);
+  border: 1px solid var(--color-borde-input, #CED4DA);
+  border-radius: var(--border-radius-sm, 4px);
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.pageSizeSelect:focus {
+  border-color: var(--color-borde-input-focus, #2A4A6B);
+  outline: none;
+}
+
+.paginationControls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--spacing-xs, 4px);
+  margin-top: var(--spacing-lg, 24px);
+  flex-wrap: wrap;
+}
+
+.paginationButton {
+  font-family: var(--fuente-principal, 'Inter', sans-serif);
+  font-size: var(--font-size-sm, 14px);
+  font-weight: 500;
+  padding: var(--spacing-xs, 6px) var(--spacing-sm, 12px);
+  background-color: var(--color-fondo-contenedor, #FFFFFF);
+  color: var(--color-texto-principal, #343A40);
+  border: 1px solid var(--color-borde-general, #E9ECEF);
+  border-radius: var(--border-radius-sm, 4px);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 40px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.paginationButton:hover:not(:disabled) {
+  background-color: var(--color-primario, #2A4A6B);
+  color: var(--color-primario-texto, #FFFFFF);
+  border-color: var(--color-primario, #2A4A6B);
+}
+
+.paginationButton:disabled {
+  background-color: var(--color-fondo-app, #F8F9FA);
+  color: var(--color-texto-secundario, #6C757D);
+  border-color: var(--color-borde-general, #E9ECEF);
+  cursor: not-allowed;
+}
+
+.paginationButton.activePage {
+  background-color: var(--color-primario, #2A4A6B);
+  color: var(--color-primario-texto, #FFFFFF);
+  border-color: var(--color-primario, #2A4A6B);
+}
+
+.paginationButton.ellipsis {
+  background-color: transparent;
+  border: none;
+  cursor: default;
+  min-width: 20px;
+  padding: var(--spacing-xs, 6px) var(--spacing-xs, 4px);
+}
+
+.paginationButton.ellipsis:hover {
+  background-color: transparent;
+  color: var(--color-texto-principal, #343A40);
+  border: none;
+}
+
+/* Estilos para mensajes de carga y sin datos */
+.loadingMessage {
+  text-align: center;
+  padding: var(--spacing-lg, 24px);
+  color: var(--color-texto-secundario, #6C757D);
+  font-family: var(--fuente-principal, 'Inter', sans-serif);
+  font-size: var(--font-size-md, 16px);
+  background-color: var(--color-fondo-contenedor, #FFFFFF);
+  border: 1px solid var(--color-borde-general, #E9ECEF);
+  border-radius: var(--border-radius-md, 6px);
+  margin-bottom: var(--spacing-md, 16px);
+}
+
+.noDataMessage {
+  text-align: center;
+  padding: var(--spacing-lg, 24px);
+  color: var(--color-texto-secundario, #6C757D);
+  font-family: var(--fuente-principal, 'Inter', sans-serif);
+  font-size: var(--font-size-md, 16px);
+  background-color: var(--color-fondo-contenedor, #FFFFFF);
+  border: 1px solid var(--color-borde-general, #E9ECEF);
+  border-radius: var(--border-radius-md, 6px);
+  margin-bottom: var(--spacing-md, 16px);
+} 

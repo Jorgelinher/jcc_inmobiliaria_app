@@ -24,6 +24,9 @@ import VentaDetailPage from './pages/VentaDetailPage';
 import ActividadesPage from './pages/ActividadesPage';
 import ActividadDetailPage from './pages/ActividadDetailPage'; 
 import ComisionesPage from './pages/ComisionesPage'; 
+import CobranzasPage from './pages/CobranzasPage';
+import CierreComisionesPage from './pages/CierreComisionesPage';
+import ReporteCierrePage from './pages/ReporteCierrePage';
 
 const RootRedirect = () => {
     const { isAuthenticated, isLoadingAuth } = useAuth();
@@ -61,6 +64,11 @@ function App() {
                         <Route path="actividades/:idActividad" element={<ProtectedRoute><ActividadDetailPage /></ProtectedRoute>} /> 
                         
                         <Route path="comisiones" element={<ProtectedRoute><ComisionesPage /></ProtectedRoute>} /> 
+
+                        <Route path="cobranzas" element={<ProtectedRoute><CobranzasPage /></ProtectedRoute>} />
+
+                        <Route path="cierres-comisiones/:mes/:anio" element={<ProtectedRoute><ReporteCierrePage /></ProtectedRoute>} />
+                        <Route path="cierres-comisiones" element={<ProtectedRoute><CierreComisionesPage /></ProtectedRoute>} />
                     </Route>
                     <Route path="*" element={ <Layout> <div style={{ padding: '50px', textAlign: 'center' }}> <h2>404 - Página No Encontrada</h2> <p>Lo sentimos, la página que buscas no existe.</p> <Link to="/">Volver al Inicio</Link> </div> </Layout> } />
                 </Routes>

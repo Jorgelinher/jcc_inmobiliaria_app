@@ -7,6 +7,8 @@ const ProtectedRoute = ({ children }) => {
     const { isAuthenticated, isLoadingAuth } = useAuth(); // [cite: 71]
     const location = useLocation();
 
+    console.log("ProtectedRoute", { isAuthenticated, isLoadingAuth, children });
+
     if (isLoadingAuth) {
         // Puedes poner un componente de Spinner o un mensaje más elaborado aquí si lo deseas
         return <div>Cargando sesión...</div>; // [cite: 72]

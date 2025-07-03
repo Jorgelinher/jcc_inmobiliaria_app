@@ -545,51 +545,65 @@ function VentaDetailPage() {
                         }</div>
                         <div className={styles.detailItem}><strong>Inicio Pagos:</strong> {displayDate(venta.plan_pago_detalle.fecha_inicio_pago_cuotas)}</div>
                         <div className={styles.detailItem}><strong>Saldo:</strong> {esDolares && venta.plan_pago_detalle.saldo_total_dolares != null ? `$${Number(venta.plan_pago_detalle.saldo_total_dolares).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}` : (() => { let saldoTotal = 0; if (venta.plan_pago_detalle && venta.plan_pago_detalle.cuotas) { saldoTotal = venta.plan_pago_detalle.cuotas.reduce((acc, c) => acc + (c.saldo_cuota_display && c.saldo_cuota_display.soles ? Number(c.saldo_cuota_display.soles) : 0), 0); return displayCurrency(saldoTotal); } return '-'; })()}</div>
+                        <div className={styles.detailItem}><strong>Pagado:</strong> {displayCurrency((venta.plan_pago_detalle && venta.plan_pago_detalle.monto_pagado_actual != null) ? venta.plan_pago_detalle.monto_pagado_actual : venta.monto_pagado_actual)}</div>
                     </div>
                     
                     <div className={styles.tableResponsiveWrapper}>
-                         <table className={`${tableStyles.table} ${styles.dataTableFix}`} style={{width: '100%'}}>
-                            <thead>
-                                <tr>
-                                    <th style={{width:'4%'}}>N°</th>
-                                    <th style={{width:'10%'}}>Vencimiento</th>
-                                    <th style={{width:'13%'}} className={tableStyles.textAlignRight}>{esDolares ? 'Prog. ($)' : 'Prog. (S/.)'}</th>
-                                    <th style={{width:'13%'}} className={tableStyles.textAlignRight}>{esDolares ? 'Pagado ($)' : 'Pagado (S/.)'}</th>
-                                    <th style={{width:'13%'}} className={tableStyles.textAlignRight}>Pagado (S/.)</th>
-                                    <th style={{width:'10%'}} className={tableStyles.textAlignRight}>Tipo de Cambio</th>
-                                    {!esDolares && <th style={{width:'13%'}} className={tableStyles.textAlignRight}>Saldo (S/.)</th>}
-                                    <th style={{width:'13%'}}>Estado</th>
-                                    <th style={{width:'13%'}}>Fec. Pago Efect.</th>
-                                    <th style={{width:'11%', textAlign: 'center'}}>Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {venta.plan_pago_detalle.cuotas.map(cuota => (
-                                    <tr key={cuota.id_cuota} className={cuota.estado_cuota === 'pagada' ? styles.rowPagada : ((cuota.estado_cuota === 'atrasada' || cuota.estado_cuota === 'vencida_no_pagada') ? styles.rowAtrasada : '')}>
-                                        <td>{cuota.numero_cuota}</td>
-                                        <td>{displayDate(cuota.fecha_vencimiento)}</td>
-                                        <td className={tableStyles.textAlignRight}>{esDolares && cuota.monto_programado_display?.dolares != null ? `$${Number(cuota.monto_programado_display.dolares).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}` : displayCurrency(cuota.monto_programado)}</td>
-                                        <td className={tableStyles.textAlignRight}>{esDolares && cuota.monto_pagado_dolares != null ? `$${Number(cuota.monto_pagado_dolares).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}` : displayCurrency(cuota.monto_pagado)}</td>
-                                        <td className={tableStyles.textAlignRight}>{cuota.monto_pagado_soles != null ? displayCurrency(cuota.monto_pagado_soles) : '-'}</td>
-                                        <td className={tableStyles.textAlignRight}>{cuota.tipo_cambio_pago != null ? Number(cuota.tipo_cambio_pago).toFixed(3) : '-'}</td>
-                                        {!esDolares && <td className={tableStyles.textAlignRight}>{cuota.saldo_cuota_display && cuota.saldo_cuota_display.soles != null ? displayCurrency(cuota.saldo_cuota_display.soles) : '-'}</td>}
-                                        <td><span className={`${styles.statusBadge} ${styles['statusBadgeCuota' + cuota.estado_cuota?.replace(/\s+/g, '').replace(/_/g, '')]}`}>{displayValue(cuota.estado_cuota_display)}</span></td>
-                                        <td>{displayDate(cuota.fecha_pago_efectivo)}</td>
-                                        <td className={tableStyles.actionButtons} style={{justifyContent: 'center'}}>
-                                            {cuota.estado_cuota !== 'pagada' && Decimal(cuota.saldo_cuota).greaterThan(0) && (
-                                                <button 
-                                                    onClick={() => handleOpenPagoModal(cuota, cuota.saldo_cuota)}
-                                                    className={`${tableStyles.button} ${styles.payCuotaButton}`}
-                                                    title={`Registrar pago para cuota N° ${cuota.numero_cuota}`}
-                                                >
-                                                    Pagar Cuota
-                                                </button>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                        {(() => {
+                            // 1. Cuotas actuales (pendientes o activas)
+                            const cuotasActuales = venta.plan_pago_detalle.cuotas || [];
+                            // 2. Cuotas pagadas (reconstruidas desde los pagos)
+                            const cuotasPagadas = (venta.registros_pago || [])
+                                .filter(p => p.cuota_info && p.cuota_info.estado_cuota === 'pagada')
+                                .map(p => p.cuota_info)
+                                .filter((c, idx, arr) => arr.findIndex(x => x.id_cuota === c.id_cuota) === idx && !cuotasActuales.some(ca => ca.id_cuota === c.id_cuota));
+                            // 3. Unir y ordenar por número de cuota
+                            const todasLasCuotas = [...cuotasActuales, ...cuotasPagadas].sort((a, b) => a.numero_cuota - b.numero_cuota);
+                            return (
+                                <table className={`${tableStyles.table} ${styles.dataTableFix}`} style={{width: '100%'}}>
+                                    <thead>
+                                        <tr>
+                                            <th style={{width:'4%'}}>N°</th>
+                                            <th style={{width:'10%'}}>Vencimiento</th>
+                                            <th style={{width:'13%'}} className={tableStyles.textAlignRight}>{esDolares ? 'Prog. ($)' : 'Prog. (S/.)'}</th>
+                                            <th style={{width:'13%'}} className={tableStyles.textAlignRight}>{esDolares ? 'Pagado ($)' : 'Pagado (S/.)'}</th>
+                                            <th style={{width:'13%'}} className={tableStyles.textAlignRight}>Pagado (S/.)</th>
+                                            <th style={{width:'10%'}} className={tableStyles.textAlignRight}>Tipo de Cambio</th>
+                                            {!esDolares && <th style={{width:'13%'}} className={tableStyles.textAlignRight}>Saldo (S/.)</th>}
+                                            <th style={{width:'13%'}}>Estado</th>
+                                            <th style={{width:'13%'}}>Fec. Pago Efect.</th>
+                                            <th style={{width:'11%', textAlign: 'center'}}>Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {todasLasCuotas.map(cuota => (
+                                            <tr key={cuota.id_cuota} className={cuota.estado_cuota === 'pagada' ? styles.rowPagada : ((cuota.estado_cuota === 'atrasada' || cuota.estado_cuota === 'vencida_no_pagada') ? styles.rowAtrasada : '')}>
+                                                <td>{cuota.numero_cuota}</td>
+                                                <td>{displayDate(cuota.fecha_vencimiento)}</td>
+                                                <td className={tableStyles.textAlignRight}>{esDolares && cuota.monto_programado_display?.dolares != null ? `$${Number(cuota.monto_programado_display.dolares).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}` : displayCurrency(cuota.monto_programado)}</td>
+                                                <td className={tableStyles.textAlignRight}>{esDolares && cuota.monto_pagado_dolares != null ? `$${Number(cuota.monto_pagado_dolares).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}` : displayCurrency(cuota.monto_pagado)}</td>
+                                                <td className={tableStyles.textAlignRight}>{cuota.monto_pagado_soles != null ? displayCurrency(cuota.monto_pagado_soles) : '-'}</td>
+                                                <td className={tableStyles.textAlignRight}>{cuota.tipo_cambio_pago != null ? Number(cuota.tipo_cambio_pago).toFixed(3) : '-'}</td>
+                                                {!esDolares && <td className={tableStyles.textAlignRight}>{cuota.saldo_cuota_display && cuota.saldo_cuota_display.soles != null ? displayCurrency(cuota.saldo_cuota_display.soles) : '-'}</td>}
+                                                <td><span className={`${styles.statusBadge} ${styles['statusBadgeCuota' + cuota.estado_cuota?.replace(/\s+/g, '').replace(/_/g, '')]}`}>{cuota.estado_cuota === 'pagada' ? 'Pagada' : displayValue(cuota.estado_cuota_display)}</span></td>
+                                                <td>{displayDate(cuota.fecha_pago_efectivo)}</td>
+                                                <td className={tableStyles.actionButtons} style={{justifyContent: 'center'}}>
+                                                    {cuota.estado_cuota !== 'pagada' && Decimal(cuota.saldo_cuota).greaterThan(0) && (
+                                                        <button 
+                                                            onClick={() => handleOpenPagoModal(cuota, cuota.saldo_cuota)}
+                                                            className={`${tableStyles.button} ${styles.payCuotaButton}`}
+                                                            title={`Registrar pago para cuota N° ${cuota.numero_cuota}`}
+                                                        >
+                                                            Pagar Cuota
+                                                        </button>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            );
+                        })()}
                     </div>
                     {venta.plan_pago_detalle.observaciones && (
                         <div className={styles.detailItemFull} style={{marginTop: '15px'}}>
