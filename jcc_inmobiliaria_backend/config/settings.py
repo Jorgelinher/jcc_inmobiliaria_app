@@ -28,7 +28,15 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-i=bfp%_6)*egr-
 DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
 
 # ALLOWED_HOSTS para producción
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,jcc-inmobiliaria-app.onrender.com,jcc-gestion-inmobiliaria.onrender.com').split(',')
+
+# Si estamos en producción, permitir cualquier host de Render
+if not DEBUG:
+    ALLOWED_HOSTS.extend([
+        '.onrender.com',  # Permite cualquier subdominio de Render
+        'jcc-inmobiliaria-app.onrender.com',
+        'jcc-gestion-inmobiliaria.onrender.com'
+    ])
 
 # Application definition
 
