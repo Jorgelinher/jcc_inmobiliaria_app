@@ -38,7 +38,6 @@ ALLOWED_HOSTS = [
     'jcc-inmobiliaria-app.onrender.com',
     'jcc-gestion-inmobiliaria.onrender.com',
     '.onrender.com',  # Permite cualquier subdominio de Render
-    '*',  # Temporalmente permitir todos los hosts para debug
 ]
 
 print(f"🔧 ALLOWED_HOSTS configurado: {ALLOWED_HOSTS}")
