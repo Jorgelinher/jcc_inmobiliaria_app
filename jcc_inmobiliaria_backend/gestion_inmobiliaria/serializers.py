@@ -82,6 +82,15 @@ class ClienteSerializer(serializers.ModelSerializer):
         model = Cliente
         fields = '__all__'
 
+    def validate_numero_documento(self, value):
+        if value:
+            qs = Cliente.objects.filter(numero_documento=value)
+            if self.instance:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise serializers.ValidationError('Ya existe un cliente con este número de documento.')
+        return value
+
 class AsesorSerializer(serializers.ModelSerializer):
     # Campos de solo lectura para mostrar información relacionada o formateada
     nombre_referidor = serializers.CharField(source='id_referidor.nombre_asesor', read_only=True, allow_null=True)
@@ -455,11 +464,25 @@ class VentaSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
-        comisiones_asesores_data = validated_data.pop('comisiones_asesores', [])
-        venta = super().create(validated_data)
-        for comision_data in comisiones_asesores_data:
-            ComisionVentaAsesor.objects.create(venta=venta, **comision_data)
-        return venta
+        if not validated_data.get('valor_lote_venta'):
+            lote = validated_data.get('lote')
+            tipo_venta = validated_data.get('tipo_venta')
+            plazo = validated_data.get('plazo_meses_credito', 0)
+            if lote and tipo_venta:
+                if tipo_venta == Venta.TIPO_VENTA_CONTADO:
+                    validated_data['valor_lote_venta'] = lote.precio_lista_soles
+                elif tipo_venta == Venta.TIPO_VENTA_CREDITO:
+                    if plazo == 12:
+                        validated_data['valor_lote_venta'] = lote.precio_credito_12_meses_soles
+                    elif plazo == 24:
+                        validated_data['valor_lote_venta'] = lote.precio_credito_24_meses_soles
+                    elif plazo == 36:
+                        validated_data['valor_lote_venta'] = lote.precio_credito_36_meses_soles
+                    else:
+                        validated_data['valor_lote_venta'] = lote.precio_lista_soles
+                else:
+                    validated_data['valor_lote_venta'] = lote.precio_lista_soles
+        return super().create(validated_data)
 
     def update(self, instance, validated_data):
         comisiones_asesores_data = validated_data.pop('comisiones_asesores', None)

@@ -1,6 +1,7 @@
 // src/components/forms/LoteForm.jsx
 import React, { useState, useEffect } from 'react';
 import styles from './FormStyles.module.css'; //
+import Loader from '../ui/Loader';
 
 const ESTADO_LOTE_CHOICES = [
     { value: 'Disponible', label: 'Disponible' },
@@ -215,7 +216,7 @@ function LoteForm({ show, onClose, onSubmit, initialData }) {
 
                     <div className={styles.formRow}>
                         <div className={styles.formGroup}>
-                            <label htmlFor="estado_lote">Estado del Lote <span className={styles.required}>*</span></label>
+                            <label htmlFor="estado_lote" aria-label="Estado del lote" title="Estado actual del lote">Estado del Lote <span className={styles.required}>*</span></label>
                             <select id="estado_lote" name="estado_lote" value={formData.estado_lote} onChange={handleChange} required>
                                 {ESTADO_LOTE_CHOICES.map(opcion => (
                                     <option key={opcion.value} value={opcion.value}>{opcion.label}</option>
@@ -241,7 +242,7 @@ function LoteForm({ show, onClose, onSubmit, initialData }) {
                     </div>
 
                     <div className={styles.formActions}>
-                        <button type="submit" className={`${styles.button} ${styles.buttonPrimary}`}>
+                        <button type="submit" aria-label="Guardar lote" title="Guardar lote" role="button" className={`${styles.button} ${styles.buttonPrimary}`}>
                             {initialData?.id_lote ? 'Actualizar Lote' : 'Guardar Lote'}
                         </button>
                         <button type="button" onClick={onClose} className={`${styles.button} ${styles.buttonSecondary}`}>

@@ -1189,6 +1189,13 @@ class GestionCobranzaViewSet(viewsets.ModelViewSet):
     ordering_fields = ['fecha_gestion', 'proximo_seguimiento']
     ordering = ['-fecha_gestion']
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        cuota_id = self.request.query_params.get('cuota')
+        if cuota_id:
+            qs = qs.filter(cuota__id_cuota=cuota_id)
+        return qs
+
     def perform_create(self, serializer):
         serializer.save(responsable=self.request.user)
 
@@ -1247,7 +1254,8 @@ class CuotasPendientesCobranzaViewSet(viewsets.ReadOnlyModelViewSet):
                         'fecha_gestion': ultima_gestion.fecha_gestion if ultima_gestion else None,
                         'tipo_contacto': ultima_gestion.tipo_contacto if ultima_gestion else None,
                         'resultado': ultima_gestion.resultado if ultima_gestion else None,
-                    } if ultima_gestion else None
+                    } if ultima_gestion else None,
+                    'num_gestiones': gestiones.count(),
                 })
             except Exception as e:
                 print(f"[ERROR] Fallo procesando cuota ID {cuota.id_cuota}: {e}")

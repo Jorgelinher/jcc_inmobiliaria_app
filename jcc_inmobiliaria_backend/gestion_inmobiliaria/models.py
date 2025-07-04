@@ -235,6 +235,63 @@ class Venta(models.Model):
         if save_instance and (self.monto_pagado_actual != monto_pagado_previo or self.status_venta != status_previo):
             print(f"[Venta {self.id_venta}] Método actualizar_status_y_monto_pagado llamando a super().save con update_fields: monto_pagado={self.monto_pagado_actual}, status={self.status_venta}")
             super(Venta, self).save(update_fields=['monto_pagado_actual', 'status_venta'])
+            # Crear comisiones automáticamente si la venta está completada y firmada
+            if self.status_venta == self.STATUS_VENTA_COMPLETADA and self.cliente_firmo_contrato:
+                self.crear_comisiones_automaticas()
+
+    def crear_comisiones_automaticas(self):
+        """
+        Crea comisiones automáticamente para el vendedor principal y socio participante
+        cuando la venta está completada y firmada.
+        """
+        # Verificar si ya existen comisiones para esta venta
+        if self.comisiones_asesores.exists():
+            return  # Ya existen comisiones, no crear duplicados
+        
+        from .models import ComisionVentaAsesor, TablaComisionDirecta
+        
+        # Crear comisión para el vendedor principal
+        if self.vendedor_principal:
+            # Buscar regla de comisión en la tabla
+            regla_comision = TablaComisionDirecta.objects.filter(
+                rol_asesor_en_venta='JUNIOR_VENDEDOR_PRINCIPAL' if self.vendedor_principal.tipo_asesor_actual == 'Junior' else 'SOCIO_VENDEDOR_PRINCIPAL',
+                tipo_venta=self.tipo_venta,
+                participacion_en_venta_aplicable=self.participacion_junior_venta or 'N/A'
+            ).first()
+            
+            porcentaje_comision = self.porcentaje_comision_vendedor_principal_personalizado or (regla_comision.porcentaje_comision * 100 if regla_comision else Decimal('0.00'))
+            
+            if porcentaje_comision > 0:
+                monto_comision = self.valor_lote_venta * (porcentaje_comision / Decimal('100.00'))
+                ComisionVentaAsesor.objects.create(
+                    venta=self,
+                    asesor=self.vendedor_principal,
+                    rol='closer',  # El vendedor principal actúa como closer
+                    porcentaje_comision=porcentaje_comision,
+                    monto_comision_calculado=monto_comision,
+                    notas='Comisión automática por venta completada y firmada'
+                )
+        
+        # Crear comisión para el socio participante si existe
+        if self.id_socio_participante:
+            regla_comision_socio = TablaComisionDirecta.objects.filter(
+                rol_asesor_en_venta='SOCIO_PARTICIPANTE',
+                tipo_venta=self.tipo_venta,
+                participacion_en_venta_aplicable=self.participacion_socio_venta or 'N/A'
+            ).first()
+            
+            porcentaje_comision_socio = self.porcentaje_comision_socio_personalizado or (regla_comision_socio.porcentaje_comision * 100 if regla_comision_socio else Decimal('0.00'))
+            
+            if porcentaje_comision_socio > 0:
+                monto_comision_socio = self.valor_lote_venta * (porcentaje_comision_socio / Decimal('100.00'))
+                ComisionVentaAsesor.objects.create(
+                    venta=self,
+                    asesor=self.id_socio_participante,
+                    rol='otro',  # Socio participante
+                    porcentaje_comision=porcentaje_comision_socio,
+                    monto_comision_calculado=monto_comision_socio,
+                    notas='Comisión automática por participación en venta completada y firmada'
+                )
 
     def marcar_como_firmada(self, fecha_firma=None):
         """Marca la venta como firmada y guarda."""
@@ -245,19 +302,24 @@ class Venta(models.Model):
             # Guardar estos campos específicos. El post_save signal se encargará de actualizar el lote.
             super(Venta, self).save(update_fields=['cliente_firmo_contrato', 'fecha_firma_contrato'])
             # La señal post_save de Venta se disparará y llamará a actualizar_estado_lote_por_venta
+            # Crear comisiones automáticamente si la venta está completada
+            if self.status_venta == self.STATUS_VENTA_COMPLETADA:
+                self.crear_comisiones_automaticas()
         else:
             print(f"[Venta {self.id_venta}] Ya estaba marcada como firmada.")
 
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.tipo_venta == self.TIPO_VENTA_CREDITO and (not self.plazo_meses_credito or self.plazo_meses_credito == 0):
+            raise ValidationError('Las ventas a crédito deben tener un plazo de meses mayor a 0.')
+        # Puedes agregar más validaciones aquí si es necesario
 
     def save(self, *args, **kwargs):
-        update_fields = kwargs.get('update_fields')
-        is_new_instance = not self.pk
-
+        self.full_clean()
         if not self.id_venta: 
             self.id_venta = generar_siguiente_id(Venta, 'V', 5)
         
-        recalculate_valor_lote = is_new_instance or not update_fields or \
-                                 (update_fields and any(field in update_fields for field in ['lote', 'tipo_venta', 'plazo_meses_credito']))
+        recalculate_valor_lote = not self.pk or any(field in kwargs.get('update_fields', []) for field in ['lote', 'tipo_venta', 'plazo_meses_credito'])
 
         if recalculate_valor_lote and self.lote:
             proyecto = self.lote.ubicacion_proyecto.strip().lower() if self.lote.ubicacion_proyecto else ''
@@ -278,9 +340,14 @@ class Venta(models.Model):
                     
                     if precio_seleccionado is not None: 
                         self.valor_lote_venta = precio_seleccionado
-                    elif is_new_instance or not self.valor_lote_venta or self.valor_lote_venta == Decimal('0.00'):
+                    elif not self.valor_lote_venta or self.valor_lote_venta == Decimal('0.00'):
                         self.valor_lote_venta = self.lote.precio_lista_soles 
+        
         super().save(*args, **kwargs)
+        
+        # Crear comisiones automáticamente después de guardar si la venta está completada y firmada
+        if self.status_venta == self.STATUS_VENTA_COMPLETADA and self.cliente_firmo_contrato:
+            self.crear_comisiones_automaticas()
 
     def __str__(self): return f"Venta {self.id_venta} - Lote {self.lote.id_lote if self.lote else 'N/A'} ({self.get_status_venta_display()})"
     class Meta: verbose_name = "Venta"; verbose_name_plural = "Ventas"; ordering = ['-fecha_venta']

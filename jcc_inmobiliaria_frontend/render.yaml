@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: jcc-frontend
+    env: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://jcc-gestion-inmobiliaria.onrender.com/api 

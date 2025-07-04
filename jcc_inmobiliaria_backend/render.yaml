@@ -1,0 +1,30 @@
+databases:
+  - name: jcc-postgres-db
+    databaseName: jccinmobiliaria_db
+    user: jcc_user
+    plan: free
+
+services:
+  - type: web
+    name: jcc-gestion-inmobiliaria
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn config.wsgi:application
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: false
+      - key: ALLOWED_HOSTS
+        value: jcc-gestion-inmobiliaria.onrender.com
+      - key: DATABASE_URL
+        fromDatabase:
+          name: jcc-postgres-db
+          property: connectionString
+      - key: CRM_WEBHOOK_TOKEN
+        value: jcc-webhook-secret-token-2024
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://jcc-frontend.onrender.com,http://localhost:5173
+      - key: CSRF_TRUSTED_ORIGINS
+        value: https://jcc-frontend.onrender.com,http://localhost:5173 

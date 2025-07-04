@@ -11,7 +11,8 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
-import os # Importado por si se usa para variables de entorno más adelante
+import os
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -24,12 +25,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-i=bfp%_6)*egr-0jc5uq-i9uvng(nidj6p)ma0_03@+(3t7mkw')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True # Correcto para desarrollo
+DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
 
-# Con DEBUG=True, ALLOWED_HOSTS por defecto permite ['localhost', '127.0.0.1', '[::1]']
-# Para desarrollo local, esto está bien. Para producción, debes especificar tus hosts.
-ALLOWED_HOSTS = []
-
+# ALLOWED_HOSTS para producción
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 # Application definition
 
@@ -56,7 +55,6 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
-# El orden del MIDDLEWARE parece correcto.
 
 ROOT_URLCONF = 'config.urls'
 
@@ -80,17 +78,14 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 
 # Database
+# Configuración de base de datos para desarrollo y producción
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'jccinmobiliaria_db',
-        'USER': 'jorge',
-        'PASSWORD': 'jorge123', # Considera usar variables de entorno también para esto
-        'HOST': 'localhost',
-        'PORT': '5432',
-    }
+    'default': dj_database_url.config(
+        default=os.environ.get('DATABASE_URL', 'postgresql://jorge:jorge123@localhost:5432/jccinmobiliaria_db'),
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
 }
-
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -110,37 +105,27 @@ USE_TZ = True
 
 
 # Static files (CSS, JavaScript, Images)
-STATIC_URL = 'static/'
-# STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS settings
 # -----------------------------------------------------------------------------
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:8000", # Correcto, permite el acceso desde 127.0.0.1
-]
+CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:8000').split(',')
 CORS_ALLOW_CREDENTIALS = True
 
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:8000", # Correcto, confía en peticiones de 127.0.0.1
-]
-CSRF_COOKIE_HTTPONLY = False # Correct
+CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:8000').split(',')
+CSRF_COOKIE_HTTPONLY = False
 
-# Por defecto, CSRF_COOKIE_SECURE es False, lo cual es correcto para desarrollo en HTTP.
-# Si estuvieras en HTTPS, debería ser True.
-# CSRF_COOKIE_SECURE = False (valor por defecto)
-
-# Por defecto, CSRF_COOKIE_PATH es '/', lo cual es correcto.
-# CSRF_COOKIE_PATH = '/' (valor por defecto)
-
-# Por defecto, CSRF_COOKIE_DOMAIN es None, lo que significa que la cookie se establece para el dominio actual.
-# Esto está bien para desarrollo si frontend y backend están en 'localhost' o '127.0.0.1'.
-# CSRF_COOKIE_DOMAIN = None (valor por defecto)
-
+# Configuraciones de seguridad para producción
+if not DEBUG:
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_SECURE = True
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
 
 # Django REST framework settings
 # -----------------------------------------------------------------------------
@@ -152,7 +137,7 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 20,  # Valor por defecto, el frontend podrá cambiarlo con ?page_size=10|20|50|100
+    'PAGE_SIZE': 20,
 }
 
 # --- CONFIGURACIÓN DE INTEGRACIÓN CON CRM ---

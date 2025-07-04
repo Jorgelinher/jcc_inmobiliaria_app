@@ -8,6 +8,7 @@ import ClienteForm from './ClienteForm';
 import LoteSelector from '../ui/LoteSelector';
 import ClienteSearch from '../ui/ClienteSearch';
 import AsesorAutocomplete from '../ui/AsesorAutocomplete';
+import Loader from '../ui/Loader';
 
 const MEDIO_CAPTACION_CHOICES = [
     { value: 'campo_opc', label: 'Campo OPC' }, { value: 'redes_facebook', label: 'Redes Facebook' },
@@ -67,6 +68,9 @@ function PresenciaForm({ show, onClose, onSubmit, initialData }) {
     const [clienteFormError, setClienteFormError] = useState('');
     const [isLoteSelectorModalOpen, setIsLoteSelectorModalOpen] = useState(false);
     const [selectedClienteInfo, setSelectedClienteInfo] = useState(null);
+    const [internalFormError, setInternalFormError] = useState('');
+    const [errorsByField, setErrorsByField] = useState({});
+    const [isLoading, setIsLoading] = useState(false);
 
     const fetchDropdownData = useCallback(async () => {
         setLoadingRelatedData(true);
@@ -275,35 +279,44 @@ function PresenciaForm({ show, onClose, onSubmit, initialData }) {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setFormError('');
+        setInternalFormError('');
+        setErrorsByField({});
+        if (formError) setFormError(''); // Limpiar error general si hay uno
+        if (clienteFormError) setClienteFormError(''); // Limpiar error de cliente si hay uno
         
         if (!formData.cliente) {
-            setFormError('Debe seleccionar un cliente.');
+            setInternalFormError('Debe seleccionar un cliente.');
+            setErrorsByField({ cliente: 'Debe seleccionar un cliente.' });
             return;
         }
 
         if (!formData.fecha_hora_presencia) {
-            setFormError('Debe especificar fecha y hora de presencia.');
+            setInternalFormError('Debe especificar fecha y hora de presencia.');
+            setErrorsByField({ fecha_hora_presencia: 'Debe especificar fecha y hora de presencia.' });
             return;
         }
 
         if (!formData.proyecto_interes) {
-            setFormError('Debe especificar el proyecto de interés.');
+            setInternalFormError('Debe especificar el proyecto de interés.');
+            setErrorsByField({ proyecto_interes: 'Debe especificar el proyecto de interés.' });
             return;
         }
 
         if (!formData.medio_captacion) {
-            setFormError('Debe especificar el medio de captación.');
+            setInternalFormError('Debe especificar el medio de captación.');
+            setErrorsByField({ medio_captacion: 'Debe especificar el medio de captación.' });
             return;
         }
 
         if (!formData.modalidad) {
-            setFormError('Debe especificar la modalidad.');
+            setInternalFormError('Debe especificar la modalidad.');
+            setErrorsByField({ modalidad: 'Debe especificar la modalidad.' });
             return;
         }
 
         if (!formData.status_presencia) {
-            setFormError('Debe especificar el estado de la presencia.');
+            setInternalFormError('Debe especificar el estado de la presencia.');
+            setErrorsByField({ status_presencia: 'Debe especificar el estado de la presencia.' });
             return;
         }
 
@@ -329,7 +342,23 @@ function PresenciaForm({ show, onClose, onSubmit, initialData }) {
         // No es necesario enviar lote_interes_display_text
         
         console.log("[PresenciaForm] Datos finales a enviar (dataToSubmit):", dataToSubmit);
-        onSubmit(dataToSubmit, initialData?.id_presencia);
+        try {
+            onSubmit(dataToSubmit, initialData?.id_presencia);
+        } catch (err) {
+            let fieldErrors = {};
+            let msg = 'Error al guardar la presencia.';
+            if (err?.response?.data && typeof err.response.data === 'object') {
+                Object.entries(err.response.data).forEach(([k, v]) => {
+                    if (Array.isArray(v)) fieldErrors[k] = v.join(' ');
+                    else fieldErrors[k] = v;
+                });
+                msg = Object.values(fieldErrors).join('; ');
+            } else if (err?.message) {
+                msg = err.message;
+            }
+            setInternalFormError(msg);
+            setErrorsByField(fieldErrors);
+        }
     };
 
     if (!show) return null;
@@ -341,6 +370,8 @@ function PresenciaForm({ show, onClose, onSubmit, initialData }) {
                     <h2>{initialData?.id_presencia ? 'Editar Presencia' : 'Registrar Nueva Presencia'}</h2>
                     {loadingRelatedData && <p className={formBaseStyles.loadingText}>Cargando datos...</p>}
                     {formError && <p className={formBaseStyles.errorMessageForm}>{formError}</p>}
+                    {internalFormError && <p className={formBaseStyles.errorMessageForm}>{internalFormError}</p>}
+                    {isLoading && <Loader label="Guardando presencia..." />}
 
                     {!loadingRelatedData && (
                         <form onSubmit={handleSubmit}>
@@ -356,16 +387,20 @@ function PresenciaForm({ show, onClose, onSubmit, initialData }) {
                                         showCreateOption={true}
                                         context="presencias"
                                     />
+                                    {errorsByField['cliente'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['cliente']}</div>}
+                                    {clienteFormError && <div className={formBaseStyles.errorMessageField}>{clienteFormError}</div>}
                                 </div>
                                 <div className={formBaseStyles.formGroup} style={{flex: 1}}>
                                     <label htmlFor="fecha_hora_presencia">Fecha y Hora Presencia <span className={formBaseStyles.required}>*</span></label>
                                     <input type="datetime-local" id="fecha_hora_presencia" name="fecha_hora_presencia" value={formData.fecha_hora_presencia} onChange={handleChange} required />
+                                    {errorsByField['fecha_hora_presencia'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['fecha_hora_presencia']}</div>}
                                 </div>
                             </div>
                             <div className={formBaseStyles.formRow}>
                                 <div className={formBaseStyles.formGroup} style={{flex: 2}}>
                                     <label htmlFor="proyecto_interes">Proyecto de Interés <span className={formBaseStyles.required}>*</span></label>
                                     <input type="text" id="proyecto_interes" name="proyecto_interes" value={formData.proyecto_interes} onChange={handleChange} required />
+                                    {errorsByField['proyecto_interes'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['proyecto_interes']}</div>}
                                 </div>
                                 <div className={formBaseStyles.formGroup} style={{flex: 3}}>
                                     <label htmlFor="lote_interes_display_text">Lote de Interés Inicial</label>
@@ -387,6 +422,7 @@ function PresenciaForm({ show, onClose, onSubmit, initialData }) {
                                             {formData.lote_interes_inicial ? 'Cambiar' : 'Seleccionar'}
                                         </button>
                                     </div>
+                                    {errorsByField['lote_interes_inicial'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['lote_interes_inicial']}</div>}
                                 </div>
                             </div>
                             
@@ -398,6 +434,7 @@ function PresenciaForm({ show, onClose, onSubmit, initialData }) {
                                     <select id="medio_captacion" name="medio_captacion" value={formData.medio_captacion} onChange={handleChange} required>
                                         {MEDIO_CAPTACION_CHOICES.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                                     </select>
+                                    {errorsByField['medio_captacion'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['medio_captacion']}</div>}
                                 </div>
                                 <div className={formBaseStyles.formGroup}>
                                     <label htmlFor="asesor_captacion_opc">Asesor Captación (OPC/Redes)</label>
@@ -407,6 +444,7 @@ function PresenciaForm({ show, onClose, onSubmit, initialData }) {
                                         placeholder="Buscar asesor captación..."
                                         name="asesor_captacion_opc"
                                     />
+                                    {errorsByField['asesor_captacion_opc'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['asesor_captacion_opc']}</div>}
                                 </div>
                             </div>
                             <div className={formBaseStyles.formRow}>
@@ -418,6 +456,7 @@ function PresenciaForm({ show, onClose, onSubmit, initialData }) {
                                         placeholder="Buscar asesor call..."
                                         name="asesor_call_agenda"
                                     />
+                                    {errorsByField['asesor_call_agenda'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['asesor_call_agenda']}</div>}
                                 </div>
                                 <div className={formBaseStyles.formGroup}>
                                     <label htmlFor="asesor_liner">Asesor Liner (Presentación)</label>
@@ -427,6 +466,7 @@ function PresenciaForm({ show, onClose, onSubmit, initialData }) {
                                         placeholder="Buscar asesor liner..."
                                         name="asesor_liner"
                                     />
+                                    {errorsByField['asesor_liner'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['asesor_liner']}</div>}
                                 </div>
                                 <div className={formBaseStyles.formGroup}>
                                     <label htmlFor="asesor_closer">Asesor Closer (Cierre)</label>
@@ -436,6 +476,7 @@ function PresenciaForm({ show, onClose, onSubmit, initialData }) {
                                         placeholder="Buscar asesor closer..."
                                         name="asesor_closer"
                                     />
+                                    {errorsByField['asesor_closer'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['asesor_closer']}</div>}
                                 </div>
                             </div>
 
@@ -447,12 +488,14 @@ function PresenciaForm({ show, onClose, onSubmit, initialData }) {
                                     <select id="modalidad" name="modalidad" value={formData.modalidad} onChange={handleChange} required>
                                         {MODALIDAD_PRESENCIA_CHOICES.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                                     </select>
+                                    {errorsByField['modalidad'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['modalidad']}</div>}
                                 </div>
                                 <div className={formBaseStyles.formGroup}>
-                                    <label htmlFor="status_presencia">Estado de la Cita <span className={formBaseStyles.required}>*</span></label>
+                                    <label htmlFor="status_presencia" aria-label="Estado de la presencia" title="Estado actual de la presencia">Estado</label>
                                     <select id="status_presencia" name="status_presencia" value={formData.status_presencia} onChange={handleChange} required>
                                         {STATUS_PRESENCIA_CHOICES.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                                     </select>
+                                    {errorsByField['status_presencia'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['status_presencia']}</div>}
                                 </div>
                             </div>
                             <div className={formBaseStyles.formGroup}>
@@ -460,12 +503,14 @@ function PresenciaForm({ show, onClose, onSubmit, initialData }) {
                                 <select id="tipo_tour" name="tipo_tour" value={formData.tipo_tour} onChange={handleChange} required>
                                     {TIPO_TOUR_CHOICES.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                                 </select>
+                                {errorsByField['tipo_tour'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['tipo_tour']}</div>}
                             </div>
                             <div className={formBaseStyles.formGroup}>
                                 <label htmlFor="resultado_interaccion">Resultado de la Interacción</label>
                                 <select id="resultado_interaccion" name="resultado_interaccion" value={formData.resultado_interaccion} onChange={handleChange}>
                                     {RESULTADO_INTERACCION_CHOICES.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                                 </select>
+                                {errorsByField['resultado_interaccion'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['resultado_interaccion']}</div>}
                             </div>
                             
                             <div className={formBaseStyles.formGroup}>
@@ -486,6 +531,7 @@ function PresenciaForm({ show, onClose, onSubmit, initialData }) {
                                         Crear Nueva Venta
                                     </label>
                                 </div>
+                                {errorsByField['venta_asociada'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['venta_asociada']}</div>}
                             </div>
 
                             <div className={formBaseStyles.formGroup}>
@@ -494,7 +540,7 @@ function PresenciaForm({ show, onClose, onSubmit, initialData }) {
                             </div>
 
                             <div className={formBaseStyles.formActions}>
-                                <button type="submit" className={`${formBaseStyles.button} ${formBaseStyles.buttonPrimary}`} disabled={loadingRelatedData}>
+                                <button type="submit" aria-label="Guardar presencia" title="Guardar presencia" role="button" className={`${formBaseStyles.button} ${formBaseStyles.buttonPrimary}`} disabled={loadingRelatedData}>
                                     {initialData?.id_presencia ? 'Actualizar Presencia' : 'Guardar Presencia'}
                                 </button>
                                 <button type="button" onClick={onClose} className={`${formBaseStyles.button} ${formBaseStyles.buttonSecondary}`}>

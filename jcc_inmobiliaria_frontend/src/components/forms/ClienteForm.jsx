@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import formBaseStyles from './FormStyles.module.css';
 import styles from './ClienteForm.module.css'; // Si tienes estilos específicos
+import Loader from '../ui/Loader';
 
 const TIPO_DOCUMENTO_CHOICES = [
     { value: 'DNI', label: 'DNI' }, { value: 'RUC', label: 'RUC' },
@@ -35,10 +36,12 @@ function ClienteForm({ show, onClose, onSubmit, initialData, formError: external
 
     const [formData, setFormData] = useState(getInitialFormData());
     const [internalFormError, setInternalFormError] = useState('');
+    const [errorsByField, setErrorsByField] = useState({});
 
     useEffect(() => {
         if (show) {
             setInternalFormError('');
+            setErrorsByField({});
             if (clearExternalError) clearExternalError();
             if (initialData) {
                 let calculatedAge = '';
@@ -87,6 +90,7 @@ function ClienteForm({ show, onClose, onSubmit, initialData, formError: external
     const handleSubmit = (e) => {
         e.preventDefault();
         setInternalFormError('');
+        setErrorsByField({});
         if (clearExternalError) clearExternalError();
 
         // Validaciones básicas del frontend
@@ -120,7 +124,23 @@ function ClienteForm({ show, onClose, onSubmit, initialData, formError: external
         const { edad, ...dataForBackend } = formData; // Excluir 'edad' del objeto a enviar
         dataForBackend.fecha_nacimiento_constitucion = calculatedBirthDate; // Asignar la fecha calculada o la ingresada
 
-        onSubmit(dataForBackend);
+        try {
+            onSubmit(dataForBackend);
+        } catch (err) {
+            let fieldErrors = {};
+            let msg = 'Error al guardar el cliente.';
+            if (err?.response?.data && typeof err.response.data === 'object') {
+                Object.entries(err.response.data).forEach(([k, v]) => {
+                    if (Array.isArray(v)) fieldErrors[k] = v.join(' ');
+                    else fieldErrors[k] = v;
+                });
+                msg = Object.values(fieldErrors).join('; ');
+            } else if (err?.message) {
+                msg = err.message;
+            }
+            setInternalFormError(msg);
+            setErrorsByField(fieldErrors);
+        }
     };
 
     return (
@@ -132,6 +152,7 @@ function ClienteForm({ show, onClose, onSubmit, initialData, formError: external
                     <div className={formBaseStyles.formGroup}>
                         <label htmlFor="nombres_completos_razon_social">Nombres/Razón Social <span className={formBaseStyles.required}>*</span></label>
                         <input type="text" id="nombres_completos_razon_social" name="nombres_completos_razon_social" value={formData.nombres_completos_razon_social} onChange={handleChange} required />
+                        {errorsByField['nombres_completos_razon_social'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['nombres_completos_razon_social']}</div>}
                     </div>
 
                     <div className={`${formBaseStyles.formRow} ${styles.documentoRow || ''}`}> 
@@ -142,8 +163,9 @@ function ClienteForm({ show, onClose, onSubmit, initialData, formError: external
                             </select>
                         </div>
                         <div className={formBaseStyles.formGroup}>
-                            <label htmlFor="numero_documento">Número de Documento <span className={formBaseStyles.required}>*</span></label>
+                            <label htmlFor="numero_documento" aria-label="Número de documento" title="Número de documento único">N° Documento</label>
                             <input type="text" id="numero_documento" name="numero_documento" value={formData.numero_documento} onChange={handleChange} required />
+                            {errorsByField['numero_documento'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['numero_documento']}</div>}
                         </div>
                     </div>
                     
@@ -156,6 +178,7 @@ function ClienteForm({ show, onClose, onSubmit, initialData, formError: external
                         <div className={formBaseStyles.formGroup}>
                             <label htmlFor="telefono_principal">Teléfono Principal <span className={formBaseStyles.required}>*</span></label>
                             <input type="tel" id="telefono_principal" name="telefono_principal" value={formData.telefono_principal} onChange={handleChange} required />
+                            {errorsByField['telefono_principal'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['telefono_principal']}</div>}
                         </div>
                         <div className={formBaseStyles.formGroup}>
                             <label htmlFor="telefono_secundario">Teléfono Secundario</label>
@@ -166,6 +189,7 @@ function ClienteForm({ show, onClose, onSubmit, initialData, formError: external
                     <div className={formBaseStyles.formGroup}>
                         <label htmlFor="direccion">Dirección <span className={formBaseStyles.required}>*</span></label>
                         <input type="text" id="direccion" name="direccion" value={formData.direccion} onChange={handleChange} required />
+                        {errorsByField['direccion'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['direccion']}</div>}
                     </div>
                     
                     <div className={formBaseStyles.formRow}>
@@ -225,7 +249,7 @@ function ClienteForm({ show, onClose, onSubmit, initialData, formError: external
                     </div>
 
                     <div className={formBaseStyles.formActions}>
-                        <button type="submit" className={`${formBaseStyles.button} ${formBaseStyles.buttonPrimary}`}>
+                        <button type="submit" aria-label="Guardar cliente" title="Guardar cliente" role="button">
                             {initialData?.id_cliente ? 'Actualizar Cliente' : 'Guardar Cliente'}
                         </button>
                         <button type="button" onClick={onClose} className={`${formBaseStyles.button} ${formBaseStyles.buttonSecondary}`}>

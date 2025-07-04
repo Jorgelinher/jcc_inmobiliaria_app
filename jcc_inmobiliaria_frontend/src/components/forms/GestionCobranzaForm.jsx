@@ -3,7 +3,7 @@ import formStyles from './FormStyles.module.css';
 import * as apiService from '../../services/apiService';
 // import modalStyles from './GestionCobranzaForm.module.css'; // Ya no se usará para el modal ni botones
 
-function GestionCobranzaForm({ cuota, onClose }) {
+function GestionCobranzaForm({ cuota, onClose, onGestionGuardada }) {
   const [historial, setHistorial] = useState([]);
   const [form, setForm] = useState({ tipo_contacto: '', resultado: '', proximo_seguimiento: '' });
   const [loading, setLoading] = useState(false);
@@ -56,7 +56,8 @@ function GestionCobranzaForm({ cuota, onClose }) {
         proximo_seguimiento: form.proximo_seguimiento || null,
       });
       setForm({ tipo_contacto: '', resultado: '', proximo_seguimiento: '' });
-      onClose(); // Cerrar el modal automáticamente tras guardar
+      if (onGestionGuardada) onGestionGuardada();
+      // No cerrar el modal automáticamente
     } catch (err) {
       console.error('Error en submit:', err);
       setError('Error al registrar la gestión.');

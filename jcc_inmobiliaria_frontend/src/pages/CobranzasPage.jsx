@@ -351,7 +351,7 @@ function CobranzasPage() {
                             </td>
                             <td style={{ color: cuota.dias_vencidos > 0 ? 'red' : undefined }}>
                               {cuota.dias_vencidos} días vencidos
-                              <span style={{ marginLeft: 12, cursor: 'pointer', background: '#e3f0ff', borderRadius: '12px', padding: '2px 10px', fontSize: 13, color: '#2A4A6B', fontWeight: 600 }} onClick={e => { e.stopPropagation(); handleShowHistorial(cuota); }} title="Ver historial de gestiones">🕑 {cuota.ultima_gestion ? 1 : 0}</span>
+                              <span style={{ marginLeft: 12, cursor: 'pointer', background: '#e3f0ff', borderRadius: '12px', padding: '2px 10px', fontSize: 13, color: '#2A4A6B', fontWeight: 600 }} onClick={e => { e.stopPropagation(); handleShowHistorial(cuota); }} title="Ver historial de gestiones">🕑 {cuota.num_gestiones || 0}</span>
                             </td>
                             <td>
                               <button className={cobranzasStyles.filterButton} onClick={e => { e.stopPropagation(); handleRowCuotaClick(cuota); }}>Gestionar</button>
@@ -414,7 +414,18 @@ function CobranzasPage() {
         )}
 
         {showGestionModal && selectedCuota && (
-          <GestionCobranzaForm cuota={selectedCuota} onClose={closeGestionModal} />
+          <GestionCobranzaForm 
+            cuota={selectedCuota} 
+            onClose={closeGestionModal}
+            onGestionGuardada={() => {
+              fetchCuotas(filtros); // Refresca la lista y el contador
+              if (showHistorialModal && historialCuota && selectedCuota && historialCuota.id_cuota === selectedCuota.id_cuota) {
+                // Si el historial de la misma cuota está abierto, lo refrescamos
+                setHistorialCuota({ ...historialCuota }); // Forzar re-render
+              }
+              closeGestionModal(); // Cierra el modal de gestión tras guardar
+            }}
+          />
         )}
         {showHistorialModal && historialCuota && (
           <HistorialModal cuota={historialCuota} onClose={closeHistorialModal} />

@@ -53,12 +53,14 @@ function AsesorForm({ show, onClose, onSubmit, initialData, asesoresList = [], f
 
     const [formData, setFormData] = useState(getInitialFormData());
     const [internalFormError, setInternalFormError] = useState('');
+    const [errorsByField, setErrorsByField] = useState({});
 
     const referidorOptions = asesoresList?.filter(a => !initialData || a.id_asesor !== initialData.id_asesor) || [];
 
     useEffect(() => {
         if (show) {
             setInternalFormError('');
+            setErrorsByField({});
             if (clearExternalError) clearExternalError();
 
             if (initialData && initialData.id_asesor) {
@@ -104,6 +106,7 @@ function AsesorForm({ show, onClose, onSubmit, initialData, asesoresList = [], f
     const handleSubmit = (e) => {
         e.preventDefault();
         setInternalFormError('');
+        setErrorsByField({});
         if (clearExternalError) clearExternalError();
 
         if (!formData.nombre_asesor.trim() || !formData.fecha_ingreso || !formData.tipo_asesor_actual) {
@@ -143,7 +146,23 @@ function AsesorForm({ show, onClose, onSubmit, initialData, asesoresList = [], f
             delete dataToSubmit.direccion; 
         }
         
-        onSubmit(dataToSubmit);
+        try {
+            onSubmit(dataToSubmit);
+        } catch (err) {
+            let fieldErrors = {};
+            let msg = 'Error al guardar el asesor.';
+            if (err?.response?.data && typeof err.response.data === 'object') {
+                Object.entries(err.response.data).forEach(([k, v]) => {
+                    if (Array.isArray(v)) fieldErrors[k] = v.join(' ');
+                    else fieldErrors[k] = v;
+                });
+                msg = Object.values(fieldErrors).join('; ');
+            } else if (err?.message) {
+                msg = err.message;
+            }
+            setInternalFormError(msg);
+            setErrorsByField(fieldErrors);
+        }
     };
 
     return (
@@ -161,40 +180,49 @@ function AsesorForm({ show, onClose, onSubmit, initialData, asesoresList = [], f
                         <div className={formBaseStyles.formGroup}>
                             <label htmlFor="nombre_asesor">Nombre Completo <span className={formBaseStyles.required}>*</span></label>
                             <input type="text" id="nombre_asesor" name="nombre_asesor" value={formData.nombre_asesor} onChange={handleChange} required />
+                            {errorsByField['nombre_asesor'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['nombre_asesor']}</div>}
                         </div>
                         <div className={formBaseStyles.formGroup}>
                             <label htmlFor="dni">DNI</label>
                             <input type="text" id="dni" name="dni" value={formData.dni} onChange={handleChange} maxLength="8" />
+                            {errorsByField['dni'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['dni']}</div>}
                         </div>
                         <div className={formBaseStyles.formGroup}>
                             <label htmlFor="fecha_nacimiento">Fecha de Nacimiento</label>
                             <input type="date" id="fecha_nacimiento" name="fecha_nacimiento" value={formData.fecha_nacimiento} onChange={handleChange} />
+                            {errorsByField['fecha_nacimiento'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['fecha_nacimiento']}</div>}
                         </div>
                         <div className={formBaseStyles.formGroup}>
                             <label htmlFor="estado_civil">Estado Civil</label>
                             <select id="estado_civil" name="estado_civil" value={formData.estado_civil} onChange={handleChange}>
                                 {ESTADO_CIVIL_ASESOR_CHOICES.map(option => (<option key={option.value} value={option.value}>{option.label}</option>))}
                             </select>
+                            {errorsByField['estado_civil'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['estado_civil']}</div>}
                         </div>
                          <div className={formBaseStyles.formGroup}>
                             <label htmlFor="numero_hijos">N° de Hijos</label>
                             <input type="number" id="numero_hijos" name="numero_hijos" value={formData.numero_hijos} onChange={handleChange} min="0" />
+                            {errorsByField['numero_hijos'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['numero_hijos']}</div>}
                         </div>
                         <div className={formBaseStyles.formGroup}>
                             <label htmlFor="telefono_personal">Teléfono Personal</label>
                             <input type="tel" id="telefono_personal" name="telefono_personal" value={formData.telefono_personal} onChange={handleChange} />
+                            {errorsByField['telefono_personal'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['telefono_personal']}</div>}
                         </div>
                         <div className={formBaseStyles.formGroup}>
                             <label htmlFor="email_personal">Email Personal</label>
                             <input type="email" id="email_personal" name="email_personal" value={formData.email_personal} onChange={handleChange} />
+                            {errorsByField['email_personal'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['email_personal']}</div>}
                         </div>
                         <div className={formBaseStyles.formGroup}> {/* Dirección */}
                             <label htmlFor="direccion">Dirección Domiciliaria</label>
                             <input type="text" id="direccion" name="direccion" value={formData.direccion} onChange={handleChange} />
+                            {errorsByField['direccion'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['direccion']}</div>}
                         </div>
                         <div className={formBaseStyles.formGroup}> {/* Distrito */}
                             <label htmlFor="distrito">Distrito</label>
                             <input type="text" id="distrito" name="distrito" value={formData.distrito} onChange={handleChange} />
+                            {errorsByField['distrito'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['distrito']}</div>}
                         </div>
 
                         <div className={styles.formGroupSpanFull}>
@@ -203,12 +231,14 @@ function AsesorForm({ show, onClose, onSubmit, initialData, asesoresList = [], f
                         <div className={formBaseStyles.formGroup}>
                             <label htmlFor="fecha_ingreso">Fecha de Ingreso <span className={formBaseStyles.required}>*</span></label>
                             <input type="date" id="fecha_ingreso" name="fecha_ingreso" value={formData.fecha_ingreso} onChange={handleChange} required />
+                            {errorsByField['fecha_ingreso'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['fecha_ingreso']}</div>}
                         </div>
                         <div className={formBaseStyles.formGroup}>
                             <label htmlFor="tipo_asesor_actual">Tipo Asesor Actual <span className={formBaseStyles.required}>*</span></label>
                             <select id="tipo_asesor_actual" name="tipo_asesor_actual" value={formData.tipo_asesor_actual} onChange={handleChange} required>
                                 {TIPO_ASESOR_CHOICES.map(option => (<option key={option.value} value={option.value}>{option.label}</option>))}
                             </select>
+                            {errorsByField['tipo_asesor_actual'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['tipo_asesor_actual']}</div>}
                         </div>
                         <div className={formBaseStyles.formGroup}>
                             <label htmlFor="id_referidor">Asesor Referidor (Líder)</label>
@@ -216,10 +246,12 @@ function AsesorForm({ show, onClose, onSubmit, initialData, asesoresList = [], f
                                 <option value="">Ninguno</option>
                                 {referidorOptions.map(asesor => (<option key={asesor.id_asesor} value={asesor.id_asesor}>{asesor.nombre_asesor} ({asesor.id_asesor})</option>))}
                             </select>
+                            {errorsByField['id_referidor'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['id_referidor']}</div>}
                         </div>
                         <div className={formBaseStyles.formGroup}>
                             <label htmlFor="fecha_cambio_socio">Fecha Cambio a Socio</label>
                             <input type="date" id="fecha_cambio_socio" name="fecha_cambio_socio" value={formData.fecha_cambio_socio} onChange={handleChange} />
+                            {errorsByField['fecha_cambio_socio'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['fecha_cambio_socio']}</div>}
                         </div>
 
                         <div className={styles.formGroupSpanFull}>
@@ -231,23 +263,28 @@ function AsesorForm({ show, onClose, onSubmit, initialData, asesoresList = [], f
                                 {/* CORRECCIÓN: Usar una variable consistente para el map, ej. 'option' o 'opt' */}
                                 {BANCO_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
                             </select>
+                            {errorsByField['banco'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['banco']}</div>}
                         </div>
                         <div className={formBaseStyles.formGroup}>
                             <label htmlFor="numero_cuenta_bancaria">Número de Cuenta</label>
                             <input type="text" id="numero_cuenta_bancaria" name="numero_cuenta_bancaria" value={formData.numero_cuenta_bancaria} onChange={handleChange} />
+                            {errorsByField['numero_cuenta_bancaria'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['numero_cuenta_bancaria']}</div>}
                         </div>
                         <div className={formBaseStyles.formGroup}>
                             <label htmlFor="cci_cuenta_bancaria">CCI de Cuenta</label>
                             <input type="text" id="cci_cuenta_bancaria" name="cci_cuenta_bancaria" value={formData.cci_cuenta_bancaria} onChange={handleChange} />
+                            {errorsByField['cci_cuenta_bancaria'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['cci_cuenta_bancaria']}</div>}
                         </div>
                         <div className={`${formBaseStyles.formGroup} ${styles.formGroupSpanFull}`}>
                             <label htmlFor="cuenta_bancaria_otros">Otras Cuentas / Detalles Adicionales</label>
                             <textarea id="cuenta_bancaria_otros" name="cuenta_bancaria_otros" value={formData.cuenta_bancaria_otros} onChange={handleChange} rows="2"></textarea>
+                            {errorsByField['cuenta_bancaria_otros'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['cuenta_bancaria_otros']}</div>}
                         </div>
                         
                         <div className={`${formBaseStyles.formGroup} ${styles.formGroupSpanFull}`}>
                             <label htmlFor="observaciones_asesor">Observaciones Generales del Asesor</label>
                             <textarea id="observaciones_asesor" name="observaciones_asesor" value={formData.observaciones_asesor} onChange={handleChange} rows="3"></textarea>
+                            {errorsByField['observaciones_asesor'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['observaciones_asesor']}</div>}
                         </div>
 
                     </div> {/* Fin de formGrid */}

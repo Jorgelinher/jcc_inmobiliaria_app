@@ -7,6 +7,7 @@ import ClienteForm from './ClienteForm';
 import LoteSelector from '../ui/LoteSelector'; // Asegúrate que la ruta sea correcta
 import ClienteSearch from '../ui/ClienteSearch';
 import AsesorAutocomplete from '../ui/AsesorAutocomplete';
+import Loader from '../ui/Loader';
 
 const TIPO_VENTA_CHOICES = [
     { value: 'contado', label: 'Contado' },
@@ -68,6 +69,7 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
     const [asesoresList, setAsesoresList] = useState([]);
     const [loadingRelatedData, setLoadingRelatedData] = useState(false);
     const [formError, setFormError] = useState('');
+    const [errorsByField, setErrorsByField] = useState({});
     const [tipoVendedorPrincipal, setTipoVendedorPrincipal] = useState(null);
     const [defaultCommissionVP, setDefaultCommissionVP] = useState(null);
     const [defaultCommissionSocio, setDefaultCommissionSocio] = useState(null);
@@ -80,6 +82,7 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
     const [comisionesAsesores, setComisionesAsesores] = useState([]);
     const [submitStatus, setSubmitStatus] = useState(''); // '', 'success', 'error'
     const [submitMessage, setSubmitMessage] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
 
     const fetchInitialDropdownData = useCallback(async () => {
         setLoadingRelatedData(true);
@@ -376,6 +379,7 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
     const handleSubmit = async (e) => {
         e.preventDefault();
         setFormError('');
+        setErrorsByField({});
         setSubmitStatus('');
         setSubmitMessage('');
         if (!formData.lote) { setFormError("Debe seleccionar un Lote."); return; }
@@ -433,7 +437,6 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
             await onSubmit(dataToSubmit, initialData?.id_venta);
             setSubmitStatus('success');
             setSubmitMessage('Venta guardada exitosamente.');
-            console.log('[VentaForm] Venta guardada exitosamente.');
             setTimeout(() => {
                 setSubmitStatus('');
                 setSubmitMessage('');
@@ -441,16 +444,25 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
         } catch (err) {
             setSubmitStatus('error');
             let msg = 'Error al guardar la venta.';
+            let fieldErrors = {};
             if (err?.response?.data) {
                 if (typeof err.response.data === 'string') msg = err.response.data;
                 else if (err.response.data.detail) msg = err.response.data.detail;
                 else if (err.response.data.error) msg = err.response.data.error;
-                else if (typeof err.response.data === 'object') msg = Object.entries(err.response.data).map(([k,v]) => `${k}: ${Array.isArray(v)?v.join(', '):v}`).join('; ');
+                else if (typeof err.response.data === 'object') {
+                    // Desglosar errores de campo
+                    Object.entries(err.response.data).forEach(([k, v]) => {
+                        if (Array.isArray(v)) fieldErrors[k] = v.join(' ');
+                        else fieldErrors[k] = v;
+                    });
+                    msg = Object.values(fieldErrors).join('; ');
+                }
             } else if (err.message) {
                 msg = err.message;
             }
             setSubmitMessage(msg);
             setFormError(msg);
+            setErrorsByField(fieldErrors);
             console.error('[VentaForm] Error al guardar venta:', err);
         }
     };
@@ -486,6 +498,7 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
                     {formError && <p className={styles.errorMessageForm}>{formError}</p>}
                     {submitStatus === 'success' && <div className={styles.successMessageForm}>{submitMessage}</div>}
                     {submitStatus === 'error' && <div className={styles.errorMessageForm}>{submitMessage}</div>}
+                    {isLoading && <Loader label="Guardando venta..." />}
 
                     {!loadingRelatedData && (
                         <form onSubmit={handleSubmit}>
@@ -516,11 +529,12 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
                                             {formData.lote ? 'Cambiar' : 'Seleccionar'}
                                         </button>
                                     </div>
+                                    {errorsByField['lote'] && <div className={styles.errorMessageField}>{errorsByField['lote']}</div>}
                                 </div>
                             </div>
 
                             <div className={styles.formGroup}>
-                                <label htmlFor="cliente">Cliente <span className={styles.required}>*</span></label>
+                                <label htmlFor="cliente" aria-label="Cliente" title="Selecciona el cliente de la venta">Cliente <span className={styles.required}>*</span></label>
                                 <ClienteSearch
                                     value={formData.cliente}
                                     onChange={handleClienteSearchChange}
@@ -531,6 +545,7 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
                                     showCreateOption={!(isModalForPresencia && !!clientePredefinidoPresencia)}
                                     context="ventas"
                                 />
+                                {errorsByField['cliente'] && <div className={styles.errorMessageField}>{errorsByField['cliente']}</div>}
                             </div>
                             
                             <hr className={styles.formSeparator}/>
@@ -568,6 +583,7 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
                                                 className={styles.readOnlyInput}
                                                 placeholder="Ej: 13500.00"
                                             />
+                                            {errorsByField['precio_dolares'] && <div className={styles.errorMessageField}>{errorsByField['precio_dolares']}</div>}
                                         </div>
                                         <div className={styles.formGroup}>
                                             <label htmlFor="tipo_cambio">Tipo de Cambio (S/ por $) <span className={styles.required}>*</span></label>
@@ -582,6 +598,7 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
                                                 required={showDolaresFields}
                                                 placeholder="Ej: 3.80"
                                             />
+                                            {errorsByField['tipo_cambio'] && <div className={styles.errorMessageField}>{errorsByField['tipo_cambio']}</div>}
                                         </div>
                                         <div className={styles.formGroup}>
                                             <label>Valor Venta (S/.)</label>
@@ -601,6 +618,7 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
                                                className={styles.readOnlyInput}
                                                placeholder="Se calculará automáticamente"
                                         />
+                                        {errorsByField['valor_lote_venta'] && <div className={styles.errorMessageField}>{errorsByField['valor_lote_venta']}</div>}
                                     </div>
                                     {formData.tipo_venta === 'credito' && (
                                         <div className={styles.formGroup}>
@@ -676,11 +694,14 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
                             </div>
 
                             <div className={styles.formActions}>
-                                <button type="submit" className={`${styles.button} ${styles.buttonPrimary}`} disabled={loadingRelatedData || loadingCommissionVP || loadingCommissionSocio}>
-                                    {initialData?.id_venta ? 'Actualizar Venta' : 'Guardar Venta'}
-                                </button>
-                                <button type="button" onClick={onClose} className={`${styles.button} ${styles.buttonSecondary}`}>
-                                    Cancelar
+                                <button
+                                    type="submit"
+                                    aria-label="Guardar venta"
+                                    title="Guardar venta"
+                                    role="button"
+                                    className={`${styles.button} ${styles.buttonPrimary}`}
+                                >
+                                    Guardar Venta
                                 </button>
                             </div>
                         </form>
@@ -688,25 +709,27 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
                 </div>
             </div>
 
-            <ClienteForm
-                show={isClienteModalOpen}
-                onClose={() => {
-                    setIsClienteModalOpen(false);
-                    if (formData.cliente === "_CREAR_NUEVO_") {
-                        setFormData(prev => ({ ...prev, cliente: '' }));
-                    }
-                }}
-                onSubmit={handleClienteFormSubmit}
-                formError={clienteFormError}
-                clearExternalError={() => setClienteFormError('')}
-            />
+            {isClienteModalOpen && (
+                <ClienteForm
+                    show={isClienteModalOpen}
+                    onClose={() => setIsClienteModalOpen(false)}
+                    onSubmit={handleClienteFormSubmit}
+                    initialData={null} // No hay datos iniciales para el modal de cliente
+                    isModalForPresencia={isModalForPresencia}
+                    clientePredefinidoPresencia={clientePredefinidoPresencia}
+                    asesoresInvolucradosPresencia={asesoresInvolucradosPresencia}
+                />
+            )}
 
-            <LoteSelector
-                show={isLoteSelectorModalOpen}
-                onClose={() => setIsLoteSelectorModalOpen(false)}
-                onLoteSelected={handleLoteSelectedFromModal}
-                currentLoteId={formData.lote} // Pasar el ID del lote actualmente seleccionado
-            />
+            {isLoteSelectorModalOpen && (
+                <LoteSelector
+                    show={isLoteSelectorModalOpen}
+                    onClose={() => setIsLoteSelectorModalOpen(false)}
+                    onLoteSelect={handleLoteSelectedFromModal}
+                    initialSelectedLote={selectedLoteDetails}
+                    asesoresInvolucradosPresencia={asesoresInvolucradosPresencia}
+                />
+            )}
         </>
     );
 }
