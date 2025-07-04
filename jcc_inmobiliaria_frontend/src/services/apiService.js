@@ -2,7 +2,12 @@
 import axios from 'axios';
 
 // Configuración de baseURL para desarrollo y producción
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 
+    (import.meta.env.DEV ? '/api' : 'https://jcc_inmobiliaria_app.onrender.com/api');
+
+console.log('[apiService] API_BASE_URL configurado:', API_BASE_URL);
+console.log('[apiService] Environment:', import.meta.env.MODE);
+console.log('[apiService] VITE_API_URL:', import.meta.env.VITE_API_URL);
 
 const apiClient = axios.create({
     baseURL: API_BASE_URL, 
