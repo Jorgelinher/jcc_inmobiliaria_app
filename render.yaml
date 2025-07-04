@@ -10,8 +10,8 @@ services:
     env: python
     plan: free
     rootDir: jcc_inmobiliaria_backend
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn config.wsgi:application
+    buildCommand: chmod +x build.sh && ./build.sh
+    startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
     envVars:
       - key: DJANGO_SECRET_KEY
         generateValue: true

@@ -42,12 +42,14 @@ INSTALLED_APPS = [
     'corsheaders',             # Para manejar CORS
     'rest_framework',
     'django_filters',          # Django REST framework
+    'whitenoise.runserver_nostatic',  # Para desarrollo
     'gestion_inmobiliaria',    # Tu aplicación principal
 ]
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware', # Debe estar antes de la mayoría de los otros middlewares, especialmente CommonMiddleware
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Para servir archivos estáticos
     'django.contrib.sessions.middleware.SessionMiddleware', # Necesario para SessionAuthentication
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware', # Esencial para la protección CSRF
@@ -107,6 +109,9 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Configuración de WhiteNoise para archivos estáticos
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
