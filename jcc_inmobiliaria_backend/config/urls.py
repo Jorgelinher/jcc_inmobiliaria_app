@@ -1,12 +1,34 @@
 # jcc_inmobiliaria_backend/config/urls.py
 from django.contrib import admin
 from django.urls import path, include
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 
 # Import views from the 'gestion_inmobiliaria' app
 # Using an alias 'gestion_views' for clarity if you have many apps
 from gestion_inmobiliaria import views as gestion_views
 
+@csrf_exempt
+def api_root(request):
+    """Vista raíz que muestra información sobre la API"""
+    return JsonResponse({
+        'message': 'JCC Inmobiliaria API',
+        'version': '1.0.0',
+        'status': 'running',
+        'endpoints': {
+            'admin': '/admin/',
+            'api_root': '/api/gestion/',
+            'auth': {
+                'login': '/api/auth/login/',
+                'logout': '/api/auth/logout/',
+                'status': '/api/auth/status/',
+                'csrf_token': '/api/auth/get-csrf-token/'
+            }
+        }
+    })
+
 urlpatterns = [
+    path('', api_root, name='api_root'),  # Vista raíz
     path('admin/', admin.site.urls),
 
     # Include URLs from the 'gestion_inmobiliaria' app, prefixed with 'api/gestion/'
