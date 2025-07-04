@@ -27,6 +27,10 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-i=bfp%_6)*egr-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
 
+# Temporalmente habilitar DEBUG para diagnosticar error 500
+if os.environ.get('ENABLE_DEBUG', 'false').lower() == 'true':
+    DEBUG = True
+
 # ALLOWED_HOSTS para producción
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,jcc-inmobiliaria-app.onrender.com,jcc-gestion-inmobiliaria.onrender.com').split(',')
 
@@ -156,3 +160,25 @@ REST_FRAMEWORK = {
 # --- CONFIGURACIÓN DE INTEGRACIÓN CON CRM ---
 # Token de autenticación para recibir webhooks del CRM (debe coincidir con COMERCIAL_WEBHOOK_TOKEN en el CRM)
 CRM_WEBHOOK_TOKEN = os.environ.get('CRM_WEBHOOK_TOKEN', 'jcc-webhook-secret-token-2024')
+
+# Configuración de logging para debug
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}
