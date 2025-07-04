@@ -130,11 +130,49 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS settings
 # -----------------------------------------------------------------------------
-CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:8000').split(',')
+# Configuración de CORS para desarrollo y producción
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:5173',
+    'http://127.0.0.1:8000',
+    'https://jcc-inmobiliaria-frontend.onrender.com',
+    'https://jcc-inmobiliaria-app.onrender.com',
+]
+
+# Permitir cualquier subdominio de Render para desarrollo
+if DEBUG:
+    CORS_ALLOWED_ORIGINS.extend([
+        'https://*.onrender.com',
+    ])
+
 CORS_ALLOW_CREDENTIALS = True
 
-CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:8000').split(',')
+# Configuración CSRF
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:5173',
+    'http://127.0.0.1:8000',
+    'https://jcc-inmobiliaria-frontend.onrender.com',
+    'https://jcc-inmobiliaria-app.onrender.com',
+]
+
+# Permitir cualquier subdominio de Render para desarrollo
+if DEBUG:
+    CSRF_TRUSTED_ORIGINS.extend([
+        'https://*.onrender.com',
+    ])
+
 CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_SAMESITE = 'Lax'  # Permite cross-site requests
+
+# Configuración adicional de CORS para permitir headers y métodos
+CORS_ALLOW_ALL_HEADERS = True
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
 
 # Configuraciones de seguridad para producción
 if not DEBUG:
