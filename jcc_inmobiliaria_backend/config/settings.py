@@ -31,20 +31,15 @@ DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
 if os.environ.get('ENABLE_DEBUG', 'false').lower() == 'true':
     DEBUG = True
 
-# ALLOWED_HOSTS para producción
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'jcc-inmobiliaria-app.onrender.com', 'jcc-gestion-inmobiliaria.onrender.com']
-
-# Si hay variable de entorno, usarla
-if os.environ.get('ALLOWED_HOSTS'):
-    ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS').split(',')
-
-# Si estamos en producción, agregar hosts adicionales
-if not DEBUG:
-    ALLOWED_HOSTS.extend([
-        '.onrender.com',  # Permite cualquier subdominio de Render
-        'jcc-inmobiliaria-app.onrender.com',
-        'jcc-gestion-inmobiliaria.onrender.com'
-    ])
+# ALLOWED_HOSTS - Configuración simplificada y directa
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    'jcc-inmobiliaria-app.onrender.com',
+    'jcc-gestion-inmobiliaria.onrender.com',
+    '.onrender.com',  # Permite cualquier subdominio de Render
+    '*',  # Temporalmente permitir todos los hosts para debug
+]
 
 print(f"🔧 ALLOWED_HOSTS configurado: {ALLOWED_HOSTS}")
 
