@@ -128,37 +128,19 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# CORS settings
+# CORS settings - Configuración temporal permisiva para debug
 # -----------------------------------------------------------------------------
-# Configuración de CORS para desarrollo y producción
-CORS_ALLOWED_ORIGINS = [
-    'http://localhost:5173',
-    'http://127.0.0.1:8000',
-    'https://jcc-inmobiliaria-frontend.onrender.com',
-    'https://jcc-inmobiliaria-app.onrender.com',
-]
-
-# Permitir cualquier subdominio de Render para desarrollo
-if DEBUG:
-    CORS_ALLOWED_ORIGINS.extend([
-        'https://*.onrender.com',
-    ])
-
+CORS_ALLOW_ALL_ORIGINS = True  # Temporalmente permitir todos los orígenes
 CORS_ALLOW_CREDENTIALS = True
 
-# Configuración CSRF
+# Configuración CSRF - Temporalmente permisiva
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:5173',
     'http://127.0.0.1:8000',
     'https://jcc-inmobiliaria-frontend.onrender.com',
     'https://jcc-inmobiliaria-app.onrender.com',
+    'https://*.onrender.com',  # Permitir cualquier subdominio de Render
 ]
-
-# Permitir cualquier subdominio de Render para desarrollo
-if DEBUG:
-    CSRF_TRUSTED_ORIGINS.extend([
-        'https://*.onrender.com',
-    ])
 
 CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SAMESITE = 'Lax'  # Permite cross-site requests
@@ -173,6 +155,9 @@ CORS_ALLOW_METHODS = [
     'POST',
     'PUT',
 ]
+
+print(f"🔧 CORS configurado: ALLOW_ALL_ORIGINS={CORS_ALLOW_ALL_ORIGINS}")
+print(f"🔧 CSRF_TRUSTED_ORIGINS: {CSRF_TRUSTED_ORIGINS}")
 
 # Configuraciones de seguridad para producción
 if not DEBUG:
