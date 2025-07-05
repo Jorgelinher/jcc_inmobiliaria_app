@@ -133,11 +133,20 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ALLOW_ALL_ORIGINS = True  # Temporalmente permitir todos los orígenes
 CORS_ALLOW_CREDENTIALS = True
 
+# Configuración específica de CORS para el frontend
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:5173',
+    'http://127.0.0.1:3000',
+    'https://jcc-inmobiliaria-frontend.onrender.com',
+    'https://jcc-frontend.onrender.com',
+]
+
 # Configuración CSRF - Temporalmente permisiva
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:5173',
     'http://127.0.0.1:8000',
     'https://jcc-inmobiliaria-frontend.onrender.com',
+    'https://jcc-frontend.onrender.com',
     'https://jcc-inmobiliaria-app.onrender.com',
     'https://*.onrender.com',  # Permitir cualquier subdominio de Render
 ]
