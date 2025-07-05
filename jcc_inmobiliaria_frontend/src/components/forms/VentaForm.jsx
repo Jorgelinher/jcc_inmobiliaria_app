@@ -695,6 +695,16 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
 
                             <div className={styles.formActions}>
                                 <button
+                                    type="button"
+                                    onClick={onClose}
+                                    aria-label="Cancelar"
+                                    title="Cancelar"
+                                    role="button"
+                                    className={`${styles.button} ${styles.buttonSecondary}`}
+                                >
+                                    Cancelar
+                                </button>
+                                <button
                                     type="submit"
                                     aria-label="Guardar venta"
                                     title="Guardar venta"

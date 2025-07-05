@@ -6,4 +6,8 @@ services:
     staticPublishPath: ./dist
     envVars:
       - key: VITE_API_URL
-        value: https://jcc-inmobiliaria-app.onrender.com/api 
+        value: https://jcc-inmobiliaria-app.onrender.com/api
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html 
