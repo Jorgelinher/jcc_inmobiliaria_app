@@ -5,12 +5,17 @@ import axios from 'axios';
 const API_BASE_URL = import.meta.env.VITE_API_URL || 
     (import.meta.env.DEV ? '/api' : 'https://jcc-inmobiliaria-app.onrender.com/api');
 
+// Forzar la URL correcta en producción si la variable de entorno no está configurada correctamente
+const FORCED_API_URL = 'https://jcc-inmobiliaria-app.onrender.com/api';
+const FINAL_API_BASE_URL = import.meta.env.MODE === 'production' ? FORCED_API_URL : API_BASE_URL;
+
 console.log('[apiService] API_BASE_URL configurado:', API_BASE_URL);
+console.log('[apiService] FINAL_API_BASE_URL configurado:', FINAL_API_BASE_URL);
 console.log('[apiService] Environment:', import.meta.env.MODE);
 console.log('[apiService] VITE_API_URL:', import.meta.env.VITE_API_URL);
 
 const apiClient = axios.create({
-    baseURL: API_BASE_URL, 
+    baseURL: FINAL_API_BASE_URL, 
     withCredentials: true, 
     headers: {
         'Content-Type': 'application/json',
