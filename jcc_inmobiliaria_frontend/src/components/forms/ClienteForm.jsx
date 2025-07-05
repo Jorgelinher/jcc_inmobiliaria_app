@@ -249,7 +249,7 @@ function ClienteForm({ show, onClose, onSubmit, initialData, formError: external
                     </div>
 
                     <div className={formBaseStyles.formActions}>
-                        <button type="submit" aria-label="Guardar cliente" title="Guardar cliente" role="button">
+                        <button type="submit" aria-label="Guardar cliente" title="Guardar cliente" role="button" className={`${formBaseStyles.button} ${formBaseStyles.buttonPrimary}`}>
                             {initialData?.id_cliente ? 'Actualizar Cliente' : 'Guardar Cliente'}
                         </button>
                         <button type="button" onClick={onClose} className={`${formBaseStyles.button} ${formBaseStyles.buttonSecondary}`}>
