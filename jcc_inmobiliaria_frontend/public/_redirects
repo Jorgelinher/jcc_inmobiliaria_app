@@ -1,1 +1,6 @@
-/*    /index.html   200 
+# SPA Routing - Redirect all routes to index.html
+/*    /index.html   200
+
+# Handle specific routes that might need different behavior
+/api/*  /api/:splat  200
+/assets/*  /assets/:splat  200 
