@@ -152,7 +152,8 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 
 CSRF_COOKIE_HTTPONLY = False
-CSRF_COOKIE_SAMESITE = 'Lax'  # Permite cross-site requests
+CSRF_COOKIE_SAMESITE = 'None'  # Permite cross-site requests
+CSRF_COOKIE_SECURE = True  # Requerido cuando SameSite=None
 
 # Configuración adicional de CORS para permitir headers y métodos
 CORS_ALLOW_ALL_HEADERS = True
@@ -170,7 +171,7 @@ print(f"🔧 CSRF_TRUSTED_ORIGINS: {CSRF_TRUSTED_ORIGINS}")
 
 # Configuraciones de seguridad para producción
 if not DEBUG:
-    CSRF_COOKIE_SECURE = True
+    # CSRF_COOKIE_SECURE ya está configurado arriba
     SESSION_COOKIE_SECURE = True
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
