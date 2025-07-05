@@ -9,5 +9,5 @@ services:
         value: https://jcc-inmobiliaria-app.onrender.com/api
     routes:
       - type: rewrite
-        source: /*
+        source: /(.*)
         destination: /index.html 
