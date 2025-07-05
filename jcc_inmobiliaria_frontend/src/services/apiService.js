@@ -49,7 +49,12 @@ apiClient.interceptors.request.use(
                 try {
                     // Usamos axios.get directamente para evitar problemas con el interceptor de apiClient
                     // y asegurar que withCredentials se envíe para esta solicitud específica.
-                    const csrfResponse = await axios.get('/api/auth/get-csrf-token/', { withCredentials: true });
+                    const csrfResponse = await axios.get(`${FINAL_API_BASE_URL}/auth/get-csrf-token/`, { 
+                        withCredentials: true,
+                        headers: {
+                            'Accept': 'application/json',
+                        }
+                    });
                     if (csrfResponse.data && csrfResponse.data.csrfToken) {
                         token = csrfResponse.data.csrfToken;
                         console.log("[CSRF] Token obtenido del API y se usará para la cabecera:", token);
