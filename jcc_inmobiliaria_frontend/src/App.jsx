@@ -31,7 +31,8 @@ import ReporteCierrePage from './pages/ReporteCierrePage';
 const RootRedirect = () => {
     const { isAuthenticated, isLoadingAuth } = useAuth();
     if (isLoadingAuth) return null; 
-    return isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />;
+    // Solo redirigir si no está autenticado, si está autenticado dejar que React Router maneje la ruta
+    return isAuthenticated ? null : <Navigate to="/login" replace />;
 };
 
 function App() {
