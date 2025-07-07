@@ -19,6 +19,7 @@ def parse_decimal(value):
         return Decimal('0.00')
 
 def importar_lotes():
+    print("=== INICIANDO IMPORTACIÓN DE LOTES ===")
     try:
         with open('lotes_import.csv', encoding='utf-8') as f:
             r = csv.DictReader(f, delimiter=';')
@@ -67,6 +68,7 @@ def importar_lotes():
             print(f'Lotes creados: {creados}')
     except Exception as e:
         print(f'Error general en la importación: {e}')
+    print("=== FINALIZÓ IMPORTACIÓN DE LOTES ===")
 
 if __name__ == '__main__':
     importar_lotes() 

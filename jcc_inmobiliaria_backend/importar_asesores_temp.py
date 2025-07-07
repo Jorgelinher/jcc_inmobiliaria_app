@@ -3,7 +3,8 @@ from datetime import datetime
 from gestion_inmobiliaria.models import Asesor
 from django.utils.dateparse import parse_date
 
-def importar_asesores():
+print("=== INICIANDO IMPORTACIÓN DE ASESORES ===")
+try:
     with open('asesores_import.csv', encoding='latin-1') as f:
         r = csv.DictReader(f, delimiter=';')
         creados = 0
@@ -90,6 +91,9 @@ def importar_asesores():
             except Exception as e:
                 print(f'Error en fila: {row} -> {e}')
         print(f'Asesores creados: {creados}, actualizados: {actualizados}')
+except Exception as e:
+    print(f'Error al importar asesores: {e}')
+print("=== FINALIZÓ IMPORTACIÓN DE ASESORES ===")
 
 if __name__ == '__main__':
     importar_asesores() 

@@ -2,7 +2,8 @@ import csv
 from gestion_inmobiliaria.models import Cliente
 from django.utils.dateparse import parse_date
 
-def importar_clientes():
+print("=== INICIANDO IMPORTACIÓN DE CLIENTES ===")
+try:
     with open('clientes_import.csv', encoding='latin-1') as f:
         r = csv.DictReader(f, delimiter=';')
         creados = 0
@@ -65,6 +66,9 @@ def importar_clientes():
                 )
                 creados += 1
         print(f'Clientes creados: {creados}, actualizados: {actualizados}')
+except Exception as e:
+    print(f'Error al importar clientes: {e}')
+print("=== FINALIZÓ IMPORTACIÓN DE CLIENTES ===")
 
 if __name__ == '__main__':
     importar_clientes() 
