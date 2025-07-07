@@ -735,7 +735,7 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
                 <LoteSelector
                     show={isLoteSelectorModalOpen}
                     onClose={() => setIsLoteSelectorModalOpen(false)}
-                    onLoteSelect={handleLoteSelectedFromModal}
+                    onLoteSelected={handleLoteSelectedFromModal}
                     initialSelectedLote={selectedLoteDetails}
                     asesoresInvolucradosPresencia={asesoresInvolucradosPresencia}
                 />
