@@ -1361,7 +1361,7 @@ class LimpiarLotesDuplicadosAPIView(APIView):
     Endpoint para limpiar lotes duplicados en producción.
     Solo se puede ejecutar desde el navegador para evitar ejecución accidental.
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]  # Permitir acceso sin autenticación temporalmente
     
     def get(self, request, format=None):
         """Endpoint de prueba para verificar que funciona"""
