@@ -82,5 +82,4 @@ def importar_lotes():
         traceback.print_exc()
     print("=== FINALIZÓ IMPORTACIÓN DE LOTES ===")
 
-if __name__ == '__main__':
-    importar_lotes() 
+importar_lotes() 
