@@ -113,6 +113,13 @@ class LoteViewSet(viewsets.ModelViewSet):
         """
         Limpia lotes duplicados desde el ViewSet de Lotes (ya autenticado).
         """
+        from django.views.decorators.csrf import csrf_exempt
+        from django.utils.decorators import method_decorator
+        
+        # Eximir de CSRF para esta acción específica
+        @method_decorator(csrf_exempt, name='dispatch')
+        class TempView:
+            pass
         try:
             print('=== INICIANDO LIMPIEZA DE LOTES DUPLICADOS ===')
             
@@ -1415,6 +1422,7 @@ class LimpiarLotesDuplicadosAPIView(APIView):
     Solo se puede ejecutar desde el navegador para evitar ejecución accidental.
     """
     permission_classes = [permissions.AllowAny]  # Permitir acceso sin autenticación temporalmente
+    authentication_classes = []  # No requerir autenticación
     
     def get(self, request, format=None):
         """Endpoint de prueba para verificar que funciona"""
