@@ -33,6 +33,7 @@ from .models import (
     Presencia, PlanPagoVenta, CuotaPlanPago, ComisionVentaAsesor, GestionCobranza,
     CierreComisionMensual, DetalleComisionCerrada
 )
+from collections import defaultdict
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -1353,3 +1354,60 @@ class CierreComisionViewSet(viewsets.ModelViewSet):
         cierre.save()
 
         return Response(CierreComisionMensualSerializer(cierre).data, status=status.HTTP_201_CREATED)
+
+
+class LimpiarLotesDuplicadosAPIView(APIView):
+    """
+    Endpoint para limpiar lotes duplicados en producción.
+    Solo se puede ejecutar desde el navegador para evitar ejecución accidental.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request, format=None):
+        try:
+            print('=== INICIANDO LIMPIEZA DE LOTES DUPLICADOS ===')
+            
+            # Agrupar lotes por combinación única
+            lotes_por_clave = defaultdict(list)
+            for lote in Lote.objects.all():
+                clave = (lote.ubicacion_proyecto.strip().lower(), lote.manzana.strip() if lote.manzana else '', lote.numero_lote.strip() if lote.numero_lote else '', lote.etapa)
+                lotes_por_clave[clave].append(lote)
+            
+            total_duplicados = 0
+            eliminados = 0
+            detalles_eliminados = []
+            
+            for clave, lotes in lotes_por_clave.items():
+                if len(lotes) > 1:
+                    total_duplicados += len(lotes) - 1
+                    # Mantener el primero que NO esté asociado a ventas, si todos tienen ventas, mantener el primero
+                    lotes_ordenados = sorted(lotes, key=lambda l: l.ventas_lote.count())
+                    lote_a_mantener = lotes_ordenados[0]
+                    
+                    for lote in lotes:
+                        if lote == lote_a_mantener:
+                            continue
+                        if lote.ventas_lote.exists():
+                            detalles_eliminados.append(f"No se eliminó {lote.id_lote} porque tiene ventas asociadas.")
+                            continue
+                        
+                        detalles_eliminados.append(f"Eliminado: {lote.id_lote} ({lote.ubicacion_proyecto} Mz:{lote.manzana} Lt:{lote.numero_lote} Etapa:{lote.etapa})")
+                        lote.delete()
+                        eliminados += 1
+            
+            total_lotes_final = Lote.objects.count()
+            
+            return Response({
+                'success': True,
+                'message': 'Limpieza de lotes duplicados completada',
+                'total_duplicados_detectados': total_duplicados,
+                'total_eliminados': eliminados,
+                'total_lotes_final': total_lotes_final,
+                'detalles': detalles_eliminados[:50]  # Limitar a 50 detalles para no sobrecargar la respuesta
+            })
+            
+        except Exception as e:
+            return Response({
+                'success': False,
+                'error': f'Error durante la limpieza: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

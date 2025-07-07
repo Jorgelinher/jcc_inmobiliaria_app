@@ -4,6 +4,7 @@ from rest_framework.routers import DefaultRouter
 from . import views
 from .views import (
     GestionCobranzaViewSet, CuotasPendientesCobranzaViewSet, CierreComisionViewSet,
+    LimpiarLotesDuplicadosAPIView,
 )
 
 router = DefaultRouter()
@@ -34,4 +35,5 @@ urlpatterns = [
     path('commission-structure/', views.GetCommissionStructureAPIView.as_view(), name='get_commission_structure_api'),
     path('general-configs/', views.GetGeneralConfigsAPIView.as_view(), name='get_general_configs_api'),
     path('webhook-presencia-crm/', views.WebhookPresenciaCRMAPIView.as_view(), name='webhook_presencia_crm'),
+    path('limpiar-lotes-duplicados/', LimpiarLotesDuplicadosAPIView.as_view(), name='limpiar_lotes_duplicados'),
 ]
