@@ -2,6 +2,8 @@ import csv
 from decimal import Decimal
 from gestion_inmobiliaria.models import Lote
 
+print("=== SCRIPT importar_lotes_temp.py INICIADO ===")
+
 def parse_decimal(value):
     if not value or value.strip() == '':
         return Decimal('0.00')
