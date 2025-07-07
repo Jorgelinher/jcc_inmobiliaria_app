@@ -500,18 +500,21 @@ class VentaViewSet(viewsets.ModelViewSet):
         ComisionVentaAsesor.objects.filter(venta=venta_instance).delete()
         comisiones_asesores = request.data.get('comisiones_asesores', [])
         for c in comisiones_asesores:
-            if not c.get('asesor') or not c.get('rol') or c.get('porcentaje_comision') in [None, '']:
+            if not c.get('asesor') or not c.get('rol'):
                 continue
+            porcentaje = c.get('porcentaje_comision')
+            if porcentaje in [None, '']:
+                porcentaje = 0
             try:
                 asesor_obj = Asesor.objects.get(pk=c['asesor'])
             except Asesor.DoesNotExist:
                 continue
-            monto = venta_instance.valor_lote_venta * (Decimal(str(c['porcentaje_comision'])) / Decimal('100.00'))
+            monto = venta_instance.valor_lote_venta * (Decimal(str(porcentaje)) / Decimal('100.00'))
             ComisionVentaAsesor.objects.create(
                 venta=venta_instance,
                 asesor=asesor_obj,
                 rol=c['rol'],
-                porcentaje_comision=Decimal(str(c['porcentaje_comision'])),
+                porcentaje_comision=Decimal(str(porcentaje)),
                 monto_comision_calculado=monto,
                 notas=c.get('notas', '')
             )
@@ -548,18 +551,21 @@ class VentaViewSet(viewsets.ModelViewSet):
         ComisionVentaAsesor.objects.filter(venta=venta_instance).delete()
         comisiones_asesores = request.data.get('comisiones_asesores', [])
         for c in comisiones_asesores:
-            if not c.get('asesor') or not c.get('rol') or c.get('porcentaje_comision') in [None, '']:
+            if not c.get('asesor') or not c.get('rol'):
                 continue
+            porcentaje = c.get('porcentaje_comision')
+            if porcentaje in [None, '']:
+                porcentaje = 0
             try:
                 asesor_obj = Asesor.objects.get(pk=c['asesor'])
             except Asesor.DoesNotExist:
                 continue
-            monto = venta_instance.valor_lote_venta * (Decimal(str(c['porcentaje_comision'])) / Decimal('100.00'))
+            monto = venta_instance.valor_lote_venta * (Decimal(str(porcentaje)) / Decimal('100.00'))
             ComisionVentaAsesor.objects.create(
                 venta=venta_instance,
                 asesor=asesor_obj,
                 rol=c['rol'],
-                porcentaje_comision=Decimal(str(c['porcentaje_comision'])),
+                porcentaje_comision=Decimal(str(porcentaje)),
                 monto_comision_calculado=monto,
                 notas=c.get('notas', '')
             )
