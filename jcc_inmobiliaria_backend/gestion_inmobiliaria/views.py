@@ -519,71 +519,83 @@ class VentaViewSet(viewsets.ModelViewSet):
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         print("[VentaViewSet CREATE INICIO] Data recibida:", request.data) # DEBUG
-        nuevo_cliente_data_req = request.data.get('nuevo_cliente_data')
+        try:
+            nuevo_cliente_data_req = request.data.get('nuevo_cliente_data')
             cliente_id_req = request.data.get('cliente')
             cliente_instance = None
-        if nuevo_cliente_data_req:
-            cliente_create_serializer = ClienteCreateSerializer(data=nuevo_cliente_data_req)
-            if cliente_create_serializer.is_valid():
-                numero_documento = nuevo_cliente_data_req.get('numero_documento')
-                cliente_existente = Cliente.objects.filter(numero_documento=numero_documento).first()
-                if cliente_existente: cliente_instance = cliente_existente
-                else: cliente_instance = cliente_create_serializer.save()
+            
+            if nuevo_cliente_data_req:
+                cliente_create_serializer = ClienteCreateSerializer(data=nuevo_cliente_data_req)
+                if cliente_create_serializer.is_valid():
+                    numero_documento = nuevo_cliente_data_req.get('numero_documento')
+                    cliente_existente = Cliente.objects.filter(numero_documento=numero_documento).first()
+                    if cliente_existente: 
+                        cliente_instance = cliente_existente
+                    else: 
+                        cliente_instance = cliente_create_serializer.save()
+                else: 
+                    print("[VentaViewSet CREATE ERROR] ClienteCreateSerializer inválido:", cliente_create_serializer.errors) # DEBUG
+                    return Response(cliente_create_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            elif cliente_id_req:
+                try: 
+                    cliente_instance = Cliente.objects.get(pk=cliente_id_req)
+                except Cliente.DoesNotExist: 
+                    print(f"[VentaViewSet CREATE ERROR] Cliente ID {cliente_id_req} no encontrado.") # DEBUG
+                    return Response({'cliente': ['Cliente existente no encontrado.']}, status=status.HTTP_400_BAD_REQUEST)
             else: 
-                # print("[VentaViewSet CREATE ERROR] ClienteCreateSerializer inválido:", cliente_create_serializer.errors) # DEBUG
-                return Response(cliente_create_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        elif cliente_id_req:
-            try: cliente_instance = Cliente.objects.get(pk=cliente_id_req)
-            except Cliente.DoesNotExist: 
-                # print(f"[VentaViewSet CREATE ERROR] Cliente ID {cliente_id_req} no encontrado.") # DEBUG
-                return Response({'cliente': ['Cliente existente no encontrado.']}, status=status.HTTP_400_BAD_REQUEST)
-        else: 
-            # print("[VentaViewSet CREATE ERROR] No se proveyó cliente ni datos de nuevo cliente.") # DEBUG
-            return Response({'detail': 'Debe proporcionar un cliente existente o datos para uno nuevo.'}, status=status.HTTP_400_BAD_REQUEST)
+                print("[VentaViewSet CREATE ERROR] No se proveyó cliente ni datos de nuevo cliente.") # DEBUG
+                return Response({'detail': 'Debe proporcionar un cliente existente o datos para uno nuevo.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        venta_data = request.data.copy()
-        if cliente_instance: venta_data['cliente'] = cliente_instance.pk
-        if 'nuevo_cliente_data' in venta_data: del venta_data['nuevo_cliente_data']
-        
-        # print("[VentaViewSet CREATE] Data para VentaSerializer:", venta_data) #DEBUG
-        serializer = self.get_serializer(data=venta_data)
-        
-        if not serializer.is_valid():
-            # print("[VentaViewSet CREATE ERROR] VentaSerializer inválido:", serializer.errors) #DEBUG
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
-        venta_instance = serializer.save() 
-        # print(f"[VentaViewSet CREATE] Venta guardada ID: {venta_instance.id_venta}, Valor: {venta_instance.valor_lote_venta}") #DEBUG
-        
-        self._crear_o_actualizar_plan_pago(venta_instance)
-        
-        # --- GESTIÓN DE COMISIONES RELACIONALES ---
-        ComisionVentaAsesor.objects.filter(venta=venta_instance).delete()
-        comisiones_asesores = request.data.get('comisiones_asesores', [])
-        for c in comisiones_asesores:
-            if not c.get('asesor') or not c.get('rol'):
-                continue
-            porcentaje = c.get('porcentaje_comision')
-            if porcentaje in [None, '']:
-                porcentaje = 0
-            try:
-                asesor_obj = Asesor.objects.get(pk=c['asesor'])
-            except Asesor.DoesNotExist:
-                continue
-            monto = venta_instance.valor_lote_venta * (Decimal(str(porcentaje)) / Decimal('100.00'))
-            ComisionVentaAsesor.objects.create(
-                venta=venta_instance,
-                asesor=asesor_obj,
-                rol=c['rol'],
-                porcentaje_comision=Decimal(str(porcentaje)),
-                monto_comision_calculado=monto,
-                notas=c.get('notas', '')
-            )
-        
-        venta_instance.refresh_from_db() 
-        response_serializer = self.get_serializer(venta_instance) 
-        headers = self.get_success_headers(response_serializer.data)
-        return Response(response_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+            venta_data = request.data.copy()
+            if cliente_instance: 
+                venta_data['cliente'] = cliente_instance.pk
+            if 'nuevo_cliente_data' in venta_data: 
+                del venta_data['nuevo_cliente_data']
+            
+            print("[VentaViewSet CREATE] Data para VentaSerializer:", venta_data) #DEBUG
+            serializer = self.get_serializer(data=venta_data)
+            
+            if not serializer.is_valid():
+                print("[VentaViewSet CREATE ERROR] VentaSerializer inválido:", serializer.errors) #DEBUG
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
+            venta_instance = serializer.save() 
+            print(f"[VentaViewSet CREATE] Venta guardada ID: {venta_instance.id_venta}, Valor: {venta_instance.valor_lote_venta}") #DEBUG
+            
+            self._crear_o_actualizar_plan_pago(venta_instance)
+            
+            # --- GESTIÓN DE COMISIONES RELACIONALES ---
+            ComisionVentaAsesor.objects.filter(venta=venta_instance).delete()
+            comisiones_asesores = request.data.get('comisiones_asesores', [])
+            for c in comisiones_asesores:
+                if not c.get('asesor') or not c.get('rol'):
+                    continue
+                porcentaje = c.get('porcentaje_comision')
+                if porcentaje in [None, '']:
+                    porcentaje = 0
+                try:
+                    asesor_obj = Asesor.objects.get(pk=c['asesor'])
+                except Asesor.DoesNotExist:
+                    continue
+                monto = venta_instance.valor_lote_venta * (Decimal(str(porcentaje)) / Decimal('100.00'))
+                ComisionVentaAsesor.objects.create(
+                    venta=venta_instance,
+                    asesor=asesor_obj,
+                    rol=c['rol'],
+                    porcentaje_comision=Decimal(str(porcentaje)),
+                    monto_comision_calculado=monto,
+                    notas=c.get('notas', '')
+                )
+            
+            venta_instance.refresh_from_db() 
+            response_serializer = self.get_serializer(venta_instance) 
+            headers = self.get_success_headers(response_serializer.data)
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+            
+        except Exception as e:
+            print(f"[VentaViewSet CREATE ERROR] Excepción no manejada: {str(e)}")
+            print(f"[VentaViewSet CREATE ERROR] Traceback: {traceback.format_exc()}")
+            return Response({"detail": f"Error interno al crear la venta: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @transaction.atomic
     def update(self, request, *args, **kwargs):
