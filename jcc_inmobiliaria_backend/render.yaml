@@ -11,10 +11,12 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn config.wsgi:application
     postdeploy:
+      - echo "=== INICIANDO POSTDEPLOY ==="
       - python manage.py migrate --noinput
       - python manage.py shell < importar_clientes_temp.py
       - python manage.py shell < importar_lotes_temp.py
       - python manage.py shell < importar_asesores_temp.py
+      - echo "=== POSTDEPLOY FINALIZADO ==="
     envVars:
       - key: DJANGO_SECRET_KEY
         generateValue: true
