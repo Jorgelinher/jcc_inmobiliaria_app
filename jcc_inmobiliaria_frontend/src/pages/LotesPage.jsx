@@ -314,9 +314,11 @@ function LotesPage() {
 
             <div className={styles.createButtonContainer}>
                 <button onClick={handleOpenModalForCreate} className={styles.createButton}>Crear Nuevo Lote</button>
+                {/* Botón de limpiar duplicados comentado - ya no es necesario
                 <button onClick={handleLimpiarLotesDuplicados} className={styles.createButton} style={{backgroundColor: '#dc3545', marginLeft: '10px'}}>
                     🧹 Limpiar Lotes Duplicados
                 </button>
+                */}
             </div>
 
             {error && <div className={`${styles.errorMessage} ${styles.marginBottom}`}>{error}</div>}

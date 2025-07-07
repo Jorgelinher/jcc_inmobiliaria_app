@@ -15,9 +15,10 @@ services:
     postdeploy:
       - echo "=== INICIANDO POSTDEPLOY ==="
       - python manage.py migrate --noinput
-      - python manage.py shell < importar_clientes_temp.py
-      - python manage.py shell < importar_lotes_temp.py
-      - python manage.py shell < importar_asesores_temp.py
+      # Importaciones comentadas - ya no son necesarias después del despliegue inicial
+      # - python manage.py shell < importar_clientes_temp.py
+      # - python manage.py shell < importar_lotes_temp.py
+      # - python manage.py shell < importar_asesores_temp.py
       - echo "=== POSTDEPLOY FINALIZADO ==="
     envVars:
       - key: DJANGO_SECRET_KEY
