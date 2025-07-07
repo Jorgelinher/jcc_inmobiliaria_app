@@ -518,10 +518,10 @@ class VentaViewSet(viewsets.ModelViewSet):
 
     @transaction.atomic
     def create(self, request, *args, **kwargs):
-        # print("[VentaViewSet CREATE INICIO] Data recibida:", request.data) # DEBUG
+        print("[VentaViewSet CREATE INICIO] Data recibida:", request.data) # DEBUG
         nuevo_cliente_data_req = request.data.get('nuevo_cliente_data')
-        cliente_id_req = request.data.get('cliente')
-        cliente_instance = None
+            cliente_id_req = request.data.get('cliente')
+            cliente_instance = None
         if nuevo_cliente_data_req:
             cliente_create_serializer = ClienteCreateSerializer(data=nuevo_cliente_data_req)
             if cliente_create_serializer.is_valid():
