@@ -34,6 +34,7 @@ def importar_lotes():
             print("Archivo lotes_import.csv abierto OK")
             r = csv.DictReader(f, delimiter=';')
             creados = 0
+            actualizados = 0
             for row in r:
                 try:
                     proyecto = row['\ufeffPROYECTO'].strip()
@@ -58,24 +59,48 @@ def importar_lotes():
                         precio_credito_12_meses_dolares = Decimal('0.00')
                         precio_credito_24_meses_dolares = Decimal('0.00')
 
-                    Lote.objects.create(
-                        ubicacion_proyecto=proyecto,
-                        manzana=manzana,
-                        numero_lote=numero_lote,
-                        etapa=etapa,
-                        area_m2=area_m2,
-                        precio_lista_soles=precio_lista_soles,
-                        precio_lista_dolares=precio_lista_dolares,
-                        precio_credito_12_meses_soles=precio_credito_12_meses_soles,
-                        precio_credito_24_meses_soles=precio_credito_24_meses_soles,
-                        precio_credito_12_meses_dolares=precio_credito_12_meses_dolares,
-                        precio_credito_24_meses_dolares=precio_credito_24_meses_dolares,
-                        estado_lote='Disponible'
-                    )
-                    creados += 1
+                    # Buscar si ya existe el lote (comparación más robusta)
+                    lote_existente = Lote.objects.filter(
+                        ubicacion_proyecto__iexact=proyecto.strip(),
+                        manzana__iexact=manzana.strip() if manzana else '',
+                        numero_lote__iexact=numero_lote.strip() if numero_lote else '',
+                        etapa=etapa
+                    ).first()
+                    
+                    if lote_existente:
+                        # Actualizar datos
+                        lote_existente.area_m2 = area_m2
+                        lote_existente.precio_lista_soles = precio_lista_soles
+                        lote_existente.precio_lista_dolares = precio_lista_dolares
+                        lote_existente.precio_credito_12_meses_soles = precio_credito_12_meses_soles
+                        lote_existente.precio_credito_24_meses_soles = precio_credito_24_meses_soles
+                        lote_existente.precio_credito_12_meses_dolares = precio_credito_12_meses_dolares
+                        lote_existente.precio_credito_24_meses_dolares = precio_credito_24_meses_dolares
+                        lote_existente.estado_lote = 'Disponible'
+                        lote_existente.save()
+                        actualizados += 1
+                        print(f"Actualizado lote existente: {proyecto} Mz:{manzana} Lt:{numero_lote} Etapa:{etapa}")
+                    else:
+                        Lote.objects.create(
+                            ubicacion_proyecto=proyecto,
+                            manzana=manzana,
+                            numero_lote=numero_lote,
+                            etapa=etapa,
+                            area_m2=area_m2,
+                            precio_lista_soles=precio_lista_soles,
+                            precio_lista_dolares=precio_lista_dolares,
+                            precio_credito_12_meses_soles=precio_credito_12_meses_soles,
+                            precio_credito_24_meses_soles=precio_credito_24_meses_soles,
+                            precio_credito_12_meses_dolares=precio_credito_12_meses_dolares,
+                            precio_credito_24_meses_dolares=precio_credito_24_meses_dolares,
+                            estado_lote='Disponible'
+                        )
+                        creados += 1
+                        print(f"Creado nuevo lote: {proyecto} Mz:{manzana} Lt:{numero_lote} Etapa:{etapa}")
                 except Exception as e:
                     print(f'Error en fila: {row} -> {e}')
             print(f'Lotes creados: {creados}')
+            print(f'Lotes actualizados: {actualizados}')
     except Exception as e:
         print(f'Error general en la importación: {e}')
         import traceback
