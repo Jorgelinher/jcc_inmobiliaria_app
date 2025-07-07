@@ -6,7 +6,7 @@ databases:
 
 services:
   - type: web
-    name: jcc-gestion-inmobiliaria
+    name: jcc_inmobiliaria_app
     env: python
     plan: free
     rootDir: jcc_inmobiliaria_backend
