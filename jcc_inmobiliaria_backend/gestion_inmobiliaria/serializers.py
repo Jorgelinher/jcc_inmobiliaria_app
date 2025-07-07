@@ -345,7 +345,7 @@ class VentaSerializer(serializers.ModelSerializer):
     precio_dolares = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, allow_null=True)
     tipo_cambio = serializers.DecimalField(max_digits=8, decimal_places=3, required=False, allow_null=True)
     saldo_pendiente_dolares = serializers.SerializerMethodField()
-    comisiones_asesores = ComisionVentaAsesorSerializer(many=True, required=False)
+    comisiones_asesores = ComisionVentaAsesorSerializer(many=True, required=False, read_only=True)
 
     # --- INICIO: AÑADIR CAMPOS DE FIRMA ---
     cliente_firmo_contrato = serializers.BooleanField(read_only=True)
@@ -388,7 +388,8 @@ class VentaSerializer(serializers.ModelSerializer):
             'cliente_detalle', 'monto_pagado_actual', 'saldo_pendiente', 
             'status_venta_display', 'registros_pago', 'fecha_registro_venta', 
             'presencia_que_origino_id', 'plan_pago_detalle',
-            'cliente_firmo_contrato', 'fecha_firma_contrato' # Nuevos campos read-only
+            'cliente_firmo_contrato', 'fecha_firma_contrato', # Nuevos campos read-only
+            'comisiones_asesores' # Campo anidado debe ser read-only
         )
         extra_kwargs = {
             'cliente': {'required': False, 'allow_null': True},

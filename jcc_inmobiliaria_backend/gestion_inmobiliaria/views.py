@@ -551,6 +551,8 @@ class VentaViewSet(viewsets.ModelViewSet):
                 venta_data['cliente'] = cliente_instance.pk
             if 'nuevo_cliente_data' in venta_data: 
                 del venta_data['nuevo_cliente_data']
+            if 'comisiones_asesores' in venta_data:
+                del venta_data['comisiones_asesores']
             
             print("[VentaViewSet CREATE] Data para VentaSerializer:", venta_data) #DEBUG
             serializer = self.get_serializer(data=venta_data)
@@ -604,7 +606,10 @@ class VentaViewSet(viewsets.ModelViewSet):
         instance = self.get_object() 
 
         venta_data = request.data.copy()
-        if 'nuevo_cliente_data' in venta_data: del venta_data['nuevo_cliente_data']
+        if 'nuevo_cliente_data' in venta_data: 
+            del venta_data['nuevo_cliente_data']
+        if 'comisiones_asesores' in venta_data:
+            del venta_data['comisiones_asesores']
         if 'cliente' in venta_data and venta_data['cliente'] != str(instance.cliente_id):
             try: Cliente.objects.get(pk=venta_data['cliente'])
             except Cliente.DoesNotExist: return Response({'cliente': ['Cliente para actualización no encontrado.']}, status=status.HTTP_400_BAD_REQUEST)
