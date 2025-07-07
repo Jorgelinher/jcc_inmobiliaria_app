@@ -196,6 +196,31 @@ function LotesPage() {
         }
     };
 
+    const handleLimpiarLotesDuplicados = async () => {
+        if (window.confirm('¿Estás seguro de que quieres limpiar los lotes duplicados? Esta acción no se puede deshacer.')) {
+            try {
+                setLoading(true);
+                const response = await fetch('https://jcc-inmobiliaria-app.onrender.com/api/gestion/limpiar-lotes-duplicados/', {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(`Limpieza completada:\n- Duplicados detectados: ${data.total_duplicados_detectados}\n- Eliminados: ${data.total_eliminados}\n- Total final: ${data.total_lotes_final}`);
+                    // Recargar la lista de lotes
+                    fetchLotes(filters, 1, pageSize);
+                } else {
+                    alert(`Error: ${data.error}`);
+                }
+            } catch (err) {
+                alert(`Error al limpiar lotes duplicados: ${err.message}`);
+            } finally {
+                setLoading(false);
+            }
+        }
+    };
+
     // No mostrar "Cargando lotes..." si ya hay lotes y se están aplicando filtros
     const showInitialLoading = loading && lotes.length === 0 && !Object.values(filters).some(f => f !== '');
     const showFilteringMessage = loading && (lotes.length > 0 || Object.values(filters).some(f => f !== ''));
@@ -286,6 +311,9 @@ function LotesPage() {
 
             <div className={styles.createButtonContainer}>
                 <button onClick={handleOpenModalForCreate} className={styles.createButton}>Crear Nuevo Lote</button>
+                <button onClick={handleLimpiarLotesDuplicados} className={styles.createButton} style={{backgroundColor: '#dc3545', marginLeft: '10px'}}>
+                    🧹 Limpiar Lotes Duplicados
+                </button>
             </div>
 
             {error && <div className={`${styles.errorMessage} ${styles.marginBottom}`}>{error}</div>}
