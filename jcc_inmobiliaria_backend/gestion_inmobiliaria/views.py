@@ -1363,6 +1363,14 @@ class LimpiarLotesDuplicadosAPIView(APIView):
     """
     permission_classes = [permissions.IsAuthenticated]
     
+    def get(self, request, format=None):
+        """Endpoint de prueba para verificar que funciona"""
+        return Response({
+            'message': 'Endpoint funcionando correctamente',
+            'method': 'GET - Solo para pruebas',
+            'total_lotes': Lote.objects.count()
+        })
+    
     def post(self, request, format=None):
         try:
             print('=== INICIANDO LIMPIEZA DE LOTES DUPLICADOS ===')
