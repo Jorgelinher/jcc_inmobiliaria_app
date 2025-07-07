@@ -6,11 +6,15 @@ databases:
 
 services:
   - type: web
-    name: jcc-gestion-inmobiliaria
+    name: jcc-inmobiliaria-backend
     env: python
-    plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn config.wsgi:application
+    postdeploy:
+      - python manage.py migrate --noinput
+      - python manage.py shell < importar_clientes_temp.py
+      - python manage.py shell < importar_lotes_temp.py
+      - python manage.py shell < importar_asesores_temp.py
     envVars:
       - key: DJANGO_SECRET_KEY
         generateValue: true
