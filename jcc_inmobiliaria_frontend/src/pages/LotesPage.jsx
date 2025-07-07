@@ -200,18 +200,14 @@ function LotesPage() {
         if (window.confirm('¿Estás seguro de que quieres limpiar los lotes duplicados? Esta acción no se puede deshacer.')) {
             try {
                 setLoading(true);
-                const response = await fetch('https://jcc-inmobiliaria-app.onrender.com/api/gestion/limpiar-lotes-duplicados/', {
-                    method: 'POST',
-                    credentials: 'include'
-                });
-                const data = await response.json();
+                const response = await apiService.limpiarLotesDuplicados();
                 
-                if (data.success) {
-                    alert(`Limpieza completada:\n- Duplicados detectados: ${data.total_duplicados_detectados}\n- Eliminados: ${data.total_eliminados}\n- Total final: ${data.total_lotes_final}`);
+                if (response.data.success) {
+                    alert(`Limpieza completada:\n- Duplicados detectados: ${response.data.total_duplicados_detectados}\n- Eliminados: ${response.data.total_eliminados}\n- Total final: ${response.data.total_lotes_final}`);
                     // Recargar la lista de lotes
                     fetchLotes(filters, 1, pageSize);
                 } else {
-                    alert(`Error: ${data.error}`);
+                    alert(`Error: ${response.data.error}`);
                 }
             } catch (err) {
                 alert(`Error al limpiar lotes duplicados: ${err.message}`);

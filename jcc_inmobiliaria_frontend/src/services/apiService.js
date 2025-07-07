@@ -130,6 +130,7 @@ export const updateLote = (id, data) => apiClient.put(`/gestion/lotes/${id}/`, d
 export const deleteLote = (id) => apiClient.delete(`/gestion/lotes/${id}/`);
 export const getLoteById = (id) => apiClient.get(`/gestion/lotes/${id}/`);
 export const getUbicacionesProyecto = () => apiClient.get('/gestion/lotes/ubicaciones_proyecto/');
+export const limpiarLotesDuplicados = () => apiClient.post('/gestion/lotes/limpiar-duplicados/');
 
 // --- CRUD Clientes ---
 export const getClientes = (queryParams = '') => apiClient.get(`/gestion/clientes/${queryParams ? `?${queryParams}` : ''}`);
