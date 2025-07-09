@@ -208,8 +208,10 @@ function VentasPage() {
                 fetchVentas(filters, currentPage, pageSize);
             } catch (err) {
                 let customMessage = '';
-                // Si el backend devuelve un error 500 y el mensaje contiene 'ProtectedError' o 'referenced through protected foreign keys'
-                if (err.response && err.response.status === 500 && err.response.data && typeof err.response.data === 'string' &&
+                // Si el backend devuelve un error 409 y el mensaje contiene 'detail'
+                if (err.response && err.response.status === 409 && err.response.data && err.response.data.detail) {
+                    customMessage = err.response.data.detail;
+                } else if (err.response && err.response.status === 500 && err.response.data && typeof err.response.data === 'string' &&
                     (err.response.data.includes('ProtectedError') || err.response.data.includes('referenced through protected foreign keys'))
                 ) {
                     customMessage = 'No es posible eliminar la venta porque tiene comisiones cerradas asociadas. Consulte con el administrador si necesita realizar esta acción.';
