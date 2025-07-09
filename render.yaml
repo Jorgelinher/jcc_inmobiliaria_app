@@ -10,7 +10,7 @@ services:
     env: python
     plan: free
     rootDir: jcc_inmobiliaria_backend
-    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput  # Recolecta archivos estáticos para el admin y WhiteNoise
     startCommand: gunicorn config.wsgi:application
     postdeploy:
       - echo "=== INICIANDO POSTDEPLOY ==="
