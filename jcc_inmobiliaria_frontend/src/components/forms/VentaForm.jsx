@@ -92,6 +92,7 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
     const [submitStatus, setSubmitStatus] = useState(''); // '', 'success', 'error'
     const [submitMessage, setSubmitMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [lastLoadedLoteId, setLastLoadedLoteId] = useState(null);
 
     const fetchInitialDropdownData = useCallback(async () => {
         setLoadingRelatedData(true);
@@ -145,7 +146,8 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
                 };
                 setFormData(newFormData);
 
-                if (loteId) {
+                if (loteId && loteId !== lastLoadedLoteId) {
+                    setLastLoadedLoteId(loteId);
                     apiService.getLoteById(loteId)
                         .then(res => {
                             setSelectedLoteDetails(res.data);
@@ -159,7 +161,7 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
                             setSelectedLoteDetails(null);
                             setFormData(prev => ({...prev, lote_display_text: 'Error al cargar lote'}));
                         });
-                } else {
+                } else if (!loteId) {
                     setSelectedLoteDetails(null);
                 }
 
@@ -187,6 +189,7 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
                 setTipoVendedorPrincipal(null);
                 setDefaultCommissionVP(null);
                 setDefaultCommissionSocio(null);
+                setLastLoadedLoteId(null);
             }
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
