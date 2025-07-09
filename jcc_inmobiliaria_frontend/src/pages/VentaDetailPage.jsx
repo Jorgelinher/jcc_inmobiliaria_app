@@ -461,7 +461,7 @@ function VentaDetailPage() {
                         <div className={styles.detailItem}><strong>Fecha de Firma:</strong> {displayDate(venta.fecha_firma_contrato)}</div>
                     )}
                     {/* --- FIN: MOSTRAR ESTADO DE FIRMA --- */}
-                    <div className={styles.detailItem}><strong>Vendedor:</strong> {displayValue(venta.vendedor_principal_nombre)}</div>
+                    <div className={styles.detailItem}><strong>Vendedor:</strong> {Array.isArray(venta.comisiones_asesores) && venta.comisiones_asesores.length > 0 ? (venta.comisiones_asesores.find(a => a.rol === 'liner')?.asesor_nombre || '-') : '-'}</div>
                     <div className={styles.detailItem}><strong>Participación Junior:</strong> {displayValue(venta.participacion_junior_venta)}</div>
                     <div className={styles.detailItem}><strong>Comisión Vendedor Principal:</strong> {displayCommissionPercentage(venta.porcentaje_comision_vendedor_principal_personalizado)}</div>
                     <div className={styles.detailItem}><strong>Socio Participante:</strong> {displayValue(venta.socio_participante_nombre)}</div>

@@ -380,7 +380,11 @@ function VentasPage() {
                                                     <Link to={`/clientes/${venta.cliente_detalle.id_cliente}`}>{venta.cliente_detalle.nombres_completos_razon_social}</Link> 
                                                     : (venta.cliente_info || venta.cliente || '-')}
                                             </td>
-                                            <td>{venta.vendedor_principal_nombre || venta.vendedor_principal?.nombre_asesor || '-'}</td>
+                                            <td>{
+                                                (Array.isArray(venta.comisiones_asesores) && venta.comisiones_asesores.length > 0) ?
+                                                    (venta.comisiones_asesores.find(a => a.rol === 'liner')?.asesor_nombre || '-')
+                                                    : '-'
+                                            }</td>
                                             <td className={styles.textAlignRight}>{displayCurrency(venta.valor_lote_venta)}</td>
                                             <td className={styles.textAlignRight}>{mostrarDolares && venta.precio_dolares ? `$${Number(venta.precio_dolares).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}` : '-'}</td>
                                             <td className={styles.textAlignRight}>{mostrarDolares && venta.tipo_cambio ? Number(venta.tipo_cambio).toFixed(3) : '-'}</td>
