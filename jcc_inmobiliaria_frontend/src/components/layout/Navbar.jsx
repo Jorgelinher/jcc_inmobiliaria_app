@@ -34,7 +34,7 @@ function Navbar() {
             <div className={styles.authControls}>
                 {isAuthenticated ? (
                     <>
-                        <span className={styles.userInfo}>Hola, {user?.username || 'Usuario'}</span>
+                        <span className={styles.saludo} title={user?.username || 'Usuario'}>Hola, {user?.username || 'Usuario'}</span>
                         <button 
                             onClick={logout} 
                             // Añadir clase 'explicitButton' si quieres que parezca más un botón que un enlace

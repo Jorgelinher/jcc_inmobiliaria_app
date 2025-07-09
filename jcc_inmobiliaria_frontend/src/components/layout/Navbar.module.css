@@ -123,6 +123,15 @@
     border-color: var(--color-secundario);
 }
 
+.saludo {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+  vertical-align: middle;
+}
+
 
 @media (max-width: 992px) { /* Ajustar breakpoint para cuando se ocultan los links */
   .navLinks {
