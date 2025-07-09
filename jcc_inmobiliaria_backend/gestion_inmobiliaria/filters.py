@@ -112,7 +112,10 @@ class VentaFilter(django_filters.FilterSet):
 
     def vendedor_search_filter(self, queryset, name, value):
         if value:
-            return queryset.filter(vendedor_principal__nombre_asesor__icontains=value)
+            return queryset.filter(
+                Q(vendedor_principal__nombre_asesor__icontains=value) |
+                Q(comisiones_asesores__asesor__nombre_asesor__icontains=value)
+            ).distinct()
         return queryset
 
 class ActividadDiariaFilter(django_filters.FilterSet):
