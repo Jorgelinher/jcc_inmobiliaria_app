@@ -121,7 +121,11 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
     }, [show, fetchInitialDropdownData]);
 
     useEffect(() => {
-        if (show) {
+        if (
+            show &&
+            asesoresList.length > 0 &&
+            clientesList.length > 0
+        ) {
             if (initialData) {
                 const loteId = initialData.lote?.id_lote || initialData.lote;
                 const newFormData = {
@@ -136,24 +140,20 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
                     porcentaje_comision_vendedor_principal_personalizado: initialData.porcentaje_comision_vendedor_principal_personalizado?.toString() || '',
                     porcentaje_comision_socio_personalizado: initialData.porcentaje_comision_socio_personalizado?.toString() || '',
                     tipo_venta: initialData.tipo_venta || 'contado',
-                    plazo_meses_credito: initialData.plazo_meses_credito === null || initialData.plazo_meses_credito === undefined ? (initialData.tipo_venta === 'credito' ? '' : 0) : initialData.plazo_meses_credito, // Si es crédito y no hay plazo, dejar vacío para selección
-                    valor_lote_venta: initialData.valor_lote_venta || '', // Se recalculará, pero tener un valor inicial puede ser útil
+                    plazo_meses_credito: initialData.plazo_meses_credito === null || initialData.plazo_meses_credito === undefined ? (initialData.tipo_venta === 'credito' ? '' : 0) : initialData.plazo_meses_credito,
+                    valor_lote_venta: initialData.valor_lote_venta || '',
                 };
                 setFormData(newFormData);
 
                 if (loteId) {
-                    console.log("[VentaForm] initialData tiene lote ID:", loteId, ". Buscando detalles...");
                     apiService.getLoteById(loteId)
                         .then(res => {
-                            console.log("[VentaForm] Detalles del lote inicial cargados:", res.data);
                             setSelectedLoteDetails(res.data);
-                            // Actualizar lote_display_text con datos completos si es necesario
                             if (res.data) {
                                 setFormData(prev => ({...prev, lote_display_text: `${res.data.id_lote} (${res.data.ubicacion_proyecto} Mz:${res.data.manzana || 'S/M'} Lt:${res.data.numero_lote || 'S/N'})` }));
                             }
                         })
                         .catch(err => {
-                            console.error("Error fetching initial selected lote details", err);
                             setFormError("No se pudieron cargar los detalles del lote inicial.");
                             setSelectedLoteDetails(null);
                             setFormData(prev => ({...prev, lote_display_text: 'Error al cargar lote'}));
@@ -162,12 +162,25 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
                     setSelectedLoteDetails(null);
                 }
 
-                if (asesoresList.length > 0 && newFormData.vendedor_principal) {
+                if (newFormData.vendedor_principal) {
                     const vendedor = asesoresList.find(a => a.id_asesor === newFormData.vendedor_principal);
                     if (vendedor) setTipoVendedorPrincipal(vendedor.tipo_asesor_actual);
                 }
 
-            } else { 
+                // Inicializar comisionesAsesores SOLO cuando asesoresList está cargado
+                if (
+                    initialData.comisiones_asesores &&
+                    initialData.comisiones_asesores.length > 0
+                ) {
+                    const asesoresTransformados = initialData.comisiones_asesores.map(c => ({
+                        asesor: typeof c.asesor === 'object' && c.asesor.id_asesor ? c.asesor.id_asesor : c.asesor,
+                        rol: c.rol,
+                        porcentaje_comision: c.porcentaje_comision,
+                        notas: c.notas || ''
+                    }));
+                    setComisionesAsesores(asesoresTransformados);
+                }
+            } else {
                 setFormData({...getInitialFormData(), cliente: clientePredefinidoPresencia || ''});
                 setSelectedLoteDetails(null);
                 setTipoVendedorPrincipal(null);
@@ -176,7 +189,7 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
             }
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [initialData, show, clientePredefinidoPresencia, getInitialFormData, asesoresList]); // Removido lotesList porque LoteSelector lo maneja
+    }, [initialData, show, clientePredefinidoPresencia, getInitialFormData, asesoresList, clientesList]);
 
     useEffect(() => {
         if (selectedLoteDetails) {
