@@ -80,7 +80,8 @@
 .authControls {
   display: flex;
   align-items: center;
-  gap: 1.25rem; /* Espacio entre UserInfo y Logout/Login */
+  gap: 0.5rem; /* Reducido para evitar separación excesiva */
+  min-width: 0; /* Permite que los hijos colapsen correctamente */
 }
 
 .userInfo {
@@ -124,7 +125,7 @@
 }
 
 .saludo {
-  max-width: 150px;
+  max-width: 90px; /* Más pequeño para evitar desbordes */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
