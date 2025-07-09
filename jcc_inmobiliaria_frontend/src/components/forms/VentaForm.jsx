@@ -409,6 +409,8 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
             setFormError("El valor de venta del lote no es válido o no se ha calculado. Verifique el lote y el plan de pagos seleccionado.");
             return;
         }
+        // LOG para depuración
+        console.log('[VentaForm][DEBUG] formData al enviar:', formData);
         // Si hay asesores, valida sus campos, pero no bloquees si la lista está vacía
         if (comisionesAsesores.length > 0) {
             for (const c of comisionesAsesores) {
@@ -493,7 +495,14 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
             initialData.comisiones_asesores.length > 0 &&
             comisionesAsesores.length === 0
         ) {
-            setComisionesAsesores(initialData.comisiones_asesores);
+            // Transformar para que asesor sea solo el ID
+            const asesoresTransformados = initialData.comisiones_asesores.map(c => ({
+                asesor: typeof c.asesor === 'object' && c.asesor.id_asesor ? c.asesor.id_asesor : c.asesor,
+                rol: c.rol,
+                porcentaje_comision: c.porcentaje_comision,
+                notas: c.notas || ''
+            }));
+            setComisionesAsesores(asesoresTransformados);
         }
     }, [show, initialData, comisionesAsesores.length]);
 
