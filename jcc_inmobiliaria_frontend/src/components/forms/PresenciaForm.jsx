@@ -443,6 +443,7 @@ function PresenciaForm({ show, onClose, onSubmit, initialData }) {
                                         onChange={(value) => setFormData(prev => ({ ...prev, asesor_captacion_opc: value }))}
                                         placeholder="Buscar asesor captación..."
                                         name="asesor_captacion_opc"
+                                        asesoresList={asesoresList}
                                     />
                                     {errorsByField['asesor_captacion_opc'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['asesor_captacion_opc']}</div>}
                                 </div>
@@ -455,6 +456,7 @@ function PresenciaForm({ show, onClose, onSubmit, initialData }) {
                                         onChange={(value) => setFormData(prev => ({ ...prev, asesor_call_agenda: value }))}
                                         placeholder="Buscar asesor call..."
                                         name="asesor_call_agenda"
+                                        asesoresList={asesoresList}
                                     />
                                     {errorsByField['asesor_call_agenda'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['asesor_call_agenda']}</div>}
                                 </div>
@@ -465,6 +467,7 @@ function PresenciaForm({ show, onClose, onSubmit, initialData }) {
                                         onChange={(value) => setFormData(prev => ({ ...prev, asesor_liner: value }))}
                                         placeholder="Buscar asesor liner..."
                                         name="asesor_liner"
+                                        asesoresList={asesoresList}
                                     />
                                     {errorsByField['asesor_liner'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['asesor_liner']}</div>}
                                 </div>
@@ -475,6 +478,7 @@ function PresenciaForm({ show, onClose, onSubmit, initialData }) {
                                         onChange={(value) => setFormData(prev => ({ ...prev, asesor_closer: value }))}
                                         placeholder="Buscar asesor closer..."
                                         name="asesor_closer"
+                                        asesoresList={asesoresList}
                                     />
                                     {errorsByField['asesor_closer'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['asesor_closer']}</div>}
                                 </div>
