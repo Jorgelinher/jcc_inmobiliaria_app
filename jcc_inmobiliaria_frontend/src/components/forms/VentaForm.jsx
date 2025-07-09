@@ -689,6 +689,7 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
                                                 onChange={val => handleComisionAsesorChange(idx, 'asesor', val)}
                                                 placeholder="Buscar asesor..."
                                                 name={`asesor_${idx}`}
+                                                asesoresList={asesoresList}
                                             />
                                         </div>
                                         <div className={styles.formGroup} style={{flex: 1.5}}>
