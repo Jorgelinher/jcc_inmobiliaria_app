@@ -41,27 +41,36 @@ const PARTICIPACION_SOCIO_CHOICES_OPTIONS = [
 ];
 
 function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia = false, clientePredefinidoPresencia = null, asesoresInvolucradosPresencia = [] }) {
-    const getInitialFormData = useCallback(() => ({
-        fecha_venta: new Date().toISOString().split('T')[0],
-        lote: '', // ID del lote
-        lote_display_text: '', // Texto para mostrar del lote seleccionado
-        cliente: clientePredefinidoPresencia || '',
-        valor_lote_venta: '',
-        tipo_venta: 'contado',
-        plazo_meses_credito: 0,
-        cuota_inicial_requerida: '0.00',
-        status_venta: 'separacion',
-        vendedor_principal: '',
-        participacion_junior_venta: 'N/A',
-        id_socio_participante: '',
-        participacion_socio_venta: 'N/A',
-        modalidad_presentacion: '',
-        notas: '',
-        porcentaje_comision_vendedor_principal_personalizado: '',
-        porcentaje_comision_socio_personalizado: '',
-        precio_dolares: '',
-        tipo_cambio: '',
-    }), [clientePredefinidoPresencia]);
+    const getInitialFormData = useCallback(() => {
+        let vendedorLiner = '';
+        if (isModalForPresencia && Array.isArray(asesoresInvolucradosPresencia)) {
+            const liner = asesoresInvolucradosPresencia.find(a => a.rol === 'liner');
+            if (liner && liner.asesor) {
+                vendedorLiner = liner.asesor;
+            }
+        }
+        return {
+            fecha_venta: new Date().toISOString().split('T')[0],
+            lote: '', // ID del lote
+            lote_display_text: '', // Texto para mostrar del lote seleccionado
+            cliente: clientePredefinidoPresencia || '',
+            valor_lote_venta: '',
+            tipo_venta: 'contado',
+            plazo_meses_credito: 0,
+            cuota_inicial_requerida: '0.00',
+            status_venta: 'separacion',
+            vendedor_principal: vendedorLiner,
+            participacion_junior_venta: 'N/A',
+            id_socio_participante: '',
+            participacion_socio_venta: 'N/A',
+            modalidad_presentacion: '',
+            notas: '',
+            porcentaje_comision_vendedor_principal_personalizado: '',
+            porcentaje_comision_socio_personalizado: '',
+            precio_dolares: '',
+            tipo_cambio: '',
+        };
+    }, [clientePredefinidoPresencia, isModalForPresencia, asesoresInvolucradosPresencia]);
 
     const [formData, setFormData] = useState(getInitialFormData());
     const [selectedLoteDetails, setSelectedLoteDetails] = useState(null);
@@ -422,6 +431,7 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
             notas: formData.notas,
             precio_dolares: showDolaresFields ? parseFloat(formData.precio_dolares) : null,
             tipo_cambio: showDolaresFields ? parseFloat(formData.tipo_cambio) : null,
+            vendedor_principal: formData.vendedor_principal,
             comisiones_asesores: comisionesAsesores.length > 0 ? comisionesAsesores.map(c => ({
                 asesor: c.asesor,
                 rol: c.rol,
