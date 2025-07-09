@@ -206,8 +206,17 @@ function VentasPage() {
                 await apiService.deleteVenta(ventaId);
                 alert('Venta eliminada con éxito!');
                 fetchVentas(filters, currentPage, pageSize);
-            } catch (err) { 
-                alert(`Error al eliminar la venta: ${err.message || 'Error desconocido.'}`);
+            } catch (err) {
+                let customMessage = '';
+                // Si el backend devuelve un error 500 y el mensaje contiene 'ProtectedError' o 'referenced through protected foreign keys'
+                if (err.response && err.response.status === 500 && err.response.data && typeof err.response.data === 'string' &&
+                    (err.response.data.includes('ProtectedError') || err.response.data.includes('referenced through protected foreign keys'))
+                ) {
+                    customMessage = 'No es posible eliminar la venta porque tiene comisiones cerradas asociadas. Consulte con el administrador si necesita realizar esta acción.';
+                } else {
+                    customMessage = `Error al eliminar la venta: ${err.message || 'Error desconocido.'}`;
+                }
+                alert(customMessage);
             } finally {
                 setLoading(false);
             }
