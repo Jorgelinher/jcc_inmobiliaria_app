@@ -149,6 +149,7 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
                     apiService.getLoteById(loteId)
                         .then(res => {
                             setSelectedLoteDetails(res.data);
+                            setFormError(''); // Limpiar error si la carga fue exitosa
                             if (res.data) {
                                 setFormData(prev => ({...prev, lote_display_text: `${res.data.id_lote} (${res.data.ubicacion_proyecto} Mz:${res.data.manzana || 'S/M'} Lt:${res.data.numero_lote || 'S/N'})` }));
                             }
