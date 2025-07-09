@@ -679,6 +679,63 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
                             <hr className={styles.formSeparator}/>
                             <h3 className={styles.subHeader}>Asesores y Comisiones</h3>
                             
+                            <div className={styles.formRow}>
+                                <div className={styles.formGroup}>
+                                    <label htmlFor="vendedor_principal">Vendedor Principal <span className={styles.required}>*</span></label>
+                                    <AsesorAutocomplete
+                                        value={formData.vendedor_principal || ''}
+                                        onChange={(value) => handleChange({ target: { name: 'vendedor_principal', value } })}
+                                        placeholder="Seleccionar vendedor principal..."
+                                        name="vendedor_principal"
+                                        asesoresList={asesoresList}
+                                    />
+                                    {errorsByField['vendedor_principal'] && <div className={styles.errorMessageField}>{errorsByField['vendedor_principal']}</div>}
+                                </div>
+                                <div className={styles.formGroup}>
+                                    <label htmlFor="id_socio_participante">Socio Participante</label>
+                                    <AsesorAutocomplete
+                                        value={formData.id_socio_participante || ''}
+                                        onChange={(value) => handleChange({ target: { name: 'id_socio_participante', value } })}
+                                        placeholder="Seleccionar socio participante..."
+                                        name="id_socio_participante"
+                                        asesoresList={asesoresList}
+                                    />
+                                    {errorsByField['id_socio_participante'] && <div className={styles.errorMessageField}>{errorsByField['id_socio_participante']}</div>}
+                                </div>
+                            </div>
+                            
+                            {tipoVendedorPrincipal === 'Junior' && (
+                                <div className={styles.formRow}>
+                                    <div className={styles.formGroup}>
+                                        <label htmlFor="participacion_junior_venta">Participación Junior</label>
+                                        <select id="participacion_junior_venta" name="participacion_junior_venta" value={formData.participacion_junior_venta} onChange={handleChange}>
+                                            {PARTICIPACION_JUNIOR_CHOICES_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className={styles.formGroup}>
+                                        <label htmlFor="porcentaje_comision_vendedor_principal_personalizado">% Comisión VP Personalizado</label>
+                                        <input type="number" id="porcentaje_comision_vendedor_principal_personalizado" name="porcentaje_comision_vendedor_principal_personalizado" value={formData.porcentaje_comision_vendedor_principal_personalizado} onChange={handleChange} step="0.01" min="0" max="100" placeholder="Dejar vacío para usar default" />
+                                        {defaultCommissionVP && <div className={styles.helpText}>Comisión por defecto: {defaultCommissionVP}%</div>}
+                                    </div>
+                                </div>
+                            )}
+                            
+                            {formData.id_socio_participante && (
+                                <div className={styles.formRow}>
+                                    <div className={styles.formGroup}>
+                                        <label htmlFor="participacion_socio_venta">Participación Socio</label>
+                                        <select id="participacion_socio_venta" name="participacion_socio_venta" value={formData.participacion_socio_venta} onChange={handleChange}>
+                                            {PARTICIPACION_SOCIO_CHOICES_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className={styles.formGroup}>
+                                        <label htmlFor="porcentaje_comision_socio_personalizado">% Comisión Socio Personalizado</label>
+                                        <input type="number" id="porcentaje_comision_socio_personalizado" name="porcentaje_comision_socio_personalizado" value={formData.porcentaje_comision_socio_personalizado} onChange={handleChange} step="0.01" min="0" max="100" placeholder="Dejar vacío para usar default" />
+                                        {defaultCommissionSocio && <div className={styles.helpText}>Comisión por defecto: {defaultCommissionSocio}%</div>}
+                                    </div>
+                                </div>
+                            )}
+                            
                             <div className={styles.formGroup}>
                                 <label>Asesores Involucrados y Comisiones</label>
                                 {comisionesAsesores.map((c, idx, arr) => (

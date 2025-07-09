@@ -33,7 +33,7 @@ const AsesorAutocomplete = ({
                         return;
                     }
                 }
-                // Si no, buscar remoto
+                // Si no, buscar remoto solo si no tenemos la opción seleccionada o es diferente
                 if (!selectedOption || selectedOption.value !== value) {
                     try {
                         const response = await apiService.getAsesorById(value);
@@ -54,7 +54,7 @@ const AsesorAutocomplete = ({
             }
         };
         loadSelectedAsesor();
-    }, [value, onChange, asesoresList]);
+    }, [value, asesoresList]); // Removido onChange y selectedOption de las dependencias para evitar bucles
 
     // Función para cargar opciones de asesores
     const loadOptions = useCallback(async (inputValue) => {
