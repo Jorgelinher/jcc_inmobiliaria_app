@@ -26,6 +26,7 @@ from rest_framework import viewsets, status, filters
 from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import fields
+from django.db.models.deletion import ProtectedError
 
 from .models import (
     Lote, Cliente, Asesor, Venta, ActividadDiaria,
@@ -651,6 +652,17 @@ class VentaViewSet(viewsets.ModelViewSet):
         venta_instance.refresh_from_db()
         response_serializer = self.get_serializer(venta_instance)
         return Response(response_serializer.data)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        try:
+            self.perform_destroy(instance)
+        except ProtectedError:
+            return Response(
+                {"detail": "No es posible eliminar la venta porque tiene comisiones cerradas asociadas. Consulte con el administrador si necesita realizar esta acción."},
+                status=status.HTTP_409_CONFLICT
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class PresenciaViewSet(viewsets.ModelViewSet):
