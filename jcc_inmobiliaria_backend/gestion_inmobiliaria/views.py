@@ -966,42 +966,95 @@ class GetDashboardDataAPIView(APIView):
                     "vendidos_cantidad": vendidos_count,
                 })
 
-            # 5. Ranking Asesores (Matriz/Tabla) - USA ventas_filtradas y filtro tipoAsesor
-            ranking_asesores_q_base = ventas_filtradas
-            if filters.get('tipoAsesor'):
-                ranking_asesores_q_base = ranking_asesores_q_base.filter(vendedor_principal__tipo_asesor_actual=filters['tipoAsesor'])
-            
-            ranking_data_raw = ranking_asesores_q_base.values(
-                'vendedor_principal__nombre_asesor', 
-                'vendedor_principal__tipo_asesor_actual', 
-                'status_venta'
-            ).annotate(cantidad=Count('id_venta')).order_by(
-                'vendedor_principal__tipo_asesor_actual', 
-                'vendedor_principal__nombre_asesor'
-            )
-
-            grafico_ranking_asesores_pivot = {}
+            # 5. Ranking de Asesores por Estado de Venta (Tabla) - MEJORADA
+            # Nueva lógica que considera todos los roles de asesores en el proceso de venta
+            ranking_asesores_pivot = {}
             estados_venta_orden_claves = [Venta.STATUS_VENTA_SEPARACION, Venta.STATUS_VENTA_PROCESABLE, Venta.STATUS_VENTA_ANULADO, Venta.STATUS_VENTA_COMPLETADA]
             estados_venta_orden_display = [dict(Venta.STATUS_VENTA_CHOICES).get(s,s).capitalize() for s in estados_venta_orden_claves]
 
-            for item_rank in ranking_data_raw:
-                asesor_nombre = item_rank['vendedor_principal__nombre_asesor']
-                asesor_tipo = item_rank['vendedor_principal__tipo_asesor_actual']
-                if asesor_nombre not in grafico_ranking_asesores_pivot:
-                    grafico_ranking_asesores_pivot[asesor_nombre] = {'tipo': asesor_tipo}
-                    for estado_clave in estados_venta_orden_claves:
-                        grafico_ranking_asesores_pivot[asesor_nombre][estado_clave] = 0
+            # Obtener todas las ventas con sus presencias asociadas y asesores involucrados
+            ventas_con_presencias = ventas_filtradas.select_related(
+                'presencia_que_origino__asesor_captacion_opc',
+                'presencia_que_origino__asesor_call_agenda', 
+                'presencia_que_origino__asesor_liner',
+                'presencia_que_origino__asesor_closer',
+                'vendedor_principal'
+            ).prefetch_related('comisiones_asesores__asesor')
+
+            for venta in ventas_con_presencias:
+                status_venta = venta.status_venta
+                if status_venta not in estados_venta_orden_claves:
+                    continue
+
+                # Recolectar todos los asesores involucrados en esta venta
+                asesores_venta = set()
                 
-                if item_rank['status_venta'] in estados_venta_orden_claves:
-                     grafico_ranking_asesores_pivot[asesor_nombre][item_rank['status_venta']] = item_rank['cantidad']
+                # 1. Asesores de la presencia (roles específicos)
+                if venta.presencia_que_origino:
+                    presencia = venta.presencia_que_origino
+                    if presencia.asesor_captacion_opc:
+                        asesores_venta.add(('captación', presencia.asesor_captacion_opc))
+                    if presencia.asesor_call_agenda:
+                        asesores_venta.add(('llamada', presencia.asesor_call_agenda))
+                    if presencia.asesor_liner:
+                        asesores_venta.add(('liner', presencia.asesor_liner))
+                    if presencia.asesor_closer:
+                        asesores_venta.add(('closer', presencia.asesor_closer))
+
+                # 2. Vendedor principal (liner de la presencia)
+                if venta.vendedor_principal:
+                    asesores_venta.add(('vendedor_principal', venta.vendedor_principal))
+
+                # 3. Asesores con comisiones (roles adicionales)
+                for comision in venta.comisiones_asesores.all():
+                    if comision.asesor:
+                        asesores_venta.add((comision.rol, comision.asesor))
+
+                # Agregar cada asesor al ranking
+                for rol, asesor in asesores_venta:
+                    if not asesor:
+                        continue
+                        
+                    asesor_key = f"{asesor.nombre_asesor} ({asesor.id_asesor})"
+                    rol_display = rol.replace('_', ' ').title()
+                    
+                    if asesor_key not in ranking_asesores_pivot:
+                        ranking_asesores_pivot[asesor_key] = {
+                            'tipo': asesor.tipo_asesor_actual or 'N/A',
+                            'roles': set(),
+                            'total_ventas': 0
+                        }
+                        for estado_clave in estados_venta_orden_claves:
+                            ranking_asesores_pivot[asesor_key][estado_clave] = 0
+                    
+                    # Agregar el rol a la lista de roles del asesor
+                    ranking_asesores_pivot[asesor_key]['roles'].add(rol_display)
+                    ranking_asesores_pivot[asesor_key]['total_ventas'] += 1
+                    ranking_asesores_pivot[asesor_key][status_venta] += 1
+
+            # Crear la tabla final ordenada por total de ventas y luego por nombre
+            grafico_ranking_asesores = [['Asesor', 'Tipo', 'Roles', 'Total Ventas'] + estados_venta_orden_display]
             
-            grafico_ranking_asesores = [['Asesor', 'Tipo'] + estados_venta_orden_display]
-            for asesor_nombre_rank, data_rank in sorted(grafico_ranking_asesores_pivot.items(), key=lambda x: (x[1].get('tipo', ''), x[0])):
-                 fila = [asesor_nombre_rank, data_rank.get('tipo','N/A')]
-                 for estado_clave_rank in estados_venta_orden_claves:
-                     fila.append(data_rank.get(estado_clave_rank,0))
-                 grafico_ranking_asesores.append(fila)
-            if len(grafico_ranking_asesores) == 1: grafico_ranking_asesores.append(['Sin datos', '-', 0, 0, 0, 0])
+            # Ordenar por total de ventas (descendente) y luego por nombre
+            asesores_ordenados = sorted(
+                ranking_asesores_pivot.items(), 
+                key=lambda x: (-x[1]['total_ventas'], x[0])
+            )
+            
+            for asesor_nombre_rank, data_rank in asesores_ordenados:
+                roles_str = ', '.join(sorted(data_rank['roles']))
+                fila = [
+                    asesor_nombre_rank, 
+                    data_rank.get('tipo', 'N/A'),
+                    roles_str,
+                    data_rank.get('total_ventas', 0)
+                ]
+                for estado_clave_rank in estados_venta_orden_claves:
+                    fila.append(data_rank.get(estado_clave_rank, 0))
+                grafico_ranking_asesores.append(fila)
+            
+            if len(grafico_ranking_asesores) == 1:
+                grafico_ranking_asesores.append(['Sin datos', '-', '-', 0, 0, 0, 0, 0])
 
             # 6. Recaudo por Medio de Captación (Bar) - USA pagos_filtrados
             recaudo_por_medio_q = pagos_filtrados.filter(venta__presencia_que_origino__isnull=False).values(
@@ -1040,7 +1093,7 @@ class GetDashboardDataAPIView(APIView):
             
             fallback_grafico_simple = [['Error', 'Valor'], ['Error', 0]]
             fallback_grafico_historico = [['Mes', 'Ventas', 'Presencias'], ['Error', 0, 0]]
-            fallback_grafico_ranking = [['Asesor', 'Tipo', 'Separación', 'Procesable', 'Anulada', 'Completada'], ['Error', '-', 0,0,0,0]]
+            fallback_grafico_ranking = [['Asesor', 'Tipo', 'Roles', 'Total Ventas', 'Separación', 'Procesable', 'Anulada', 'Completada'], ['Error', '-', '-', 0, 0,0,0,0]]
             fallback_grafico_embudo = [['Etapa', 'Cantidad', {'role': 'tooltip', 'type': 'string', 'p': {'html': True}}], ['Error', 0, 'Error al cargar']]
             fallback_tabla_disponibilidad = [] # Para la tabla, un array vacío es un buen fallback
 

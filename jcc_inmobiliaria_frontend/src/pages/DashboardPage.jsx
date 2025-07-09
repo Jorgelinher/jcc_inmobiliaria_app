@@ -420,7 +420,7 @@ function DashboardPage() {
             }, 'Table');
         } else if (chartsApiReady && dashboardData) {
              console.warn("[useEffect rankingAsesoresChart] No hay datos específicos, dibujando 'Sin datos'.");
-             drawChart('rankingAsesoresChart', [['Asesor', 'Tipo', 'Separación', 'Procesable', 'Anulada', 'Completada'],['Sin datos', '-', 0,0,0,0]], {title: 'Ranking de Asesores', height: chartHeight + 80, colors: [DIRECT_CHART_COLORS_PALETTE[11]]}, 'Table');
+             drawChart('rankingAsesoresChart', [['Asesor', 'Tipo', 'Roles', 'Total Ventas', 'Separación', 'Procesable', 'Anulada', 'Completada'],['Sin datos', '-', '-', 0, 0,0,0,0]], {title: 'Ranking de Asesores', height: chartHeight + 80, colors: [DIRECT_CHART_COLORS_PALETTE[11]]}, 'Table');
         }
     }, [chartsApiReady, dashboardData?.graficos?.rankingAsesores, drawChart, styles]);
 
