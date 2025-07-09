@@ -60,13 +60,8 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
             cuota_inicial_requerida: '0.00',
             status_venta: 'separacion',
             vendedor_principal: vendedorLiner,
-            participacion_junior_venta: 'N/A',
-            id_socio_participante: '',
-            participacion_socio_venta: 'N/A',
             modalidad_presentacion: '',
             notas: '',
-            porcentaje_comision_vendedor_principal_personalizado: '',
-            porcentaje_comision_socio_personalizado: '',
             precio_dolares: '',
             tipo_cambio: '',
         };
@@ -137,9 +132,6 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
                     lote_display_text: initialData.lote_info || (loteId ? `Cargando info Lote ${loteId}...` : ''),
                     cliente: clientePredefinidoPresencia || initialData.cliente?.id_cliente || initialData.cliente || '',
                     vendedor_principal: initialData.vendedor_principal?.id_asesor || initialData.vendedor_principal || '',
-                    id_socio_participante: initialData.id_socio_participante?.id_asesor || initialData.id_socio_participante || '',
-                    porcentaje_comision_vendedor_principal_personalizado: initialData.porcentaje_comision_vendedor_principal_personalizado?.toString() || '',
-                    porcentaje_comision_socio_personalizado: initialData.porcentaje_comision_socio_personalizado?.toString() || '',
                     tipo_venta: initialData.tipo_venta || 'contado',
                     plazo_meses_credito: initialData.plazo_meses_credito === null || initialData.plazo_meses_credito === undefined ? (initialData.tipo_venta === 'credito' ? '' : 0) : initialData.plazo_meses_credito,
                     valor_lote_venta: initialData.valor_lote_venta || '',
@@ -187,8 +179,6 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
                 setFormData({...getInitialFormData(), cliente: clientePredefinidoPresencia || ''});
                 setSelectedLoteDetails(null);
                 setTipoVendedorPrincipal(null);
-                setDefaultCommissionVP(null);
-                setDefaultCommissionSocio(null);
                 setLastLoadedLoteId(null);
             }
         }
@@ -290,9 +280,7 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
             const vendedor = asesoresList.find(a => a.id_asesor === formData.vendedor_principal);
             if (vendedor) {
                 setTipoVendedorPrincipal(vendedor.tipo_asesor_actual);
-                if (vendedor.tipo_asesor_actual === 'Socio') {
-                    setFormData(prev => ({ ...prev, participacion_junior_venta: 'N/A' }));
-                }
+                // No hay lógica para setear participaciones aquí, ya que el vendedor principal es el liner
             } else { setTipoVendedorPrincipal(null); }
         } else { setTipoVendedorPrincipal(null); }
     }, [formData.vendedor_principal, asesoresList]);
@@ -317,26 +305,6 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
         if (name === "vendedor_principal") {
             const asesor = asesoresList.find(a => a.id_asesor === value);
             setTipoVendedorPrincipal(asesor ? asesor.tipo_asesor_actual : null);
-            
-            // Resetear participación si cambia el tipo
-            if (asesor && asesor.tipo_asesor_actual === 'Socio') {
-                setFormData(prev => ({ 
-                    ...prev, 
-                    participacion_junior_venta: 'N/A',
-                    participacion_socio_venta: 'N/A'
-                }));
-            }
-        }
-        
-        // Lógica específica para id_socio_participante
-        if (name === "id_socio_participante") {
-            if (!value) {
-                setFormData(prev => ({ 
-                    ...prev, 
-                    participacion_socio_venta: 'N/A',
-                    porcentaje_comision_socio_personalizado: ''
-                }));
-            }
         }
     };
 
@@ -678,63 +646,6 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
                             
                             <hr className={styles.formSeparator}/>
                             <h3 className={styles.subHeader}>Asesores y Comisiones</h3>
-                            
-                            <div className={styles.formRow}>
-                                <div className={styles.formGroup}>
-                                    <label htmlFor="vendedor_principal">Vendedor Principal <span className={styles.required}>*</span></label>
-                                    <AsesorAutocomplete
-                                        value={formData.vendedor_principal || ''}
-                                        onChange={(value) => handleChange({ target: { name: 'vendedor_principal', value } })}
-                                        placeholder="Seleccionar vendedor principal..."
-                                        name="vendedor_principal"
-                                        asesoresList={asesoresList}
-                                    />
-                                    {errorsByField['vendedor_principal'] && <div className={styles.errorMessageField}>{errorsByField['vendedor_principal']}</div>}
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <label htmlFor="id_socio_participante">Socio Participante</label>
-                                    <AsesorAutocomplete
-                                        value={formData.id_socio_participante || ''}
-                                        onChange={(value) => handleChange({ target: { name: 'id_socio_participante', value } })}
-                                        placeholder="Seleccionar socio participante..."
-                                        name="id_socio_participante"
-                                        asesoresList={asesoresList}
-                                    />
-                                    {errorsByField['id_socio_participante'] && <div className={styles.errorMessageField}>{errorsByField['id_socio_participante']}</div>}
-                                </div>
-                            </div>
-                            
-                            {tipoVendedorPrincipal === 'Junior' && (
-                                <div className={styles.formRow}>
-                                    <div className={styles.formGroup}>
-                                        <label htmlFor="participacion_junior_venta">Participación Junior</label>
-                                        <select id="participacion_junior_venta" name="participacion_junior_venta" value={formData.participacion_junior_venta} onChange={handleChange}>
-                                            {PARTICIPACION_JUNIOR_CHOICES_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                                        </select>
-                                    </div>
-                                    <div className={styles.formGroup}>
-                                        <label htmlFor="porcentaje_comision_vendedor_principal_personalizado">% Comisión VP Personalizado</label>
-                                        <input type="number" id="porcentaje_comision_vendedor_principal_personalizado" name="porcentaje_comision_vendedor_principal_personalizado" value={formData.porcentaje_comision_vendedor_principal_personalizado} onChange={handleChange} step="0.01" min="0" max="100" placeholder="Dejar vacío para usar default" />
-                                        {defaultCommissionVP && <div className={styles.helpText}>Comisión por defecto: {defaultCommissionVP}%</div>}
-                                    </div>
-                                </div>
-                            )}
-                            
-                            {formData.id_socio_participante && (
-                                <div className={styles.formRow}>
-                                    <div className={styles.formGroup}>
-                                        <label htmlFor="participacion_socio_venta">Participación Socio</label>
-                                        <select id="participacion_socio_venta" name="participacion_socio_venta" value={formData.participacion_socio_venta} onChange={handleChange}>
-                                            {PARTICIPACION_SOCIO_CHOICES_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                                        </select>
-                                    </div>
-                                    <div className={styles.formGroup}>
-                                        <label htmlFor="porcentaje_comision_socio_personalizado">% Comisión Socio Personalizado</label>
-                                        <input type="number" id="porcentaje_comision_socio_personalizado" name="porcentaje_comision_socio_personalizado" value={formData.porcentaje_comision_socio_personalizado} onChange={handleChange} step="0.01" min="0" max="100" placeholder="Dejar vacío para usar default" />
-                                        {defaultCommissionSocio && <div className={styles.helpText}>Comisión por defecto: {defaultCommissionSocio}%</div>}
-                                    </div>
-                                </div>
-                            )}
                             
                             <div className={styles.formGroup}>
                                 <label>Asesores Involucrados y Comisiones</label>
