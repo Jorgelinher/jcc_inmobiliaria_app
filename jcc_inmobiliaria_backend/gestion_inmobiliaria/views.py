@@ -1025,18 +1025,16 @@ class GetDashboardDataAPIView(APIView):
                             'tipo': asesor.tipo_asesor_actual or 'N/A',
                             'roles': set(),
                             'total_ventas': 0,
-                            'ventas_detalle': set()
+                            'ventas_detalle': set(),
+                            'ventas_ids': set(),
+                            **{estado: set() for estado in estados_venta_orden_claves}
                         }
-                        for estado_clave in estados_venta_orden_claves:
-                            ranking_asesores_pivot[asesor_key][estado_clave] = 0
                     
                     # Agregar el rol a la lista de roles del asesor
                     ranking_asesores_pivot[asesor_key]['roles'].add(rol_display)
                     # Guardar el ID de la venta para contar ventas únicas
-                    if 'ventas_ids' not in ranking_asesores_pivot[asesor_key]:
-                        ranking_asesores_pivot[asesor_key]['ventas_ids'] = set()
                     ranking_asesores_pivot[asesor_key]['ventas_ids'].add(venta.id_venta)
-                    ranking_asesores_pivot[asesor_key][status_venta] += 1
+                    ranking_asesores_pivot[asesor_key][status_venta].add(venta.id_venta)
                     # Agregar detalle de la venta
                     venta_id = venta.id_venta
                     lote_str = str(venta.lote) if venta.lote else ''
@@ -1062,7 +1060,7 @@ class GetDashboardDataAPIView(APIView):
                     '\n'.join(sorted(data_rank['ventas_detalle'])),
                 ]
                 for estado_clave_rank in estados_venta_orden_claves:
-                    fila.append(data_rank.get(estado_clave_rank, 0))
+                    fila.append(len(data_rank.get(estado_clave_rank, set())))
                 grafico_ranking_asesores.append(fila)
             
             if len(grafico_ranking_asesores) == 1:
