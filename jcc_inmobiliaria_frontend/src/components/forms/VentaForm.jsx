@@ -94,7 +94,7 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
         try {
             const [clientesRes, asesoresRes] = await Promise.all([
                 apiService.getClientes(),
-                apiService.getAsesores()
+                apiService.getAsesores('page_size=1000')
             ]);
             setClientesList(clientesRes.data.results || clientesRes.data || []);
             setAsesoresList(asesoresRes.data.results || asesoresRes.data || []);

@@ -78,7 +78,7 @@ function PresenciaForm({ show, onClose, onSubmit, initialData }) {
         try {
             console.log("[PresenciaForm] Fetching dropdown data (asesores, ventas)...");
             const [asesoresRes, ventasRes] = await Promise.all([
-                apiService.getAsesores(),
+                apiService.getAsesores('page_size=1000'),
                 // --- CAMBIO TEMPORAL PARA DEPURACIÓN: Fetch todas las ventas o un conjunto más amplio ---
                 // apiService.getVentas("status_venta=separacion&status_venta=procesable") // Original
                 apiService.getVentas() // Prueba sin filtro de estado o con un filtro menos restrictivo
