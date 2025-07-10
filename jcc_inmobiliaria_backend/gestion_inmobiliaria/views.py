@@ -1032,7 +1032,10 @@ class GetDashboardDataAPIView(APIView):
                     
                     # Agregar el rol a la lista de roles del asesor
                     ranking_asesores_pivot[asesor_key]['roles'].add(rol_display)
-                    ranking_asesores_pivot[asesor_key]['total_ventas'] += 1
+                    # Guardar el ID de la venta para contar ventas únicas
+                    if 'ventas_ids' not in ranking_asesores_pivot[asesor_key]:
+                        ranking_asesores_pivot[asesor_key]['ventas_ids'] = set()
+                    ranking_asesores_pivot[asesor_key]['ventas_ids'].add(venta.id_venta)
                     ranking_asesores_pivot[asesor_key][status_venta] += 1
                     # Agregar detalle de la venta
                     venta_id = venta.id_venta
@@ -1055,7 +1058,7 @@ class GetDashboardDataAPIView(APIView):
                     asesor_nombre_rank, 
                     data_rank.get('tipo', 'N/A'),
                     roles_str,
-                    data_rank.get('total_ventas', 0),
+                    len(data_rank.get('ventas_ids', set())),
                     '\n'.join(sorted(data_rank['ventas_detalle'])),
                 ]
                 for estado_clave_rank in estados_venta_orden_claves:
