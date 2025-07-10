@@ -1024,7 +1024,8 @@ class GetDashboardDataAPIView(APIView):
                         ranking_asesores_pivot[asesor_key] = {
                             'tipo': asesor.tipo_asesor_actual or 'N/A',
                             'roles': set(),
-                            'total_ventas': 0
+                            'total_ventas': 0,
+                            'ventas_detalle': set()
                         }
                         for estado_clave in estados_venta_orden_claves:
                             ranking_asesores_pivot[asesor_key][estado_clave] = 0
@@ -1033,9 +1034,14 @@ class GetDashboardDataAPIView(APIView):
                     ranking_asesores_pivot[asesor_key]['roles'].add(rol_display)
                     ranking_asesores_pivot[asesor_key]['total_ventas'] += 1
                     ranking_asesores_pivot[asesor_key][status_venta] += 1
+                    # Agregar detalle de la venta
+                    venta_id = venta.id_venta
+                    lote_str = str(venta.lote) if venta.lote else ''
+                    proyecto_str = venta.lote.ubicacion_proyecto if venta.lote and hasattr(venta.lote, 'ubicacion_proyecto') else ''
+                    ranking_asesores_pivot[asesor_key]['ventas_detalle'].add(f"{venta_id} - {lote_str} ({proyecto_str})")
 
             # Crear la tabla final ordenada por total de ventas y luego por nombre
-            grafico_ranking_asesores = [['Asesor', 'Tipo', 'Roles', 'Total Ventas'] + estados_venta_orden_display]
+            grafico_ranking_asesores = [['Asesor', 'Tipo', 'Roles', 'Total Ventas', 'Ventas'] + estados_venta_orden_display]
             
             # Ordenar por total de ventas (descendente) y luego por nombre
             asesores_ordenados = sorted(
@@ -1049,7 +1055,8 @@ class GetDashboardDataAPIView(APIView):
                     asesor_nombre_rank, 
                     data_rank.get('tipo', 'N/A'),
                     roles_str,
-                    data_rank.get('total_ventas', 0)
+                    data_rank.get('total_ventas', 0),
+                    '\n'.join(sorted(data_rank['ventas_detalle'])),
                 ]
                 for estado_clave_rank in estados_venta_orden_claves:
                     fila.append(data_rank.get(estado_clave_rank, 0))
