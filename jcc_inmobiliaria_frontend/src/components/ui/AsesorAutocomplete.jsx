@@ -130,7 +130,11 @@ const AsesorAutocomplete = ({
                 noOptionsMessage={() => "No se encontraron asesores"}
                 loadingMessage={() => "Buscando asesores..."}
                 cacheOptions
-                defaultOptions={false}
+                defaultOptions={asesoresList && Array.isArray(asesoresList) ? asesoresList.map(asesor => ({
+                    value: asesor.id_asesor,
+                    label: `${asesor.nombre_asesor || asesor.nombres_completos_razon_social} (${asesor.id_asesor}) - ${asesor.tipo_asesor_actual || ''}`,
+                    asesor: asesor
+                })) : true}
                 blurInputOnSelect={true}
                 closeMenuOnSelect={true}
                 className={styles.select}

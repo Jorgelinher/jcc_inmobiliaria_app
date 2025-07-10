@@ -64,31 +64,27 @@ function DashboardPage() {
 
 
     useEffect(() => {
-        console.log("[DashboardPage] useEffect Carga Google Charts - Estado inicial chartsApiReady:", chartsApiReady, "googleChartsLoadInitiated:", googleChartsLoadInitiated);
-
-        if (chartsApiReady) {
-            console.log("[DashboardPage] Google Charts API ya marcada como lista.");
-            return;
+        let retryTimeout;
+        function tryLoadGoogleCharts() {
+            if (chartsApiReady) return;
+            if (window.google && window.google.charts) {
+                if (!googleChartsLoadInitiated) {
+                    googleChartsLoadInitiated = true;
+                    console.log("[DashboardPage] Iniciando window.google.charts.load...");
+                    window.google.charts.load('current', { 'packages': ['corechart', 'table', 'funnel'], 'language': 'es' });
+                    window.google.charts.setOnLoadCallback(() => {
+                        console.log("%c[DashboardPage] Google Charts API cargada y lista (setOnLoadCallback EJECUTADO).", "color: green; font-weight: bold;");
+                        setChartsApiReady(true);
+                    });
+                }
+            } else {
+                // Reintentar cada 200ms hasta que esté disponible
+                retryTimeout = setTimeout(tryLoadGoogleCharts, 200);
+            }
         }
-
-        if (googleChartsLoadInitiated) {
-            console.log("[DashboardPage] Carga de Google Charts ya iniciada previamente.");
-            return;
-        }
-        
-        if (window.google && window.google.charts) {
-            googleChartsLoadInitiated = true; // Marcar que se ha iniciado la carga
-            console.log("[DashboardPage] Iniciando window.google.charts.load...");
-            window.google.charts.load('current', { 'packages': ['corechart', 'table', 'funnel'], 'language': 'es' });
-            window.google.charts.setOnLoadCallback(() => {
-                console.log("%c[DashboardPage] Google Charts API cargada y lista (setOnLoadCallback EJECUTADO).", "color: green; font-weight: bold;");
-                setChartsApiReady(true);
-            });
-        } else {
-            console.error("[DashboardPage] ERROR CRÍTICO: Librería de Google Charts (window.google o window.google.charts) no encontrada. Revisa index.html.");
-            setDashboardError("No se pudo cargar la librería de gráficos de Google.");
-        }
-    }, []); // Ejecutar solo una vez al montar
+        tryLoadGoogleCharts();
+        return () => { if (retryTimeout) clearTimeout(retryTimeout); };
+    }, [chartsApiReady]);
 
 
     const fetchDashboardDataInternal = useCallback(async (currentFiltersToApply) => {
