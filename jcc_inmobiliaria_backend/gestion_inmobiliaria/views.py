@@ -803,6 +803,8 @@ class GetDashboardDataAPIView(APIView):
             pagos_filtrados = RegistroPago.objects.all()
             presencias_filtradas = Presencia.objects.all()
             ventas_filtradas = Venta.objects.all()
+            # --- AJUSTE: Solo ventas existentes (no eliminadas) ---
+            ventas_filtradas = ventas_filtradas.filter(id_venta__in=Venta.objects.values_list('id_venta', flat=True))
 
             # --- CORRECCIÓN: APLICAR FILTROS DE FECHA CORRECTAMENTE ---
             # Para recaudos: usar fecha_pago (fecha_transaccion del CSV)
