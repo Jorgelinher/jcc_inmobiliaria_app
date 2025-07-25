@@ -40,7 +40,7 @@ const PARTICIPACION_SOCIO_CHOICES_OPTIONS = [
     { value: 'no participa', label: 'No Participa' },
 ];
 
-function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia = false, clientePredefinidoPresencia = null, asesoresInvolucradosPresencia = [] }) {
+function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia = false, clientePredefinidoPresencia = null, asesoresInvolucradosPresencia = [], tablaComisiones = [] }) {
     const getInitialFormData = useCallback(() => {
         let vendedorLiner = '';
         if (isModalForPresencia && Array.isArray(asesoresInvolucradosPresencia)) {
@@ -112,78 +112,63 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
             fetchInitialDropdownData();
             setFormError('');
             setClienteFormError('');
-            // setSelectedLoteDetails(null); // No resetear aquí si initialData lo va a poblar
-        }
-    }, [show, fetchInitialDropdownData]);
-
-    useEffect(() => {
-        if (
-            show &&
-            asesoresList.length > 0 &&
-            clientesList.length > 0
-        ) {
-            if (initialData) {
-                const loteId = initialData.lote?.id_lote || initialData.lote;
-                const newFormData = {
-                    ...getInitialFormData(),
-                    ...initialData,
-                    fecha_venta: initialData.fecha_venta ? initialData.fecha_venta.split('T')[0] : new Date().toISOString().split('T')[0],
-                    lote: loteId || '',
-                    lote_display_text: initialData.lote_info || (loteId ? `Cargando info Lote ${loteId}...` : ''),
-                    cliente: clientePredefinidoPresencia || initialData.cliente?.id_cliente || initialData.cliente || '',
-                    vendedor_principal: initialData.vendedor_principal?.id_asesor || initialData.vendedor_principal || '',
-                    tipo_venta: initialData.tipo_venta || 'contado',
-                    plazo_meses_credito: initialData.plazo_meses_credito === null || initialData.plazo_meses_credito === undefined ? (initialData.tipo_venta === 'credito' ? '' : 0) : initialData.plazo_meses_credito,
-                    valor_lote_venta: initialData.valor_lote_venta || '',
-                };
-                setFormData(newFormData);
-
-                if (loteId && loteId !== lastLoadedLoteId) {
-                    setLastLoadedLoteId(loteId);
-                    apiService.getLoteById(loteId)
-                        .then(res => {
-                            setSelectedLoteDetails(res.data);
-                            setFormError(''); // Limpiar error si la carga fue exitosa
-                            if (res.data) {
-                                setFormData(prev => ({...prev, lote_display_text: `${res.data.id_lote} (${res.data.ubicacion_proyecto} Mz:${res.data.manzana || 'S/M'} Lt:${res.data.numero_lote || 'S/N'})` }));
-                            }
-                        })
-                        .catch(err => {
-                            setFormError("No se pudieron cargar los detalles del lote inicial.");
-                            setSelectedLoteDetails(null);
-                            setFormData(prev => ({...prev, lote_display_text: 'Error al cargar lote'}));
-                        });
-                } else if (!loteId) {
-                    setSelectedLoteDetails(null);
-                }
-
-                if (newFormData.vendedor_principal) {
-                    const vendedor = asesoresList.find(a => a.id_asesor === newFormData.vendedor_principal);
-                    if (vendedor) setTipoVendedorPrincipal(vendedor.tipo_asesor_actual);
-                }
-
-                // Inicializar comisionesAsesores SOLO cuando asesoresList está cargado
-                if (
-                    initialData.comisiones_asesores &&
-                    initialData.comisiones_asesores.length > 0
-                ) {
-                    const asesoresTransformados = initialData.comisiones_asesores.map(c => ({
-                        asesor: typeof c.asesor === 'object' && c.asesor.id_asesor ? c.asesor.id_asesor : c.asesor,
-                        rol: c.rol,
-                        porcentaje_comision: c.porcentaje_comision,
-                        notas: c.notas || ''
-                    }));
-                    setComisionesAsesores(asesoresTransformados);
-                }
-            } else {
-                setFormData({...getInitialFormData(), cliente: clientePredefinidoPresencia || ''});
-                setSelectedLoteDetails(null);
-                setTipoVendedorPrincipal(null);
-                setLastLoadedLoteId(null);
+            // Log tabla de comisiones al abrir el modal
+            if (Array.isArray(tablaComisiones)) {
+                console.log('[VentaForm][DEBUG] Tabla de comisiones recibida:', tablaComisiones);
             }
         }
+    }, [show, fetchInitialDropdownData, tablaComisiones]);
+
+    // Solo inicializar formData cuando cambia el id de la venta a editar o se abre el modal por primera vez
+    useEffect(() => {
+        if (!show) return;
+        let newFields = {};
+        if (initialData && initialData.lote) {
+            const loteId = initialData.lote?.id_lote || initialData.lote;
+            if (loteId && formData.lote !== loteId) {
+                newFields.lote = loteId;
+            }
+        }
+        if (initialData && initialData.cliente) {
+            if (formData.cliente !== initialData.cliente) {
+                newFields.cliente = initialData.cliente;
+            }
+        }
+        if (Object.keys(newFields).length > 0) {
+            setFormData(prev => ({ ...prev, ...newFields }));
+        }
+    // Solo depender de show y initialData, no de formData
+    // eslint-disable-next-line
+    }, [show, initialData]);
+
+    // Separar la carga de detalles del lote para evitar bucles
+    useEffect(() => {
+        if (!show) return;
+        if (!formData.lote) return;
+        if (formData.lote === lastLoadedLoteId) return;
+        setLastLoadedLoteId(formData.lote);
+        apiService.getLoteById(formData.lote)
+            .then(res => {
+                setSelectedLoteDetails(res.data);
+                setFormError('');
+                if (res.data) {
+                    setFormData(prev => {
+                        // Solo actualizar si el display_text realmente cambió
+                        const newDisplay = `${res.data.id_lote} (${res.data.ubicacion_proyecto} Mz:${res.data.manzana || 'S/M'} Lt:${res.data.numero_lote || 'S/N'})`;
+                        if (prev.lote_display_text !== newDisplay) {
+                            return { ...prev, lote_display_text: newDisplay };
+                        }
+                        return prev;
+                    });
+                }
+            })
+            .catch(err => {
+                setFormError("No se pudieron cargar los detalles del lote inicial.");
+                setSelectedLoteDetails(null);
+                setFormData(prev => ({...prev, lote_display_text: 'Error al cargar lote'}));
+            });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [initialData, show, clientePredefinidoPresencia, getInitialFormData, asesoresList, clientesList]);
+    }, [show, formData.lote]);
 
     useEffect(() => {
         if (selectedLoteDetails) {
@@ -285,8 +270,64 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
         } else { setTipoVendedorPrincipal(null); }
     }, [formData.vendedor_principal, asesoresList]);
 
+    // Actualizar automáticamente el porcentaje de comisión según el rol y tipo de venta
+    useEffect(() => {
+        if (!Array.isArray(tablaComisiones) || tablaComisiones.length === 0) return;
+        setComisionesAsesores(prev => prev.map(c => {
+            const match = tablaComisiones.find(tc => tc.rol === c.rol && tc.tipo_venta === formData.tipo_venta);
+            return {
+                ...c,
+                porcentaje_comision: match ? match.porcentaje_comision : ''
+            };
+        }));
+    }, [formData.tipo_venta, tablaComisiones]);
+
+    // Si la tabla de comisiones llega después de abrir el modal, recalcular los porcentajes automáticamente
+    useEffect(() => {
+        if (!Array.isArray(tablaComisiones) || tablaComisiones.length === 0) return;
+        setComisionesAsesores(prev => prev.map(c => {
+            // Solo actualizar si el porcentaje está vacío
+            if (!c.porcentaje_comision) {
+                const match = tablaComisiones.find(tc => tc.rol === c.rol && tc.tipo_venta === formData.tipo_venta);
+                return {
+                    ...c,
+                    porcentaje_comision: match ? match.porcentaje_comision : ''
+                };
+            }
+            return c;
+        }));
+    }, [tablaComisiones, formData.tipo_venta]);
+
+    // Forzar actualización de porcentajes si están vacíos y la tabla ya está disponible
+    useEffect(() => {
+        if (!Array.isArray(tablaComisiones) || tablaComisiones.length === 0) return;
+        setComisionesAsesores(prev => prev.map(c => {
+            if (!c.porcentaje_comision || c.porcentaje_comision === '') {
+                const match = tablaComisiones.find(tc => tc.rol === c.rol && tc.tipo_venta === formData.tipo_venta);
+                console.log('[VentaForm][DEBUG] Forzando porcentaje para rol:', c.rol, 'tipo_venta:', formData.tipo_venta, '->', match);
+                return {
+                    ...c,
+                    porcentaje_comision: match ? match.porcentaje_comision : ''
+                };
+            }
+            return c;
+        }));
+    }, [tablaComisiones, formData.tipo_venta]);
+
     const handleComisionAsesorChange = (idx, field, value) => {
-        setComisionesAsesores(prev => prev.map((c, i) => i === idx ? { ...c, [field]: value } : c));
+        setComisionesAsesores(prev => prev.map((c, i) => {
+            if (i !== idx) return c;
+            if (field === 'rol') {
+                // Si cambia el rol, actualizar también el porcentaje automáticamente
+                let porcentaje = '';
+                if (Array.isArray(tablaComisiones) && tablaComisiones.length > 0) {
+                    const match = tablaComisiones.find(tc => tc.rol === value && tc.tipo_venta === formData.tipo_venta);
+                    if (match) porcentaje = match.porcentaje_comision;
+                }
+                return { ...c, rol: value, porcentaje_comision: porcentaje };
+            }
+            return { ...c, [field]: value };
+        }));
     };
 
     const handleChange = (e) => {
@@ -397,12 +438,14 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
         // LOG para depuración
         console.log('[VentaForm][DEBUG] formData al enviar:', formData);
         // Si hay asesores, valida sus campos, pero no bloquees si la lista está vacía
-        if (comisionesAsesores.length > 0) {
-            for (const c of comisionesAsesores) {
-                if (!c.asesor || !c.rol || c.porcentaje_comision === '' || isNaN(parseFloat(c.porcentaje_comision))) {
-                    setFormError('Complete todos los campos de asesores y comisiones.');
-                    return;
-                }
+        if (comisionesAsesores.length === 0) {
+            setFormError('Debe asignar al menos un asesor con algún rol para poder guardar la venta. No es necesario asociar una presencia.');
+            return;
+        }
+        for (const c of comisionesAsesores) {
+            if (!c.asesor || !c.rol || c.porcentaje_comision === '' || isNaN(parseFloat(c.porcentaje_comision))) {
+                setFormError('Complete todos los campos de asesores y comisiones.');
+                return;
             }
         }
         const dataToSubmit = {
@@ -473,14 +516,9 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
     };
 
     useEffect(() => {
-        if (
-            show &&
-            initialData &&
-            initialData.comisiones_asesores &&
-            initialData.comisiones_asesores.length > 0 &&
-            comisionesAsesores.length === 0
-        ) {
-            // Transformar para que asesor sea solo el ID
+        if (!show) return;
+        // Si initialData.comisiones_asesores existe (edición de venta), poblar desde ahí
+        if (initialData && initialData.comisiones_asesores && initialData.comisiones_asesores.length > 0) {
             const asesoresTransformados = initialData.comisiones_asesores.map(c => ({
                 asesor: typeof c.asesor === 'object' && c.asesor.id_asesor ? c.asesor.id_asesor : c.asesor,
                 rol: c.rol,
@@ -488,8 +526,41 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
                 notas: c.notas || ''
             }));
             setComisionesAsesores(asesoresTransformados);
+        } else if (isModalForPresencia && Array.isArray(asesoresInvolucradosPresencia) && asesoresInvolucradosPresencia.length > 0) {
+            // Precargar asesores y roles desde la presencia
+            const tipoVenta = (initialData && initialData.tipo_venta) ? initialData.tipo_venta : (formData.tipo_venta || 'contado');
+            const asesoresPrecargados = asesoresInvolucradosPresencia.map(a => {
+                const rol = a.rol;
+                let porcentaje = '';
+                if (Array.isArray(tablaComisiones) && tablaComisiones.length > 0) {
+                    const match = tablaComisiones.find(tc => tc.rol === rol && tc.tipo_venta === tipoVenta);
+                    if (match) porcentaje = match.porcentaje_comision;
+                }
+                return {
+                    asesor: typeof a.asesor === 'object' && a.asesor.id_asesor ? a.asesor.id_asesor : a.asesor,
+                    rol,
+                    porcentaje_comision: porcentaje,
+                    notas: ''
+                };
+            });
+            setComisionesAsesores(asesoresPrecargados);
         }
-    }, [show, initialData, comisionesAsesores.length]);
+    // eslint-disable-next-line
+    }, [show, initialData?.id_venta, initialData?.lote, isModalForPresencia, asesoresInvolucradosPresencia, tablaComisiones]);
+
+    // Si cambia el tipo de venta, actualizar los porcentajes de comisión automáticamente para los asesores precargados
+    useEffect(() => {
+        if (isModalForPresencia && Array.isArray(asesoresInvolucradosPresencia) && asesoresInvolucradosPresencia.length > 0 && Array.isArray(tablaComisiones) && tablaComisiones.length > 0) {
+            setComisionesAsesores(prev => prev.map(c => {
+                const match = tablaComisiones.find(tc => tc.rol === c.rol && tc.tipo_venta === formData.tipo_venta);
+                console.log('[VentaForm][DEBUG] useEffect cambio tipo_venta/tablaComisiones. Buscando para rol:', c.rol, 'tipo_venta:', formData.tipo_venta, '->', match);
+                return {
+                    ...c,
+                    porcentaje_comision: match ? match.porcentaje_comision : ''
+                };
+            }));
+        }
+    }, [formData.tipo_venta, isModalForPresencia, asesoresInvolucradosPresencia, tablaComisiones]);
 
     if (!show) return null;
 
@@ -663,11 +734,14 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
                                         <div className={styles.formGroup} style={{flex: 1.5}}>
                                             <select value={c.rol || ''} onChange={e => handleComisionAsesorChange(idx, 'rol', e.target.value)}>
                                                 <option value="">Rol</option>
-                                                <option value="captacion_opc">Captación OPC/Redes</option>
+                                                <option value="captacion">Captación</option>
+                                                <option value="llamada">Llamada</option>
+                                                <option value="liner">Liner</option>
+                                                <option value="closer">Closer</option>
+                                                {/* Opciones especiales, no automáticas en tabla de comisiones */}
+                                                {/* <option value="captacion_opc">Captación OPC/Redes</option>
                                                 <option value="call">Call (Agendó)</option>
-                                                <option value="liner">Liner (Presentación)</option>
-                                                <option value="closer">Closer (Cierre)</option>
-                                                <option value="otro">Otro</option>
+                                                <option value="otro">Otro</option> */}
                                             </select>
                                         </div>
                                         <div className={styles.formGroup} style={{flex: 1}}>
@@ -683,8 +757,8 @@ function VentaForm({ show, onClose, onSubmit, initialData, isModalForPresencia =
                                 ))}
                                 <button type="button" onClick={() => setComisionesAsesores(prev => ([...prev, { asesor: '', rol: '', porcentaje_comision: '', notas: '' }]))} className={`${styles.button} ${styles.buttonSecondary}`}>Agregar Asesor</button>
                                 {comisionesAsesores.length === 0 && (
-                                    <div className={styles.helpText} style={{marginTop: 8}}>
-                                        Puedes agregar asesores si corresponde, o dejar vacío para ventas sin asesores.
+                                    <div className={styles.helpText} style={{marginTop: 8, color: '#b94a48', fontWeight: 'bold'}}>
+                                        Debes agregar al menos un asesor con un rol y porcentaje de comisión antes de guardar la venta. Usa el botón "Agregar Asesor" para añadirlos.
                                     </div>
                                 )}
                             </div>

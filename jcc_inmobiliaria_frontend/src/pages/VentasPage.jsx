@@ -5,6 +5,8 @@ import { Link, useNavigate, useLocation } // Importar useLocation
 import * as apiService from '../services/apiService';
 import VentaForm from '../components/forms/VentaForm';
 import styles from './VentasPage.module.css';
+// Importar el modal
+import ComisionesTableModal from '../components/forms/ComisionesTableModal';
 
 // --- INICIO: Funciones de Formato (Añadidas/Revisadas) ---
 const displayDate = (dateStr) => { // Función para formatear fechas consistentemente
@@ -60,6 +62,80 @@ function VentasPage() {
         cliente_q: '', vendedor_q: '', tipo_venta: '', status_venta: ''
     };
     const [filters, setFilters] = useState(initialFilters);
+
+    // Estado para el modal y la tabla de comisiones
+    const [modalOpen, setModalOpen] = useState(false);
+    const [tablaComisiones, setTablaComisiones] = useState([]); // cargar desde backend si es necesario
+    const [tablaComisionesOriginal, setTablaComisionesOriginal] = useState([]); // Para comparar eliminaciones
+
+    // Cargar tabla de comisiones desde backend al montar la página
+    useEffect(() => {
+      const fetchTablaComisiones = async () => {
+        try {
+          const data = await apiService.getTablaComisiones();
+          setTablaComisiones(data);
+        } catch (err) {
+          setTablaComisiones([]);
+        }
+      };
+      fetchTablaComisiones();
+    }, []);
+
+    // Cargar tabla de comisiones desde backend al abrir el modal
+    const fetchTablaComisiones = useCallback(async () => {
+      try {
+        const data = await apiService.getTablaComisiones();
+        setTablaComisiones(data);
+        setTablaComisionesOriginal(data);
+      } catch (err) {
+        setTablaComisiones([]);
+        setTablaComisionesOriginal([]);
+        alert('Error al cargar la tabla de comisiones: ' + (err.message || ''));
+      }
+    }, []);
+
+    useEffect(() => {
+      if (modalOpen) {
+        fetchTablaComisiones();
+      }
+    }, [modalOpen, fetchTablaComisiones]);
+
+    // Guardar cambios en la tabla de comisiones (sincronización completa)
+    const handleSaveTablaComisiones = async (nuevasComisiones) => {
+      try {
+        // 1. Eliminar comisiones que ya no están
+        const originalesPorClave = Object.fromEntries(tablaComisionesOriginal.map(c => [`${c.rol}|${c.tipo_venta}`, c]));
+        const nuevasPorClave = Object.fromEntries(nuevasComisiones.map(c => [`${c.rol}|${c.tipo_venta}`, c]));
+        const eliminadas = tablaComisionesOriginal.filter(c => !nuevasPorClave[`${c.rol}|${c.tipo_venta}`]);
+        for (const c of eliminadas) {
+          if (c.id_tabla_comision) {
+            await apiService.deleteComision(c.id_tabla_comision);
+          }
+        }
+        // 2. Crear o actualizar las comisiones restantes
+        for (const c of nuevasComisiones) {
+          const original = originalesPorClave[`${c.rol}|${c.tipo_venta}`];
+          const data = {
+            rol: c.rol,
+            tipo_venta: c.tipo_venta,
+            porcentaje_comision: parseFloat(c.porcentaje_comision)
+          };
+          if (original && original.id_tabla_comision) {
+            // Si cambió el porcentaje, actualizar
+            if (parseFloat(original.porcentaje_comision) !== parseFloat(c.porcentaje_comision)) {
+              await apiService.updateComision(original.id_tabla_comision, data);
+            }
+          } else {
+            await apiService.createComision(data);
+          }
+        }
+        // Recargar la tabla desde backend
+        await fetchTablaComisiones();
+        alert('Tabla de comisiones actualizada correctamente.');
+      } catch (err) {
+        alert('Error al guardar la tabla de comisiones: ' + (err.message || ''));
+      }
+    };
 
     const fetchVentas = useCallback(async (currentFilters, page = 1, size = pageSize) => {
         setLoading(true);
@@ -144,7 +220,7 @@ function VentasPage() {
         const ventaDataForForm = {
             ...venta,
             lote: venta.lote?.id_lote || venta.lote, // Si 'lote' es un objeto, tomar su ID
-            cliente: venta.cliente_detalle?.id_cliente || venta.cliente?.id_cliente || venta.cliente,
+            cliente: venta.cliente_detalle?.id_cliente || venta.cliente?.id_cliente || venta.cliente, // SIEMPRE PASAR ID
             vendedor_principal: venta.vendedor_principal?.id_asesor || venta.vendedor_principal,
             id_socio_participante: venta.id_socio_participante?.id_asesor || venta.id_socio_participante || null,
             // lote_info se usa para display en VentaForm, si no viene, VentaForm lo construirá
@@ -463,8 +539,19 @@ function VentasPage() {
                     onClose={handleCloseModal} 
                     onSubmit={handleSubmitVenta} 
                     initialData={editingVenta}
+                    tablaComisiones={tablaComisiones}
                 />
             )}
+            {/* Botón para abrir el modal, usando el mismo estilo que el botón de crear */}
+            <div className={styles.createButtonContainer}>
+                <button onClick={() => setModalOpen(true)} className={styles.createButton}>Editar Tabla de Comisiones</button>
+            </div>
+            <ComisionesTableModal 
+              open={modalOpen} 
+              onClose={() => setModalOpen(false)} 
+              comisiones={tablaComisiones} 
+              onSave={handleSaveTablaComisiones} 
+            />
         </div>
     );
 }

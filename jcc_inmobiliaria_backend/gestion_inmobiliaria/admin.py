@@ -69,15 +69,15 @@ class ClienteAdmin(admin.ModelAdmin):
 
 @admin.register(Asesor)
 class AsesorAdmin(admin.ModelAdmin):
-    list_display = ('id_asesor', 'nombre_asesor', 'tipo_asesor_actual', 'dni', 'telefono_personal', 'email_personal', 'fecha_ingreso', 'id_referidor')
-    list_filter = ('tipo_asesor_actual', 'estado_civil')
+    list_display = ('id_asesor', 'nombre_asesor', 'dni', 'telefono_personal', 'email_personal', 'fecha_ingreso', 'id_referidor')
+    list_filter = ('estado_civil',)
     search_fields = ('id_asesor', 'nombre_asesor', 'dni', 'email_personal')
     autocomplete_fields = ['id_referidor'] 
     list_per_page = 25
     readonly_fields = ('id_asesor', 'fecha_registro_sistema', 'ultima_modificacion_sistema')
     fieldsets = (
         ('Información Principal del Asesor', {
-            'fields': ('id_asesor', 'nombre_asesor', 'dni', 'tipo_asesor_actual', 'fecha_ingreso')
+            'fields': ('id_asesor', 'nombre_asesor', 'dni', 'fecha_ingreso')
         }),
         ('Datos Personales', {
             'fields': ('fecha_nacimiento', 'estado_civil', 'numero_hijos', 'direccion_domicilio', 'telefono_personal', 'email_personal')
@@ -217,10 +217,10 @@ admin.site.register(ConfigGeneral)
 
 @admin.register(TablaComisionDirecta)
 class TablaComisionDirectaAdmin(admin.ModelAdmin):
-    list_display = ('rol_asesor_en_venta', 'tipo_venta', 'participacion_en_venta_aplicable', 'porcentaje_comision')
-    list_filter = ('rol_asesor_en_venta', 'tipo_venta', 'participacion_en_venta_aplicable')
-    search_fields = ('rol_asesor_en_venta', 'participacion_en_venta_aplicable')
-    fields = ('rol_asesor_en_venta', 'tipo_venta', 'participacion_en_venta_aplicable', 'porcentaje_comision')
+    list_display = ('rol', 'tipo_venta', 'porcentaje_comision')
+    list_filter = ('rol', 'tipo_venta')
+    search_fields = ('rol', 'tipo_venta')
+    fields = ('rol', 'tipo_venta', 'porcentaje_comision')
     list_editable = ('porcentaje_comision',) 
 
 @admin.register(LogAuditoriaCambio)

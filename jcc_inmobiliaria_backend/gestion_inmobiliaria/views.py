@@ -337,8 +337,7 @@ class AsesorViewSet(viewsets.ModelViewSet):
             # Buscar en nombre, ID y tipo de asesor
             asesores = Asesor.objects.filter(
                 Q(nombre_asesor__icontains=search) |
-                Q(id_asesor__icontains=search) |
-                Q(tipo_asesor_actual__icontains=search)
+                Q(id_asesor__icontains=search)
             ).order_by('nombre_asesor')
             
             # Limitar a 50 resultados para evitar sobrecarga
@@ -350,8 +349,7 @@ class AsesorViewSet(viewsets.ModelViewSet):
                 data.append({
                     'id_asesor': asesor.id_asesor,
                     'nombre_asesor': asesor.nombre_asesor,
-                    'tipo_asesor_actual': asesor.tipo_asesor_actual,
-                    'display_text': f"{asesor.nombre_asesor} ({asesor.id_asesor}) - {asesor.tipo_asesor_actual}"
+                    'display_text': f"{asesor.nombre_asesor} ({asesor.id_asesor})"
                 })
             
             return Response({
@@ -770,8 +768,8 @@ class CuotaPlanPagoViewSet(viewsets.ModelViewSet):
 class GetAdvisorsForFilterAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     def get(self, request, format=None):
-        asesores = Asesor.objects.all().values('id_asesor', 'nombre_asesor', 'tipo_asesor_actual')
-        formatted_asesores = [{'id': a['id_asesor'], 'name': a['nombre_asesor'], 'tipo_asesor_actual': a['tipo_asesor_actual']} for a in asesores]
+        asesores = Asesor.objects.all().values('id_asesor', 'nombre_asesor')
+        formatted_asesores = [{'id': a['id_asesor'], 'name': a['nombre_asesor']} for a in asesores]
         return Response(formatted_asesores)
 
 class GetDashboardDataAPIView(APIView):
@@ -1022,7 +1020,7 @@ class GetDashboardDataAPIView(APIView):
                     
                     if asesor_key not in ranking_asesores_pivot:
                         ranking_asesores_pivot[asesor_key] = {
-                            'tipo': asesor.tipo_asesor_actual or 'N/A',
+                            'tipo': 'N/A',
                             'roles': set(),
                             'total_ventas': 0,
                             'ventas_detalle': set(),
@@ -1155,7 +1153,7 @@ class GetCommissionSummaryDataAPIView(APIView):
                     resumen[aid] = {
                         "asesor_id": aid,
                         "nombre_asesor": com.asesor.nombre_asesor,
-                        "tipo_asesor": com.asesor.tipo_asesor_actual,
+                        "tipo_asesor": "N/A",
                         "periodo": fecha_inicio_periodo.strftime("%B %Y"),
                         "comision_total": Decimal('0.00'),
                         "detalle": []
@@ -1572,3 +1570,8 @@ class LimpiarLotesDuplicadosAPIView(APIView):
                 'success': False,
                 'error': f'Error durante la limpieza: {str(e)}'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class TablaComisionDirectaViewSet(viewsets.ModelViewSet):
+    queryset = TablaComisionDirecta.objects.all().order_by('rol', 'tipo_venta')
+    serializer_class = TablaComisionDirectaSerializer
+    permission_classes = [permissions.IsAuthenticated]

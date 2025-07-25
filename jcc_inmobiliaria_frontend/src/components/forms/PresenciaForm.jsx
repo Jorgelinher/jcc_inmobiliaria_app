@@ -71,6 +71,19 @@ function PresenciaForm({ show, onClose, onSubmit, initialData }) {
     const [internalFormError, setInternalFormError] = useState('');
     const [errorsByField, setErrorsByField] = useState({});
     const [isLoading, setIsLoading] = useState(false);
+    const [tablaComisiones, setTablaComisiones] = useState([]);
+
+    useEffect(() => {
+        const fetchTablaComisiones = async () => {
+            try {
+                const data = await apiService.getTablaComisiones();
+                setTablaComisiones(data);
+            } catch (err) {
+                setTablaComisiones([]);
+            }
+        };
+        fetchTablaComisiones();
+    }, []);
 
     const fetchDropdownData = useCallback(async () => {
         setLoadingRelatedData(true);
@@ -576,11 +589,12 @@ function PresenciaForm({ show, onClose, onSubmit, initialData }) {
                         lote_info: formData.lote_interes_display_text, // Pasar el display text
                     }}
                     asesoresInvolucradosPresencia={[
-                        formData.asesor_captacion_opc ? { asesor: formData.asesor_captacion_opc, rol: 'captacion_opc' } : null,
-                        formData.asesor_call_agenda ? { asesor: formData.asesor_call_agenda, rol: 'call' } : null,
+                        formData.asesor_captacion_opc ? { asesor: formData.asesor_captacion_opc, rol: 'captacion' } : null,
+                        formData.asesor_call_agenda ? { asesor: formData.asesor_call_agenda, rol: 'llamada' } : null,
                         formData.asesor_liner ? { asesor: formData.asesor_liner, rol: 'liner' } : null,
                         formData.asesor_closer ? { asesor: formData.asesor_closer, rol: 'closer' } : null,
                     ].filter(Boolean)}
+                    tablaComisiones={tablaComisiones}
                 />
             )}
 

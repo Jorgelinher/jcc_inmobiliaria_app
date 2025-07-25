@@ -107,13 +107,14 @@ class Cliente(models.Model):
     class Meta: verbose_name = "Cliente"; verbose_name_plural = "Clientes"; ordering = ['nombres_completos_razon_social']
 
 class Asesor(models.Model):
-    TIPO_ASESOR_CHOICES = [('Junior', 'Junior'), ('Socio', 'Socio')]
-    ESTADO_CIVIL_ASESOR_CHOICES = Cliente.ESTADO_CIVIL_CHOICES
+    # Eliminar TIPO_ASESOR_CHOICES y tipo_asesor_actual
+    # Eliminar referencias a tipo_asesor_actual en Asesor
+    # Eliminar referencias a tipo_asesor en DefinicionMetaComision y TablaComisionDirecta
     id_asesor = models.CharField(max_length=50, unique=True, primary_key=True, verbose_name="ID Asesor", editable=False)
     nombre_asesor = models.CharField(max_length=255, verbose_name="Nombre Completo del Asesor")
     dni = models.CharField(max_length=8, unique=True, blank=True, null=True, verbose_name="DNI")
     fecha_nacimiento = models.DateField(blank=True, null=True, verbose_name="Fecha de Nacimiento")
-    estado_civil = models.CharField(max_length=20, choices=ESTADO_CIVIL_ASESOR_CHOICES, blank=True, null=True, verbose_name="Estado Civil")
+    estado_civil = models.CharField(max_length=20, choices=Cliente.ESTADO_CIVIL_CHOICES, blank=True, null=True, verbose_name="Estado Civil")
     numero_hijos = models.PositiveSmallIntegerField(default=0, blank=True, null=True, verbose_name="Número de Hijos")
     direccion = models.CharField(max_length=255, blank=True, null=True, verbose_name="Dirección del Asesor")
     distrito = models.CharField(max_length=100, blank=True, null=True, verbose_name="Distrito del Asesor")
@@ -124,7 +125,8 @@ class Asesor(models.Model):
     cci_cuenta_bancaria = models.CharField(max_length=50, blank=True, null=True, verbose_name="CCI Cuenta Bancaria")
     id_referidor = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='referidos', verbose_name="ID Referidor (Líder)")
     fecha_ingreso = models.DateField(verbose_name="Fecha de Ingreso a la Empresa")
-    tipo_asesor_actual = models.CharField(max_length=10, choices=TIPO_ASESOR_CHOICES, verbose_name="Tipo Asesor Actual")
+    # Eliminar referencias a tipo_asesor en Asesor
+    # Eliminar referencias a tipo_asesor en DefinicionMetaComision y TablaComisionDirecta
     fecha_cambio_socio = models.DateField(null=True, blank=True, verbose_name="Fecha Cambio a Socio (si aplica)")
     observaciones_asesor = models.TextField(blank=True, null=True, verbose_name="Observaciones Adicionales")
     fecha_registro_sistema = models.DateTimeField(default=timezone.now, editable=False, verbose_name="Fecha de Registro en Sistema")
@@ -1069,8 +1071,9 @@ def procesar_registro_pago_eliminado(sender, instance: RegistroPago, **kwargs):
 
 class DefinicionMetaComision(models.Model):
     id_definicion = models.AutoField(primary_key=True)
-    TIPO_ASESOR_CHOICES = Asesor.TIPO_ASESOR_CHOICES
-    tipo_asesor = models.CharField(max_length=10, choices=TIPO_ASESOR_CHOICES, verbose_name="Tipo de Asesor")
+    # Eliminar TIPO_ASESOR_CHOICES y tipo_asesor_actual
+    # Eliminar referencias a tipo_asesor_actual en Asesor
+    # Eliminar referencias a tipo_asesor en DefinicionMetaComision y TablaComisionDirecta
     mes_en_rol = models.IntegerField(verbose_name="Mes en Rol")
     meta_datos_opc = models.IntegerField(default=0, verbose_name="Meta Datos OPC")
     meta_presencias = models.IntegerField(default=0, verbose_name="Meta Presencias")
@@ -1080,23 +1083,36 @@ class DefinicionMetaComision(models.Model):
     meta_cierres_socio_equipo = models.IntegerField(default=0, verbose_name="Meta Cierres Socio (Ventas Equipo)")
     comision_residual_venta_equipo_porc = models.DecimalField(max_digits=5, decimal_places=4, default=0.0000, verbose_name="Comisión Residual por Venta Equipo (%)")
     def __str__(self): return f"Meta para {self.tipo_asesor} - Mes {self.mes_en_rol}"
-    class Meta: verbose_name = "Definición de Meta y Comisión"; verbose_name_plural = "Definiciones de Metas y Comisiones"; unique_together = ('tipo_asesor', 'mes_en_rol'); ordering = ['tipo_asesor', 'mes_en_rol']
+    class Meta:
+        verbose_name = "Definición de Meta y Comisión"
+        verbose_name_plural = "Definiciones de Metas y Comisiones"
+        unique_together = ('mes_en_rol',)
+        ordering = ['mes_en_rol']
 
 class TablaComisionDirecta(models.Model):
+    ROL_CHOICES = [
+        ('captación', 'captación'),
+        ('llamada', 'llamada'),
+        ('liner', 'liner'),
+        ('closer', 'closer'),
+    ]
+    TIPO_VENTA_CHOICES = [
+        ('crédito', 'crédito'),
+        ('contado', 'contado'),
+    ]
     id_tabla_comision = models.AutoField(primary_key=True)
-    TIPO_VENTA_CHOICES = Venta.TIPO_VENTA_CHOICES
-    ROL_ASESOR_EN_VENTA_JUNIOR_VP = 'JUNIOR_VENDEDOR_PRINCIPAL'; ROL_ASESOR_EN_VENTA_SOCIO_VP = 'SOCIO_VENDEDOR_PRINCIPAL'; ROL_ASESOR_EN_VENTA_SOCIO_PARTICIPANTE = 'SOCIO_PARTICIPANTE'
-    ROL_ASESOR_EN_VENTA_CHOICES = [(ROL_ASESOR_EN_VENTA_JUNIOR_VP, 'Junior como Vendedor Principal'),(ROL_ASESOR_EN_VENTA_SOCIO_VP, 'Socio como Vendedor Principal'),(ROL_ASESOR_EN_VENTA_SOCIO_PARTICIPANTE, 'Socio como Participante en venta de Junior')]
-    rol_asesor_en_venta = models.CharField(max_length=50, choices=ROL_ASESOR_EN_VENTA_CHOICES, default=ROL_ASESOR_EN_VENTA_JUNIOR_VP, verbose_name="Rol del Asesor en la Venta para esta comisión")
-    tipo_venta = models.CharField(max_length=10, choices=TIPO_VENTA_CHOICES, verbose_name="Tipo de Venta")
-    _PARTICIPACION_CHOICES = Venta.PARTICIPACION_JUNIOR_CHOICES + Venta.PARTICIPACION_SOCIO_CHOICES
-    _unique_participaciones = []; _seen_participaciones = set()
-    for _pc_val, _pc_label in _PARTICIPACION_CHOICES:
-        if _pc_val not in _seen_participaciones: _unique_participaciones.append((_pc_val, _pc_label)); _seen_participaciones.add(_pc_val)
-    participacion_en_venta_aplicable = models.CharField(max_length=50, choices=_unique_participaciones, default='N/A', verbose_name="Participación Aplicable para esta regla", help_text="Ej: 'opc y call' (Junior), 'front' (Socio Part.), 'N/A' (Socio VP)")
-    porcentaje_comision = models.DecimalField(max_digits=5, decimal_places=4, default=0.0000, verbose_name="Porcentaje de Comisión (%)")
-    def __str__(self): return f"Comisión: Rol {self.get_rol_asesor_en_venta_display()} - Venta {self.get_tipo_venta_display()} - Part: {self.get_participacion_en_venta_aplicable_display()}"
-    class Meta: verbose_name = "Tabla de Comisión Directa"; verbose_name_plural = "Tablas de Comisiones Directas"; unique_together = ('rol_asesor_en_venta', 'tipo_venta', 'participacion_en_venta_aplicable'); ordering = ['rol_asesor_en_venta', 'tipo_venta']
+    rol = models.CharField(max_length=20, choices=ROL_CHOICES)
+    tipo_venta = models.CharField(max_length=10, choices=TIPO_VENTA_CHOICES)
+    porcentaje_comision = models.DecimalField(max_digits=5, decimal_places=2)
+
+    class Meta:
+        unique_together = ('rol', 'tipo_venta')
+        ordering = ['rol', 'tipo_venta']
+        verbose_name = "Tabla de Comisión Directa"
+        verbose_name_plural = "Tablas de Comisiones Directas"
+
+    def __str__(self):
+        return f"{self.rol} - {self.tipo_venta}: {self.porcentaje_comision}%"
 
 class ConfigGeneral(models.Model):
     parametro = models.CharField(max_length=100, unique=True, primary_key=True, verbose_name="Parámetro")

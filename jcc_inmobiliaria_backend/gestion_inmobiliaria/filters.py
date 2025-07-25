@@ -83,11 +83,10 @@ class ClienteFilter(django_filters.FilterSet):
 
 class AsesorFilter(django_filters.FilterSet):
     nombre_asesor = django_filters.CharFilter(lookup_expr='icontains', label="Nombre del Asesor")
-    tipo_asesor_actual = django_filters.ChoiceFilter(choices=Asesor.TIPO_ASESOR_CHOICES, label="Tipo de Asesor Actual")
 
     class Meta:
         model = Asesor
-        fields = ['nombre_asesor', 'tipo_asesor_actual']
+        fields = ['nombre_asesor']
 
 class VentaFilter(django_filters.FilterSet):
     fecha_venta_after = django_filters.DateFilter(field_name='fecha_venta', lookup_expr='gte', label="Fecha Venta Desde (YYYY-MM-DD)")

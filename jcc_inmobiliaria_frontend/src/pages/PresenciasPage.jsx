@@ -55,6 +55,8 @@ function PresenciasPage() {
         tipo_tour: '',
     });
 
+    const [tablaComisiones, setTablaComisiones] = useState([]);
+
     const fetchPresencias = useCallback(async (currentFilters, page = 1, size = pageSize) => {
         setLoading(true);
         setError(null);
@@ -107,6 +109,16 @@ function PresenciasPage() {
     useEffect(() => {
         fetchPresencias(filters, currentPage, pageSize);
     }, [filters, currentPage, pageSize, fetchPresencias]);
+
+    useEffect(() => {
+      // Cargar la tabla de comisiones global al cargar la página
+      apiService.getTablaComisiones && apiService.getTablaComisiones().then(res => {
+        if (res && res.data) {
+          window.tablaComisionesGlobal = res.data;
+          setTablaComisiones(res.data);
+        }
+      });
+    }, []);
 
     const handleFilterChange = (e) => {
         const { name, value } = e.target;
@@ -407,6 +419,7 @@ function PresenciasPage() {
                     onClose={handleCloseModal} 
                     onSubmit={handleSubmitPresencia} 
                     initialData={editingPresencia}
+                    tablaComisiones={tablaComisiones}
                 />
             )}
         </div>

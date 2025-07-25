@@ -125,7 +125,6 @@ class AsesorSerializer(serializers.ModelSerializer):
             'id_referidor', 
             'nombre_referidor', 
             'fecha_ingreso', 
-            'tipo_asesor_actual', 
             'fecha_cambio_socio', 
             'observaciones_asesor', 
             
@@ -540,7 +539,9 @@ class PresenciaSerializer(serializers.ModelSerializer):
 class DefinicionMetaComisionSerializer(serializers.ModelSerializer):
     class Meta: model = DefinicionMetaComision; fields = '__all__'
 class TablaComisionDirectaSerializer(serializers.ModelSerializer):
-    class Meta: model = TablaComisionDirecta; fields = '__all__'
+    class Meta:
+        model = TablaComisionDirecta
+        fields = ['id_tabla_comision', 'rol', 'tipo_venta', 'porcentaje_comision']
 class ConfigGeneralSerializer(serializers.ModelSerializer):
     class Meta: model = ConfigGeneral; fields = '__all__'
 

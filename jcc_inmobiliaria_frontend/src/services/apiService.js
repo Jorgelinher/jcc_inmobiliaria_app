@@ -252,6 +252,37 @@ export const calculateCommission = (params) => apiClient.get('/gestion/calculate
 export const getCommissionStructure = () => apiClient.get('/gestion/commission-structure/');
 export const getGeneralConfigs = () => apiClient.get('/gestion/general-configs/');
 
+// --- API Tabla de Comisiones ---
+export async function getTablaComisiones() {
+  const res = await fetch('/api/gestion/tabla-comisiones/');
+  if (!res.ok) throw new Error('Error al obtener la tabla de comisiones');
+  const data = await res.json();
+  return Array.isArray(data.results) ? data.results : [];
+}
+export async function createComision(data) {
+  const res = await fetch('/api/tabla-comisiones/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Error al crear comisión');
+  return res.json();
+}
+export async function updateComision(id, data) {
+  const res = await fetch(`/api/tabla-comisiones/${id}/`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Error al actualizar comisión');
+  return res.json();
+}
+export async function deleteComision(id) {
+  const res = await fetch(`/api/tabla-comisiones/${id}/`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Error al eliminar comisión');
+  return true;
+}
+
 export const get = (url, config) => apiClient.get(url, config);
 export const post = (url, data, config) => apiClient.post(url, data, config);
 

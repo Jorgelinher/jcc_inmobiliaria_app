@@ -4,7 +4,7 @@ from rest_framework.routers import DefaultRouter
 from . import views
 from .views import (
     GestionCobranzaViewSet, CuotasPendientesCobranzaViewSet, CierreComisionViewSet,
-    LimpiarLotesDuplicadosAPIView,
+    LimpiarLotesDuplicadosAPIView, TablaComisionDirectaViewSet,
 )
 
 router = DefaultRouter()
@@ -24,6 +24,7 @@ router.register(r'cuotasplanpago', views.CuotaPlanPagoViewSet, basename='cuotapl
 router.register(r'cobranzas/gestiones', GestionCobranzaViewSet, basename='gestioncobranza')
 router.register(r'cobranzas/cuotas-pendientes', CuotasPendientesCobranzaViewSet, basename='cuotapendientecobranza')
 router.register(r'cierres-comisiones', CierreComisionViewSet, basename='cierres-comisiones')
+router.register(r'tabla-comisiones', TablaComisionDirectaViewSet, basename='tabla-comisiones')
 
 urlpatterns = [
     path('', include(router.urls)),

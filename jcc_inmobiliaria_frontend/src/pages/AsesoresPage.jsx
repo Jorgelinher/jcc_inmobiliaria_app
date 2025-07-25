@@ -37,7 +37,6 @@ function AsesoresPage() {
 
     const [filters, setFilters] = useState({
         nombre_asesor: '',
-        tipo_asesor_actual: ''
     });
 
     const fetchAsesores = useCallback(async (currentFilters, page = 1, size = pageSize) => {
@@ -89,7 +88,7 @@ function AsesoresPage() {
     };
 
     const resetFilters = () => {
-        setFilters({ nombre_asesor: '', tipo_asesor_actual: '' });
+        setFilters({ nombre_asesor: '' });
     };
 
     // Funciones de paginación
@@ -219,16 +218,6 @@ function AsesoresPage() {
                     onChange={handleFilterChange} 
                     className={styles.filterInput}
                 />
-                <select 
-                    name="tipo_asesor_actual" 
-                    value={filters.tipo_asesor_actual} 
-                    onChange={handleFilterChange} 
-                    className={styles.filterSelect}
-                >
-                    <option value="">Todos los Tipos</option>
-                    <option value="Junior">Junior</option>
-                    <option value="Socio">Socio</option>
-                </select>
                 <button onClick={resetFilters} className={styles.resetButton}>Limpiar Filtros</button>
             </div>
 
@@ -274,7 +263,6 @@ function AsesoresPage() {
                                 <tr>
                                     <th>ID Asesor</th>
                                     <th>Nombre</th>
-                                    <th>Tipo</th>
                                     <th>Fecha Ingreso</th>
                                     <th>Referidor</th>
                                     <th style={{minWidth: '180px'}}>Acciones</th>
@@ -285,7 +273,6 @@ function AsesoresPage() {
                                     <tr key={asesor.id_asesor}>
                                         <td data-label="ID Asesor">{asesor.id_asesor}</td>
                                         <td data-label="Nombre">{asesor.nombre_asesor}</td>
-                                        <td data-label="Tipo">{asesor.tipo_asesor_actual}</td>
                                         <td data-label="Fecha Ingreso">{displayDate(asesor.fecha_ingreso)}</td>
                                         <td data-label="Referidor">{asesor.id_referidor ? (asesor.nombre_referidor || asesorMap[asesor.id_referidor] || asesor.id_referidor) : '-'}</td>
                                         <td data-label="Acciones" className={styles.actionButtons}>

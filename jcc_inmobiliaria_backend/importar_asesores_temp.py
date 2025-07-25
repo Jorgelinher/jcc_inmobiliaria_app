@@ -63,7 +63,6 @@ try:
                     asesor.numero_cuenta_bancaria = cuenta_bancaria
                     asesor.cci_cuenta_bancaria = cci
                     asesor.fecha_ingreso = fecha_ingreso_dt
-                    asesor.tipo_asesor_actual = tipo
                     asesor.fecha_cambio_socio = fecha_cambio_socio_dt
                     asesor.observaciones_asesor = observaciones
                     asesor.save()
@@ -83,7 +82,6 @@ try:
                         numero_cuenta_bancaria=cuenta_bancaria,
                         cci_cuenta_bancaria=cci,
                         fecha_ingreso=fecha_ingreso_dt,
-                        tipo_asesor_actual=tipo,
                         fecha_cambio_socio=fecha_cambio_socio_dt,
                         observaciones_asesor=observaciones
                     )

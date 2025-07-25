@@ -106,7 +106,6 @@ function AsesorDetailPage() {
                     <div className={styles.detailItem}><strong>ID Asesor:</strong> <span>{displayValue(asesor.id_asesor)}</span></div>
                     <div className={styles.detailItem}><strong>Nombre Completo:</strong> <span>{displayValue(asesor.nombre_asesor)}</span></div>
                     <div className={styles.detailItem}><strong>DNI:</strong> <span>{displayValue(asesor.dni)}</span></div>
-                    <div className={styles.detailItem}><strong>Tipo Actual:</strong> <span>{displayValue(asesor.tipo_asesor_actual)}</span></div>
                     <div className={styles.detailItem}><strong>Fecha de Ingreso:</strong> <span>{displayDate(asesor.fecha_ingreso)}</span></div>
                     <div className={styles.detailItem}><strong>Referidor (Líder):</strong> <span>{displayValue(asesor.nombre_referidor || asesor.id_referidor)}</span></div>
                     <div className={styles.detailItem}><strong>Fecha Cambio a Socio:</strong> <span>{displayDate(asesor.fecha_cambio_socio)}</span></div>

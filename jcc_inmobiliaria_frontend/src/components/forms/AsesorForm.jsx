@@ -109,8 +109,8 @@ function AsesorForm({ show, onClose, onSubmit, initialData, asesoresList = [], f
         setErrorsByField({});
         if (clearExternalError) clearExternalError();
 
-        if (!formData.nombre_asesor.trim() || !formData.fecha_ingreso || !formData.tipo_asesor_actual) {
-            setInternalFormError("Nombre, Fecha de Ingreso y Tipo de Asesor son campos requeridos.");
+        if (!formData.nombre_asesor.trim() || !formData.fecha_ingreso) {
+            setInternalFormError("Nombre y Fecha de Ingreso son campos requeridos.");
             return;
         }
         if (formData.dni && formData.dni.trim() !== '' && !/^\d{8}$/.test(formData.dni)) {
@@ -232,13 +232,6 @@ function AsesorForm({ show, onClose, onSubmit, initialData, asesoresList = [], f
                             <label htmlFor="fecha_ingreso">Fecha de Ingreso <span className={formBaseStyles.required}>*</span></label>
                             <input type="date" id="fecha_ingreso" name="fecha_ingreso" value={formData.fecha_ingreso} onChange={handleChange} required />
                             {errorsByField['fecha_ingreso'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['fecha_ingreso']}</div>}
-                        </div>
-                        <div className={formBaseStyles.formGroup}>
-                            <label htmlFor="tipo_asesor_actual">Tipo Asesor Actual <span className={formBaseStyles.required}>*</span></label>
-                            <select id="tipo_asesor_actual" name="tipo_asesor_actual" value={formData.tipo_asesor_actual} onChange={handleChange} required>
-                                {TIPO_ASESOR_CHOICES.map(option => (<option key={option.value} value={option.value}>{option.label}</option>))}
-                            </select>
-                            {errorsByField['tipo_asesor_actual'] && <div className={formBaseStyles.errorMessageField}>{errorsByField['tipo_asesor_actual']}</div>}
                         </div>
                         <div className={formBaseStyles.formGroup}>
                             <label htmlFor="id_referidor">Asesor Referidor (Líder)</label>

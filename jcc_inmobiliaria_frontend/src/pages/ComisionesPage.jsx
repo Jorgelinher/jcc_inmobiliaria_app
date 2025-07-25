@@ -138,7 +138,7 @@ function ComisionesPage() {
                 <div className={styles.summaryGrid}>
                     {summaryData.map(asesorData => (
                         <div key={asesorData.asesor_id} className={styles.asesorCard}>
-                            <h3>{asesorData.nombre_asesor} ({asesorData.tipo_asesor})</h3>
+                            <h3>{asesorData.nombre_asesor}</h3>
                             <p><strong>Periodo:</strong> {asesorData.periodo}</p>
                             <div className={styles.sectionBlock}>
                                 <h4>Comisiones</h4>
